@@ -147,3 +147,21 @@ func TestFindItemsHaveUniqueAccelerators(t *testing.T) {
 		}
 	}
 }
+
+// With the window hidden (#17), a menu chord must not edit, save, export or
+// print the document nobody can see — final review, Important 1.
+func TestWhenVisibleSkipsHiddenWindow(t *testing.T) {
+	ran := 0
+	whenVisible(false, func() { ran++ })
+	if ran != 0 {
+		t.Errorf("a document command ran %d times on a hidden window", ran)
+	}
+}
+
+func TestWhenVisibleRunsOnShownWindow(t *testing.T) {
+	ran := 0
+	whenVisible(true, func() { ran++ })
+	if ran != 1 {
+		t.Errorf("a document command on a shown window ran %d times, want 1", ran)
+	}
+}

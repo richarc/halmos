@@ -15,6 +15,14 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	menu := application.NewMenu()
 	menu.AddRole(application.AppMenu)
 
+	// Menu events that act on the open document. Closing hides the window
+	// rather than quitting (#17), so these are dropped while it is hidden:
+	// otherwise ⌘B or Insert would edit, and ⌘S save, a document nobody can
+	// see. New, Open and Open Recent show the window instead (showWindow).
+	docEmit := func(name string, data ...any) {
+		whenVisible(win.IsVisible(), func() { app.Event.Emit(name, data...) })
+	}
+
 	// ⌘Q used to discard unsaved work: main.go's guard is registered on
 	// events.Common.WindowClosing, a *window* event, and quitting never raises
 	// one. Route the shortcut through the same confirm the red button uses.
@@ -27,7 +35,12 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	if quit := reclaimQuitItem(menu); quit != nil {
 		quit.OnClick(func(*application.Context) {
 			quitRequest(docs.IsDirty(),
-				func() { app.Event.Emit("close:confirm", "quit") },
+				// Shown first: with the window hidden (#17) the dialog
+				// would otherwise render where nobody can see it.
+				func() {
+					showWindow(win)
+					app.Event.Emit("close:confirm", "quit")
+				},
 				app.Quit)
 		})
 	}
@@ -62,10 +75,10 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	}
 
 	file.Add("Save").SetAccelerator("cmdorctrl+s").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:save")
+		docEmit("menu:save")
 	})
 	file.Add("Save As…").SetAccelerator("shift+cmdorctrl+s").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:save-as")
+		docEmit("menu:save-as")
 	})
 	file.AddSeparator()
 	current := docs.Settings()
@@ -113,10 +126,10 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	// the save dialog offers a filename derived from the document's own path,
 	// and only the frontend knows what that path currently is.
 	file.Add("Export PDF…").SetAccelerator("cmdorctrl+e").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:export-pdf")
+		docEmit("menu:export-pdf")
 	})
 	file.Add("Print…").SetAccelerator("cmdorctrl+p").OnClick(func(*application.Context) {
-		docs.PrintDocument()
+		whenVisible(win.IsVisible(), docs.PrintDocument)
 	})
 
 	// Wails' EditMenu role, spelled out so Find can join it. The native Find
@@ -139,7 +152,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, f := range findItems {
 		command := f.command
 		find.Add(f.label).SetAccelerator(f.key).OnClick(func(*application.Context) {
-			app.Event.Emit("menu:find", command)
+			docEmit("menu:find", command)
 		})
 	}
 	edit.AddSeparator()
@@ -147,16 +160,16 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 
 	insert := menu.AddSubmenu("Insert")
 	insert.Add("Citation…").SetAccelerator("shift+cmdorctrl+c").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:insert-citation", nil)
+		docEmit("menu:insert-citation", nil)
 	})
 	// No accelerator: an invented chord cannot be checked against every macOS
 	// binding, and the menu item is the discoverable route — the same reasoning
 	// as Blockquote in the Format menu.
 	insert.Add("Chart…").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:insert-chart", nil)
+		docEmit("menu:insert-chart", nil)
 	})
 	insert.Add("Table…").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:insert-table", nil)
+		docEmit("menu:insert-table", nil)
 	})
 
 	// A submenu rather than a dialog: a code fence is a delimiter and a
@@ -190,14 +203,14 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, l := range codeLanguages {
 		token := l.token
 		codeBlock.Add(l.label).OnClick(func(*application.Context) {
-			app.Event.Emit("menu:insert-code", token)
+			docEmit("menu:insert-code", token)
 		})
 	}
 	// Separated for the same reason Paragraph is separated from the headings
 	// below: it is the "no language" option, not another language.
 	codeBlock.AddSeparator()
 	codeBlock.Add("Plain text").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:insert-code", "")
+		docEmit("menu:insert-code", "")
 	})
 
 	format := menu.AddSubmenu("Format")
@@ -217,12 +230,12 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, h := range headings {
 		arg := h.arg
 		heading.Add(h.label).SetAccelerator(h.key).OnClick(func(*application.Context) {
-			app.Event.Emit("menu:format", arg)
+			docEmit("menu:format", arg)
 		})
 	}
 	heading.AddSeparator()
 	heading.Add("Paragraph").SetAccelerator("cmdorctrl+0").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:format", "heading:0")
+		docEmit("menu:format", "heading:0")
 	})
 
 	format.AddSeparator()
@@ -239,21 +252,21 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, it := range inline {
 		arg := it.arg
 		format.Add(it.label).SetAccelerator(it.key).OnClick(func(*application.Context) {
-			app.Event.Emit("menu:format", arg)
+			docEmit("menu:format", arg)
 		})
 	}
 
 	format.AddSeparator()
 	format.Add("Bulleted List").SetAccelerator("shift+cmdorctrl+8").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:format", "bullet")
+		docEmit("menu:format", "bullet")
 	})
 	format.Add("Numbered List").SetAccelerator("shift+cmdorctrl+7").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:format", "ordered")
+		docEmit("menu:format", "ordered")
 	})
 	// Blockquote deliberately has no accelerator: the punctuation chords are
 	// not worth guessing at, and the menu item is the discoverable route.
 	format.Add("Blockquote").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:format", "quote")
+		docEmit("menu:format", "quote")
 	})
 
 	view := menu.AddSubmenu("View")
@@ -385,7 +398,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, f := range folds {
 		arg := f.arg
 		view.Add(f.label).SetAccelerator(f.key).OnClick(func(*application.Context) {
-			app.Event.Emit("menu:fold", arg)
+			docEmit("menu:fold", arg)
 		})
 	}
 
@@ -394,10 +407,10 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	// binding, and the menu item is the discoverable route — the same reasoning
 	// as Blockquote in the Format menu.
 	view.Add("Fold All Code Blocks").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:fold", "fold-all-code")
+		docEmit("menu:fold", "fold-all-code")
 	})
 	view.Add("Unfold All").OnClick(func(*application.Context) {
-		app.Event.Emit("menu:fold", "unfold-all")
+		docEmit("menu:fold", "unfold-all")
 	})
 
 	menu.AddRole(application.WindowMenu)
@@ -450,6 +463,8 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	// The manual route. The frontend runs the check and reports the result,
 	// because the result is a dialog or a toast, which live there.
 	help.Add("Check for Updates…").OnClick(func(*application.Context) {
+		// The result is a dialog or toast in the window, so bring it back.
+		showWindow(win)
 		app.Event.Emit("menu:check-updates")
 	})
 	// Ticked only for "on": "unasked" reads as off here, and clicking it
@@ -537,6 +552,14 @@ func closeRequest(dirty bool, confirm func(), close func()) {
 		return
 	}
 	close()
+}
+
+// whenVisible runs act only if the window is showing. Split out so the branch
+// is testable without a window.
+func whenVisible(visible bool, act func()) {
+	if visible {
+		act()
+	}
 }
 
 // showWindow brings the window back if a close hid it. Menu items that start
