@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.4] - 2026-10-11
+
+### Added
+
+- Edit → Find: Find… (⌘F), Find and Replace… (⌥⌘F), Find Next (⌘G) and
+  Find Previous (⇧⌘G) search the document from anywhere in the window. ⌘F
+  previously worked only with the cursor in the editor, and no menu showed
+  it. (#18)
+- Hermes is listed in Finder's Open With for `.md` and `.markdown` files.
+  Opening one starts Hermes with that file, or opens it in the running app,
+  asking about unsaved changes first. (#19)
+
+### Fixed
+
+- Closing the window no longer quits Hermes. The app stays in the Dock, and
+  clicking its icon brings back the welcome pane. Unsaved changes are still
+  asked about before the window closes. ⌘Q quits as before. (#17)
+
 ## [0.11.3] - 2026-09-29
 
 ### Fixed
