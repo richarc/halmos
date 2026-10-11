@@ -35,6 +35,7 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       Save: vi.fn(async () => {}),
       SaveAs: vi.fn(async () => ''),
       Quit: vi.fn(async () => {}),
+      CloseWindow: vi.fn(async () => {}),
       PickCitations: vi.fn(async () => ''),
       ExportPDF: vi.fn(async () => {}),
       Settings: vi.fn(async () => settings.current),
@@ -1686,5 +1687,64 @@ describe('spell checking setting', () => {
     await vi.waitFor(() =>
       expect(target.querySelector('.cm-content')!.getAttribute('spellcheck')).toBe('true'),
     )
+  })
+})
+
+// #17: closing the window hides it and leaves Hermes in the Dock. The close
+// button sends close:confirm with "close"; ⌘Q sends "quit" (or, in older
+// tests, null — still a quit).
+describe('closing the window', () => {
+  it('hides the window after Don\'t Save on a close, rather than quitting', async () => {
+    const target = await openDoc('# Results\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: 0, to: 0, insert: 'x' } })
+    flushSync()
+
+    listeners['close:confirm']({ data: 'close' })
+    flushSync()
+    const confirm = target.querySelector<HTMLDialogElement>('dialog[aria-label="Unsaved changes"]')!
+    expect(confirm.open).toBe(true)
+    buttonByText(confirm, "Don't Save")!.click()
+
+    await vi.waitFor(() => expect(DocumentService.CloseWindow).toHaveBeenCalled())
+    expect(DocumentService.Quit).not.toHaveBeenCalled()
+  })
+
+  it('still quits after Don\'t Save when the payload is not "close"', async () => {
+    const target = await openDoc('# Results\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: 0, to: 0, insert: 'x' } })
+    flushSync()
+
+    listeners['close:confirm']({ data: 'quit' })
+    flushSync()
+    const confirm = target.querySelector<HTMLElement>('dialog[aria-label="Unsaved changes"]')!
+    buttonByText(confirm, "Don't Save")!.click()
+
+    await vi.waitFor(() => expect(DocumentService.Quit).toHaveBeenCalled())
+    expect(DocumentService.CloseWindow).not.toHaveBeenCalled()
+  })
+
+  it('returns to the welcome pane when the document is closed', async () => {
+    const target = await openDoc('# Results\n')
+    expect(target.querySelector('.welcome')).toBeNull()
+
+    listeners['document:closed']({ data: null })
+    flushSync()
+
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    expect(view.state.doc.toString()).toBe('')
+  })
+
+  it('names closing, not quitting, when a builder refuses a close', async () => {
+    const target = await openDoc('# Results\n\nJust prose.\n')
+    listeners['menu:insert-chart']({ data: null })
+    flushSync()
+
+    listeners['close:confirm']({ data: 'close' })
+    flushSync()
+
+    expect(target.textContent).toContain('Finish or cancel the chart before closing')
   })
 })

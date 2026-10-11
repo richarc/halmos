@@ -49,6 +49,15 @@ export function ClearRecents(): $CancellablePromise<void> {
 }
 
 /**
+ * CloseWindow is what runs after the user resolves the unsaved-changes dialog
+ * raised by the close button. It hides the window rather than quitting, so the
+ * app stays in the Dock (#17); a clean close takes the same path from main.go.
+ */
+export function CloseWindow(): $CancellablePromise<void> {
+    return $Call.ByID(2063789588);
+}
+
+/**
  * CreateDocument is the second half: it writes the document, and — when
  * bibName is set — a bibliography beside it, resolved the same way a
  * `bibliography:` key is. A bibliography that already exists is left exactly

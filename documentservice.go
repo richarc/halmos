@@ -38,6 +38,9 @@ type DocumentService struct {
 	// Brings the window back to the front. Set once during startup; nil in
 	// tests, where there is no window. See PickCitations for why it exists.
 	onRefocus func()
+	// Hides the window and tells the frontend the document is closed. Set
+	// once during startup; nil in tests. See CloseWindow.
+	closeWindow func()
 	// Serialises the read-modify-write of the recents file.
 	recentsMu      sync.Mutex
 	watchTick      time.Duration
@@ -330,6 +333,15 @@ func (s *DocumentService) PrintDocument() {
 
 func (s *DocumentService) Quit() {
 	application.Get().Quit()
+}
+
+// CloseWindow is what runs after the user resolves the unsaved-changes dialog
+// raised by the close button. It hides the window rather than quitting, so the
+// app stays in the Dock (#17); a clean close takes the same path from main.go.
+func (s *DocumentService) CloseWindow() {
+	if s.closeWindow != nil {
+		s.closeWindow()
+	}
 }
 
 func (s *DocumentService) ClearRecents() {

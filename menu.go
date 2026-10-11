@@ -27,16 +27,18 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	if quit := reclaimQuitItem(menu); quit != nil {
 		quit.OnClick(func(*application.Context) {
 			quitRequest(docs.IsDirty(),
-				func() { app.Event.Emit("close:confirm") },
+				func() { app.Event.Emit("close:confirm", "quit") },
 				app.Quit)
 		})
 	}
 
 	file := menu.AddSubmenu("File")
 	file.Add("New…").SetAccelerator("cmdorctrl+n").OnClick(func(*application.Context) {
+		showWindow(win)
 		app.Event.Emit("menu:new")
 	})
 	file.Add("Open…").SetAccelerator("cmdorctrl+o").OnClick(func(*application.Context) {
+		showWindow(win)
 		app.Event.Emit("menu:open")
 	})
 
@@ -45,6 +47,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, p := range recents {
 		path := p
 		recent.Add(filepath.Base(path)).OnClick(func(*application.Context) {
+			showWindow(win)
 			app.Event.Emit("menu:open-recent", path)
 		})
 	}
@@ -489,4 +492,24 @@ func quitRequest(dirty bool, confirm func(), quit func()) {
 		return
 	}
 	quit()
+}
+
+// closeRequest decides what the window's close button does: raise the
+// unsaved-changes confirm, or close. Split out for the same reason as
+// quitRequest. Closing hides the window rather than quitting, so Hermes stays
+// in the Dock and a click on its icon brings the window back (#17).
+func closeRequest(dirty bool, confirm func(), close func()) {
+	if dirty {
+		confirm()
+		return
+	}
+	close()
+}
+
+// showWindow brings the window back if a close hid it. Menu items that start
+// a document emit to the frontend, and a hidden window would act on them
+// invisibly.
+func showWindow(win *application.WebviewWindow) {
+	win.Show()
+	win.Focus()
 }

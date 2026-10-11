@@ -84,7 +84,11 @@ func main() {
 			Middleware: localImages,
 		},
 		Mac: application.MacOptions{
-			ApplicationShouldTerminateAfterLastWindowClosed: true,
+			// False so closing the window leaves Hermes running in the Dock
+			// (#17). The window is hidden, never destroyed (see the
+			// WindowClosing hook), and Wails' own ApplicationShouldHandleReopen
+			// handler shows it again on a Dock click.
+			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
 	})
 
@@ -118,11 +122,19 @@ func main() {
 	// a destroyed window, so it needs no wrapping here.
 	docs.onRefocus = win.Focus
 
+	docs.closeWindow = func() {
+		win.Hide()
+		app.Event.Emit("document:closed")
+	}
+
+	// Always cancelled: a destroyed window could not be brought back by the
+	// Dock, so closing hides it instead. The payload tells the frontend this
+	// is a close, not a quit, so it hides afterwards rather than exiting.
 	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		if docs.IsDirty() {
-			e.Cancel()
-			app.Event.Emit("close:confirm")
-		}
+		e.Cancel()
+		closeRequest(docs.IsDirty(),
+			func() { app.Event.Emit("close:confirm", "close") },
+			docs.CloseWindow)
 	})
 
 	// Rebuild the menu (Open Recent submenu) whenever recents change. The

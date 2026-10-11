@@ -60,7 +60,7 @@
   let savedContent = $state('')
   let html = $state('')
   let recents = $state<string[]>([])
-  let pendingAction = $state<'quit' | 'open' | 'new' | null>(null)
+  let pendingAction = $state<'quit' | 'close' | 'open' | 'new' | null>(null)
   let pendingRecentPath = $state<string | null>(null)
   let welcomeDismissed = $state(false)
   let toastMsg = $state('')
@@ -849,6 +849,7 @@
     pendingAction = null
     pendingRecentPath = null
     if (action === 'quit') void drafts.settle().then(() => DocumentService.Quit())
+    else if (action === 'close') void drafts.settle().then(() => DocumentService.CloseWindow())
     else if (action === 'new') newOpen = true
     else if (action === 'open') {
       if (recentPath) void openRecent(recentPath)
@@ -913,6 +914,26 @@
     },
   }
 
+  // Go hid the window (#17): the app stays in the Dock, and a click on it
+  // brings back the welcome pane rather than the document just closed. Only
+  // reached clean — a dirty close goes through the unsaved-changes dialog
+  // first — so there is nothing here to save.
+  function closeDocument() {
+    drafts.reset()
+    draftWriteWarned = false
+    recovery = null
+    path = null
+    editor.setContent('')
+    content = ''
+    savedContent = ''
+    welcomeDismissed = false
+    updatePreview.cancel()
+    renderInto('')
+    // Mirrors first launch: with no recents the welcome pane has nothing to
+    // show, so start a templated document instead.
+    if (recents.length === 0) doNew()
+  }
+
   async function startDemo() {
     let steps: Awaited<ReturnType<typeof DemoService.Script>>
     try {
@@ -944,7 +965,11 @@
     })
     Events.On('menu:save', () => void save())
     Events.On('menu:save-as', () => void saveAs())
-    Events.On('close:confirm', () => {
+    Events.On('close:confirm', (ev: { data: unknown }) => {
+      // 'close' from the window's close button, 'quit' from ⌘Q. Anything
+      // else is treated as a quit, the older and safer reading.
+      const intent = ev.data === 'close' ? 'close' : 'quit'
+      const verb = intent === 'close' ? 'closing' : 'quitting'
       // Mirrors the openChartBuilder guard above: don't raise the
       // unsaved-changes dialog behind the chart modal, which has no focus
       // trap of its own.
@@ -956,15 +981,16 @@
       // discards an in-progress chart to ask about a different document's
       // unsaved changes.
       if (chartOpen) {
-        toast('Finish or cancel the chart before quitting.')
+        toast(`Finish or cancel the chart before ${verb}.`)
         return
       }
       if (tableOpen) {
-        toast('Finish or cancel the table before quitting.')
+        toast(`Finish or cancel the table before ${verb}.`)
         return
       }
-      pendingAction = 'quit'
+      pendingAction = intent
     })
+    Events.On('document:closed', closeDocument)
     Events.On('recents:changed', () => void refreshRecents())
     Events.On('bib:changed', () => void reloadBibliography())
     Events.On('menu:insert-citation', () => void insertCitation())

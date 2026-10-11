@@ -88,3 +88,29 @@ func TestQuitRequestQuitsWhenClean(t *testing.T) {
 		t.Errorf("a clean document must not prompt, raised %d", confirmed)
 	}
 }
+
+// The red button's branch. Same shape as quitRequest, but the clean path
+// hides the window instead of quitting, so the app stays in the Dock (#17).
+func TestCloseRequestConfirmsWhenDirty(t *testing.T) {
+	confirmed, closed := 0, 0
+	closeRequest(true, func() { confirmed++ }, func() { closed++ })
+
+	if confirmed != 1 {
+		t.Errorf("a dirty document must raise the confirm, raised %d", confirmed)
+	}
+	if closed != 0 {
+		t.Errorf("a dirty document must not close yet, closed %d", closed)
+	}
+}
+
+func TestCloseRequestClosesWhenClean(t *testing.T) {
+	confirmed, closed := 0, 0
+	closeRequest(false, func() { confirmed++ }, func() { closed++ })
+
+	if closed != 1 {
+		t.Errorf("a clean document must close, closed %d", closed)
+	}
+	if confirmed != 0 {
+		t.Errorf("a clean document must not prompt, raised %d", confirmed)
+	}
+}
