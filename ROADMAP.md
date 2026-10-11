@@ -919,6 +919,30 @@ are where the 38 ms goes.
       tag compiles out both Wails' devtools and `inspector_darwin.go`, which
       sets the `inspectable` property Wails itself never sets on macOS.
 
+## v0.11.1–v0.11.4 — Patch releases ✅ (released 2026-09-12 to 2026-10-11)
+
+Fixes and small additions after v0.11.0, mostly from GitHub issues. Each is
+detailed in CHANGELOG.md.
+
+- [x] **v0.11.1** (2026-09-12). Demo mode for recording guide videos
+      (`HERMES_DEMO`, `docs/demos/`). The template's `toc:` line works by
+      deleting one `#` (#8). The preview updates during continuous typing
+      instead of waiting for a pause.
+- [x] **v0.11.2** (2026-09-12). Help → Discussions and a start-screen link
+      to GitHub Discussions. Help → Report an Issue… opens the bug report
+      form with the version and macOS fields filled in.
+- [x] **v0.11.3** (2026-09-29). Display maths wider than the preview is
+      scaled to fit (#14). A full-width table keeps its right border in the
+      exported PDF (#15).
+- [x] **v0.11.4** (2026-10-11). Closing the window hides it instead of
+      quitting, so Hermes stays in the Dock and a Dock click brings back the
+      welcome pane (#17). Edit → Find with Find and Replace, Find Next and
+      Find Previous, routed to the editor's search panel (#18). `.md` and
+      `.markdown` registered as editable document types, so Hermes appears
+      in Finder's Open With, and files opened from Finder open in the app
+      (#19). Menu commands that act on the document are ignored while the
+      window is hidden. Plan: `docs/superpowers/plans/2026-10-11-v0.11.4-open-issues.md`.
+
 ## v1.0.0 — Production
 
 Distribution is step 1 of the website work: GitHub Releases for the binary and
@@ -930,7 +954,10 @@ separate, much larger project and is deliberately not part of this.
       frontend suite and audit on Linux and the Go suite, build and
       govulncheck on macOS, and `codeql.yml` alongside it — but nothing
       releases. Do the first release by hand so the steps are understood, then
-      move `wails3 task release` into a tag-triggered workflow. That needs the
+      move `wails3 task release` into a tag-triggered workflow. *Status
+      2026-10-11*: every release from v0.9.0 to v0.11.4 has been cut by hand
+      with `wails3 task release`, so the manual steps are understood; the
+      workflow is what remains. That needs the
       Developer ID certificate and an App Store Connect API key as repository
       secrets, which is the part worth getting right rather than fast: a
       leaked signing identity is not revocable in any comfortable way. The
@@ -953,6 +980,9 @@ separate, much larger project and is deliberately not part of this.
       the same team, so if the Developer ID ever changes — an individual
       enrolment becoming an organization one, say — that needs a transitional
       release. Cheapest while there are few users.
+      *Status 2026-10-11*: since v0.10.0 Hermes checks a feed
+      (`updates/latest.json`) and tells the user a newer version exists, but
+      downloading and installing it is still manual.
 - [ ] Windows and Linux stay in the backlog.
 
 ## v1.1.0 — Advanced features (SaaS back end)
@@ -1027,6 +1057,25 @@ Ideas noted along the way, not yet committed to a release:
   watch, sync and export, tested twice, forever. The organisational problem it
   was meant to solve is being approached instead by making long blocks
   collapsible in the editor.
+
+- Leftovers from the v0.11.4 final review, judged minor:
+  - Closing the window while the chart builder, table builder or New
+    dialog is open leaves it open; after a Dock click it reappears over the
+    welcome pane. `closeDocument` in `App.svelte` could close them.
+  - A file opened from Finder while a builder or the New dialog is open is
+    ignored with no message (`requestOpenRecent` returns early).
+  - A file opened from Finder while the unsaved-changes dialog is up for a
+    close or quit replaces that pending action, so Don't Save opens the
+    file instead of closing or quitting.
+- Quitting from the Dock menu or at logout with unsaved changes loses them.
+  Those paths go straight to `applicationShouldTerminate`, which Wails
+  beta.12 gives no hook for; only ⌘Q and the close button are guarded.
+  Pre-dates v0.11.4.
+- The `.md` association is by extension only (`CFBundleTypeExtensions`). If
+  Open With turns out to miss Hermes on some macOS version, add
+  `LSItemContentTypes` with `net.daringfireball.markdown`. Wails' Info.plist
+  template has no field for it, so it would be a hand edit that
+  `update:build-assets` drops.
 
 ### Deferred review findings
 
