@@ -1,0 +1,37 @@
+# Opens demo.md, adds a section of LaTeX formulae, then a section that cites
+# a reference from demo.bib and ends on the reference list. Run with:
+#
+#   open -n "bin/Hermes Editor.app" --env HERMES_DEMO=$PWD/docs/demos/citations.demo
+#
+# The recording lands beside this script. The Cite button opens Zotero's own
+# picker, which a script cannot drive, so the citation is typed in the form
+# the picker would insert: [@key], resolved against demo.bib.
+open ../demo.md
+pause 2000
+fullscreen
+pause 600
+record citations.mov
+pause 800
+goto 9
+type 35
+
+## Add formula with embedded LaTeX
+
+A measurement leaves the system in a superposition of branches, $|\psi\rangle = \sum_i c_i |\phi_i\rangle$, and the weight of each branch is $|c_i|^2$. The universal wave function evolves under the Schrödinger equation alone, with no collapse:
+
+$$
+i\hbar \frac{\partial}{\partial t} |\Psi(t)\rangle = \hat{H} |\Psi(t)\rangle
+$$
+
+## Integrated Zotero for citation
+
+Everett's relative-state formulation dropped the collapse postulate and treated the observer as one more quantum system, so every outcome of a measurement is realised in some branch of the universal wave function
+.
+pause 900
+type 60
+ [@everettRelativeStateFormulation1957].
+.
+pause 1500
+goto 18
+pause 3500
+stop
