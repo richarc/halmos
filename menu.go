@@ -119,7 +119,31 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 		docs.PrintDocument()
 	})
 
-	menu.AddRole(application.EditMenu)
+	// Wails' EditMenu role, spelled out so Find can join it. The native Find
+	// roles are not used: they send performTextFinderAction: to WKWebView,
+	// which searches the rendered page, not CodeMirror's document (only the
+	// visible lines of which are in the DOM). These route to the editor's own
+	// search panel instead (#18).
+	edit := menu.AddSubmenu("Edit")
+	edit.AddRole(application.Undo)
+	edit.AddRole(application.Redo)
+	edit.AddSeparator()
+	edit.AddRole(application.Cut)
+	edit.AddRole(application.Copy)
+	edit.AddRole(application.Paste)
+	edit.AddRole(application.PasteAndMatchStyle)
+	edit.AddRole(application.Delete)
+	edit.AddRole(application.SelectAll)
+	edit.AddSeparator()
+	find := edit.AddSubmenu("Find")
+	for _, f := range findItems {
+		command := f.command
+		find.Add(f.label).SetAccelerator(f.key).OnClick(func(*application.Context) {
+			app.Event.Emit("menu:find", command)
+		})
+	}
+	edit.AddSeparator()
+	edit.AddRole(application.SpeechMenu)
 
 	insert := menu.AddSubmenu("Insert")
 	insert.Add("Citation…").SetAccelerator("shift+cmdorctrl+c").OnClick(func(*application.Context) {
@@ -492,6 +516,15 @@ func quitRequest(dirty bool, confirm func(), quit func()) {
 		return
 	}
 	quit()
+}
+
+// findItems is the Edit → Find submenu. command is the menu:find payload,
+// which App.svelte hands to Editor.find.
+var findItems = []struct{ label, key, command string }{
+	{"Find…", "cmdorctrl+f", "open"},
+	{"Find and Replace…", "alt+cmdorctrl+f", "replace"},
+	{"Find Next", "cmdorctrl+g", "next"},
+	{"Find Previous", "shift+cmdorctrl+g", "previous"},
 }
 
 // closeRequest decides what the window's close button does: raise the

@@ -11,6 +11,7 @@
   import type { SyntaxNode } from '@lezer/common'
   import { codeHighlightStyleSpecs } from './lib/syntaxTags'
   import { spellcheckExtension } from './lib/spellcheck'
+  import { openSearchPanel, findNext, findPrevious } from '@codemirror/search'
 
   let {
     onchange,
@@ -84,10 +85,9 @@
       border: 'none',
     },
     '.cm-activeLineGutter': { backgroundColor: 'var(--editor-active-line)' },
-    // basicSetup's searchKeymap self-installs a find/replace panel on ⌘F, and
-    // nothing intercepts that chord ahead of CodeMirror (Wails' Edit menu role
-    // has no Find item), so the panel and its controls need the same var()
-    // treatment as the document — otherwise they stay on the base theme's
+    // basicSetup's searchKeymap installs a find/replace panel, opened by ⌘F
+    // and by Edit → Find (see find() below), so the panel and its controls
+    // need the same var() treatment as the document — otherwise they stay on the base theme's
     // `&light` rules and read as a light bar pinned to a dark editor.
     '.cm-panels': { backgroundColor: 'var(--editor-gutter-bg)', color: 'var(--editor-fg)' },
     '.cm-panels-top': { borderBottom: '1px solid var(--border)' },
@@ -279,6 +279,23 @@
   export function runCommand(cmd: Command): void {
     cmd(view)
     view.focus()
+  }
+
+  /**
+   * Edit → Find (#18). The panel is basicSetup's own, the one ⌘F already
+   * opens with the editor focused; the menu makes it reachable from anywhere
+   * in the window. Focus moves to the editor first because the commands act
+   * on, and the panel opens in, the focused view.
+   */
+  export function find(cmd: 'open' | 'replace' | 'next' | 'previous'): boolean {
+    view.focus()
+    if (cmd === 'next') return findNext(view)
+    if (cmd === 'previous') return findPrevious(view)
+    const opened = openSearchPanel(view)
+    if (cmd === 'replace') {
+      view.dom.querySelector<HTMLInputElement>('.cm-search [name=replace]')?.focus()
+    }
+    return opened
   }
 
   /** Total lines in the document, for mapping against the preview's extent. */

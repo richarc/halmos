@@ -4,6 +4,7 @@ import { mount, unmount, flushSync } from 'svelte'
 import { EditorView, type Command } from '@codemirror/view'
 import { foldCode, forceParsing } from '@codemirror/language'
 import { undo } from '@codemirror/commands'
+import { setSearchQuery, SearchQuery } from '@codemirror/search'
 import Editor from './Editor.svelte'
 import { toggleBold } from './lib/markdownCommands'
 
@@ -24,6 +25,7 @@ interface EditorApi {
   enclosingChartBlock(): ChartBlock | null
   enclosingTable(): { from: number; to: number; text: string } | null
   replaceRange(from: number, to: number, text: string): void
+  find(cmd: 'open' | 'replace' | 'next' | 'previous'): boolean
 }
 
 /**
@@ -604,6 +606,49 @@ describe('spell checking', () => {
     const content = target.querySelector('.cm-content')!
     expect(content.getAttribute('spellcheck')).toBe('false')
     expect(content.querySelectorAll('[spellcheck="false"]')).toHaveLength(0)
+    cleanup()
+  })
+})
+
+// #18: Edit → Find routes here through App's menu:find handler.
+describe('Editor.find', () => {
+  it('opens the search panel', () => {
+    const { target, editor, cleanup } = mountEditor()
+    editor.setContent('a b a')
+    flushSync()
+
+    expect(editor.find('open')).toBe(true)
+
+    expect(target.querySelector('.cm-search')).not.toBeNull()
+    cleanup()
+  })
+
+  it('focuses the replace field for Find and Replace', () => {
+    const { target, editor, cleanup } = mountEditor()
+    editor.setContent('a b a')
+    flushSync()
+
+    editor.find('replace')
+
+    expect(document.activeElement).toBe(target.querySelector('.cm-search [name=replace]'))
+    cleanup()
+  })
+
+  it('steps forward and back through matches', () => {
+    const { target, editor, cleanup } = mountEditor()
+    editor.setContent('a b a')
+    flushSync()
+    editor.find('open')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor') as HTMLElement)!
+    view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: 'a' })) })
+
+    // From an empty cursor at 0, the first match is the a at 0 itself.
+    editor.find('next')
+    expect(view.state.selection.main.from).toBe(0)
+    editor.find('next')
+    expect(view.state.selection.main.from).toBe(4)
+    editor.find('previous')
+    expect(view.state.selection.main.from).toBe(0)
     cleanup()
   })
 })

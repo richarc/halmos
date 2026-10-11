@@ -3,6 +3,10 @@ package main
 import (
 	"io"
 	"log/slog"
+	"os"
+	"regexp"
+	"sort"
+	"strings"
 	"sync"
 	"testing"
 
@@ -112,5 +116,34 @@ func TestCloseRequestClosesWhenClean(t *testing.T) {
 	}
 	if confirmed != 0 {
 		t.Errorf("a clean document must not prompt, raised %d", confirmed)
+	}
+}
+
+// Find's chords must not shadow anything else in the menu bar (⌘E is Export
+// PDF, which is why "Use Selection for Find" is absent). Accelerators live in
+// several tables in menu.go, so the source is the one place that sees them
+// all; chords are compared as sorted key sets so "alt+cmdorctrl+f" and
+// "cmdorctrl+alt+f" collide.
+func TestFindItemsHaveUniqueAccelerators(t *testing.T) {
+	src, err := os.ReadFile("menu.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	norm := func(chord string) string {
+		parts := strings.Split(chord, "+")
+		sort.Strings(parts)
+		return strings.Join(parts, "+")
+	}
+	counts := map[string]int{}
+	for _, m := range regexp.MustCompile(`"((?:[a-z]+\+)*cmdorctrl(?:\+[a-z0-9\[\]]+)+)"`).FindAllStringSubmatch(string(src), -1) {
+		counts[norm(m[1])]++
+	}
+	if len(findItems) != 4 {
+		t.Fatalf("want 4 Find items, got %d", len(findItems))
+	}
+	for _, it := range findItems {
+		if n := counts[norm(it.key)]; n != 1 {
+			t.Errorf("%s (%s) appears %d times in menu.go, want exactly once", it.label, it.key, n)
+		}
 	}
 }

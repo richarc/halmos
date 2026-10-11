@@ -472,6 +472,13 @@
     if (cmd) editor.runCommand(cmd)
   }
 
+  // Edit → Find (#18). Same guard as applyFormat: the accelerators fire on
+  // the welcome screen and over the builders too.
+  function applyFind(cmd: string) {
+    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    if (cmd === 'open' || cmd === 'replace' || cmd === 'next' || cmd === 'previous') editor.find(cmd)
+  }
+
   const FOLD_COMMANDS: Record<string, Command> = {
     'fold-block': foldCode,
     'unfold-block': unfoldCode,
@@ -1005,6 +1012,9 @@
     })
     Events.On('menu:format', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') applyFormat(ev.data)
+    })
+    Events.On('menu:find', (ev: { data: unknown }) => {
+      if (typeof ev.data === 'string') applyFind(ev.data)
     })
     Events.On('menu:fold', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') applyFold(ev.data)

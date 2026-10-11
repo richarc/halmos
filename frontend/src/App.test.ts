@@ -1748,3 +1748,26 @@ describe('closing the window', () => {
     expect(target.textContent).toContain('Finish or cancel the chart before closing')
   })
 })
+
+// #18: Edit → Find.
+describe('menu:find', () => {
+  it('opens the search panel with a document loaded', async () => {
+    const target = await openDoc('# Results\n')
+
+    listeners['menu:find']({ data: 'open' })
+    flushSync()
+
+    expect(target.querySelector('.cm-search')).not.toBeNull()
+  })
+
+  it('is ignored on the welcome screen', async () => {
+    recents.current = ['/tmp/paper.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+
+    listeners['menu:find']({ data: 'open' })
+    flushSync()
+
+    expect(target.querySelector('.cm-search')).toBeNull()
+  })
+})
