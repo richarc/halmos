@@ -998,6 +998,11 @@
       pendingAction = intent
     })
     Events.On('document:closed', closeDocument)
+    // Finder's Open With while running (#19); same path as Open Recent, so
+    // unsaved changes are asked about first.
+    Events.On('file:open', (ev: { data: unknown }) => {
+      if (typeof ev.data === 'string') requestOpenRecent(ev.data)
+    })
     Events.On('recents:changed', () => void refreshRecents())
     Events.On('bib:changed', () => void reloadBibliography())
     Events.On('menu:insert-citation', () => void insertCitation())
@@ -1036,19 +1041,36 @@
       // the templating check below. Promise.all would let one rejection sink
       // both — turning a settings-load failure into a blank, template-less
       // editor on top of the settings failure itself.
-      await Promise.allSettled([refreshRecents(), refreshSettings()])
-      // A crash with an untitled document leaves a draft under the
-      // 'untitled' key; this is the one moment it can be offered. The
-      // dialog's Discard Draft falls through to the template below when
-      // there are no recents; Restore replaces it.
-      await offerDraft('')
-      // A recovery offer is the more urgent dialog; the update question and
-      // the automatic check wait for a launch with nothing else on screen.
-      if (recovery !== null) return
-      // A first launch has nothing to put in the welcome pane, so go straight
-      // into a templated document rather than an empty one — the user who has
-      // never seen Hermes is exactly the one the template is for.
-      if (recents.length === 0) doNew()
+      //
+      // The third read is the file Finder launched us to open (#19), asked
+      // for after file:open is subscribed above so no request falls between
+      // the two: Go buffers until this call and emits from then on.
+      let launchFile = ''
+      const takeLaunch = DocumentService.TakeLaunchFile().then(
+        (p) => (launchFile = p),
+        (err) => console.warn('TakeLaunchFile:', err),
+      )
+      await Promise.allSettled([refreshRecents(), refreshSettings(), takeLaunch])
+      if (launchFile) {
+        // The file the user just asked for wins over the untitled draft
+        // offer and the template; an untitled draft stays on disk and is
+        // offered at the next launch.
+        requestOpenRecent(launchFile)
+      } else {
+        // A crash with an untitled document leaves a draft under the
+        // 'untitled' key; this is the one moment it can be offered. The
+        // dialog's Discard Draft falls through to the template below when
+        // there are no recents; Restore replaces it.
+        await offerDraft('')
+        // A recovery offer is the more urgent dialog; the update question and
+        // the automatic check wait for a launch with nothing else on screen.
+        if (recovery !== null) return
+        // A first launch has nothing to put in the welcome pane, so go
+        // straight into a templated document rather than an empty one — the
+        // user who has never seen Hermes is exactly the one the template is
+        // for.
+        if (recents.length === 0) doNew()
+      }
       if (updateCheck === 'unasked') askUpdates = true
       else if (updateCheck === 'on') void checkForUpdates(false)
     })()

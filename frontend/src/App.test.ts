@@ -36,6 +36,7 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       SaveAs: vi.fn(async () => ''),
       Quit: vi.fn(async () => {}),
       CloseWindow: vi.fn(async () => {}),
+      TakeLaunchFile: vi.fn(async () => ''),
       PickCitations: vi.fn(async () => ''),
       ExportPDF: vi.fn(async () => {}),
       Settings: vi.fn(async () => settings.current),
@@ -1769,5 +1770,65 @@ describe('menu:find', () => {
     flushSync()
 
     expect(target.querySelector('.cm-search')).toBeNull()
+  })
+})
+
+// #19: a .md handed over by Finder — at launch (buffered in Go, collected
+// with TakeLaunchFile) or while running (file:open).
+describe('opening a file from Finder', () => {
+  it('opens a launch file instead of the welcome pane', async () => {
+    recents.current = ['/tmp/paper.md']
+    DocumentService.TakeLaunchFile.mockResolvedValueOnce('/tmp/x.md')
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/tmp/x.md', content: '# Launched\n' })
+    const { target } = mountApp()
+
+    await vi.waitFor(() => expect(target.textContent).toContain('Launched'))
+    expect(DocumentService.OpenPath).toHaveBeenCalledWith('/tmp/x.md')
+    expect(target.querySelector('.welcome')).toBeNull()
+  })
+
+  it('opens a launch file instead of the first-launch template', async () => {
+    DocumentService.TakeLaunchFile.mockResolvedValueOnce('/tmp/x.md')
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/tmp/x.md', content: '# Launched\n' })
+    const { target } = mountApp()
+
+    await vi.waitFor(() => expect(target.textContent).toContain('Launched'))
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    expect(view.state.doc.toString()).toBe('# Launched\n')
+  })
+
+  // The untitled draft stays on disk and is offered at the next launch; the
+  // file the user just asked for is the one they want to see.
+  it('opens a launch file over a pending untitled draft offer', async () => {
+    DocumentService.RecoverDraft.mockImplementationOnce(async (docPath: string) =>
+      docPath === '' ? { found: true, content: 'never saved' } : { found: false, content: '' },
+    )
+    DocumentService.TakeLaunchFile.mockResolvedValueOnce('/tmp/x.md')
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/tmp/x.md', content: '# Launched\n' })
+    const { target } = mountApp()
+
+    await vi.waitFor(() => expect(target.textContent).toContain('Launched'))
+    expect(
+      target.querySelector<HTMLDialogElement>('dialog[aria-label="Recover draft"]')!.open,
+    ).toBe(false)
+  })
+
+  it('asks about unsaved changes before opening over them', async () => {
+    const target = await openDoc('# Results\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: 0, to: 0, insert: 'x' } })
+    flushSync()
+    DocumentService.OpenPath.mockClear()
+
+    listeners['file:open']({ data: '/tmp/y.md' })
+    flushSync()
+
+    const confirm = target.querySelector<HTMLDialogElement>('dialog[aria-label="Unsaved changes"]')!
+    expect(confirm.open).toBe(true)
+    expect(DocumentService.OpenPath).not.toHaveBeenCalled()
+
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/tmp/y.md', content: '# Other\n' })
+    buttonByText(confirm, "Don't Save")!.click()
+    await vi.waitFor(() => expect(DocumentService.OpenPath).toHaveBeenCalledWith('/tmp/y.md'))
   })
 })

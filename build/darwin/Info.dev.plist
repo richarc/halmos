@@ -31,5 +31,36 @@
 		<string>true</string>
 		<key>NSHumanReadableCopyright</key>
 		<string>(c) 2026 Craig Richards</string>
+		<key>CFBundleDocumentTypes</key>
+		<array>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>md</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>Markdown Document</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>icons</string>
+			<key>CFBundleTypeMimeType</key>
+			<string>text/markdown</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>markdown</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>Markdown Document</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>icons</string>
+			<key>CFBundleTypeMimeType</key>
+			<string>text/markdown</string>
+		</dict>
+		</array>
 	</dict>
 </plist>

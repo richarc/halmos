@@ -41,6 +41,8 @@ type DocumentService struct {
 	// Hides the window and tells the frontend the document is closed. Set
 	// once during startup; nil in tests. See CloseWindow.
 	closeWindow func()
+	// A file macOS asked us to open before the frontend was listening.
+	launch launchFiles
 	// Serialises the read-modify-write of the recents file.
 	recentsMu      sync.Mutex
 	watchTick      time.Duration
@@ -333,6 +335,13 @@ func (s *DocumentService) PrintDocument() {
 
 func (s *DocumentService) Quit() {
 	application.Get().Quit()
+}
+
+// TakeLaunchFile returns the file Hermes was launched to open ("" if none) and
+// marks the frontend ready, so later requests arrive as file:open events. The
+// frontend calls it once, after subscribing to file:open. See launchfiles.go.
+func (s *DocumentService) TakeLaunchFile() string {
+	return s.launch.take()
 }
 
 // CloseWindow is what runs after the user resolves the unsaved-changes dialog

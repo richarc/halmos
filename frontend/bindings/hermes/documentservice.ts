@@ -173,6 +173,15 @@ export function Settings(): $CancellablePromise<$models.Settings> {
 }
 
 /**
+ * TakeLaunchFile returns the file Hermes was launched to open ("" if none) and
+ * marks the frontend ready, so later requests arrive as file:open events. The
+ * frontend calls it once, after subscribing to file:open. See launchfiles.go.
+ */
+export function TakeLaunchFile(): $CancellablePromise<string> {
+    return $Call.ByID(928258302);
+}
+
+/**
  * UpdateSettings persists the given preferences and returns an error if they
  * could not be written, so a caller can tell the user the choice did not
  * stick. Out-of-range values are normalised rather than rejected.

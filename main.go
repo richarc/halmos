@@ -127,6 +127,19 @@ func main() {
 		app.Event.Emit("document:closed")
 	}
 
+	// Finder's Open With and a double-click on a .md (#19). Registered before
+	// Run, so a cold-launch request is not missed; launchFiles buffers it until
+	// the frontend asks. A request with unsaved changes open goes through the
+	// frontend's usual confirm, as Open Recent does.
+	app.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(e *application.ApplicationEvent) {
+		p := e.Context().Filename()
+		if p == "" || !docs.launch.arrive(p) {
+			return
+		}
+		application.InvokeAsync(func() { showWindow(win) })
+		app.Event.Emit("file:open", p)
+	})
+
 	// Always cancelled: a destroyed window could not be brought back by the
 	// Dock, so closing hides it instead. The payload tells the frontend this
 	// is a close, not a quit, so it hides afterwards rather than exiting.

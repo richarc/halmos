@@ -62,6 +62,21 @@ dev_mode:
 # File Associations
 # More information at: https://v3.wails.io/noit/done/yet
 fileAssociations:
+  # Lists Hermes in Finder's Open With for Markdown (#19). Mirrored by hand in
+  # build/darwin/Info.plist and Info.dev.plist; iconName reuses the app's
+  # icons.icns. Opening is handled by ApplicationOpenedWithFile in main.go.
+  - ext: md
+    name: Markdown Document
+    description: Markdown document
+    iconName: icons
+    role: Editor
+    mimeType: text/markdown
+  - ext: markdown
+    name: Markdown Document
+    description: Markdown document
+    iconName: icons
+    role: Editor
+    mimeType: text/markdown
 #  - ext: wails
 #    name: Wails
 #    description: Wails Application File
