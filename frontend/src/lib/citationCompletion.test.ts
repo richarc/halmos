@@ -69,6 +69,28 @@ describe('citationCompletionSource', () => {
     expect(run('[@key49|', ctxOf(many))!.options.length).toBeLessThanOrEqual(MAX_OPTIONS)
   })
 
+  it('offers keys after the author-suppression marker inside a bracket', () => {
+    expect(run('[-@sm|')!.options.map((o) => o.label)).toEqual(['smith2020'])
+    expect(run('[see @jones2019; -@sm|')!.options.map((o) => o.label)).toEqual(['smith2020'])
+    expect(run('x -@sm|')).toBeNull()
+  })
+
+  it('is not suppressed by an unterminated $$ or \\begin far away', () => {
+    const far = '$$\nx\n\n\\begin{align}\ny\n\n' + 'filler line\n\n'.repeat(500)
+    const r = run(far + 'see [@sm|')
+    expect(r?.options.map((o) => o.label)).toEqual(['smith2020'])
+  })
+
+  it('still detects maths in the same block', () => {
+    expect(run('para\n$$\nx @|\n$$')).toBeNull()
+  })
+
+  it('treats an unclosed leading --- as prose, not frontmatter', () => {
+    const doc = '---\n' + 'line\n\n'.repeat(400) + 'see [@sm|'
+    expect(run(doc)?.options.map((o) => o.label)).toEqual(['smith2020'])
+    expect(run('---\ntitle: x\n\n[@sm|')?.options).toHaveLength(1)
+  })
+
   it('replaces only the typed key, not the brackets', () => {
     const r = run('see [@smi|')!
     expect(r.from).toBe('see [@'.length)

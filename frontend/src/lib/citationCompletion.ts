@@ -1,7 +1,8 @@
 import type { Completion, CompletionContext, CompletionResult, CompletionSource } from '@codemirror/autocomplete'
 import type { CSLEntry } from './bibliography'
-import { isProtected } from './markdownCommands'
-import { mathRanges } from './spellcheck'
+import type { EditorState } from '@codemirror/state'
+import { isInCode } from './markdownCommands'
+import { mathRangesIn } from './spellcheck'
 
 /** What the editor needs to know about the loaded bibliography. */
 export interface CitationContext {
@@ -31,20 +32,66 @@ function label(entry: CSLEntry): string {
   return [first, year].filter((p) => p !== '' && p !== undefined).join(' ')
 }
 
-function matches(entry: CSLEntry, q: string): number {
+interface Searchable {
+  entry: CSLEntry
+  key: string
+  words: string[]
+}
+
+// Lower-cased key and author/title words, built once per entries array rather
+// than on every keystroke.
+const searchable = new WeakMap<CSLEntry[], Searchable[]>()
+
+function index(entries: CSLEntry[]): Searchable[] {
+  let list = searchable.get(entries)
+  if (!list) {
+    list = entries.map((entry) => ({
+      entry,
+      key: entry.id.toLowerCase(),
+      words: [...(entry.author ?? entry.editor ?? []).flatMap((n) => [n.family, n.given, n.literal]), entry.title]
+        .filter((w): w is string => !!w)
+        .join(' ')
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter(Boolean),
+    }))
+    searchable.set(entries, list)
+  }
+  return list
+}
+
+function rank(item: Searchable, q: string): number {
   if (!q) return 2
-  const key = entry.id.toLowerCase()
-  if (key.startsWith(q)) return 0
-  if (key.includes(q)) return 1
-  const words = [
-    ...(entry.author ?? entry.editor ?? []).flatMap((n) => [n.family, n.given, n.literal]),
-    entry.title,
-  ]
-    .filter((w): w is string => !!w)
-    .join(' ')
-    .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
-  return words.some((w) => w.startsWith(q)) ? 1 : -1
+  if (item.key.startsWith(q)) return 0
+  if (item.key.includes(q)) return 1
+  return item.words.some((w) => w.startsWith(q)) ? 1 : -1
+}
+
+// Protection checks are local: a typing keystroke must not scan the document.
+const FENCE = /^---[ \t]*\r?$/
+const MAX_FRONTMATTER_LINES = 100
+const MAX_BLOCK_LINES = 40
+
+function inFrontmatter(state: EditorState, pos: number): boolean {
+  const { doc } = state
+  const n = doc.lineAt(pos).number
+  if (n > MAX_FRONTMATTER_LINES || !FENCE.test(doc.line(1).text)) return false
+  const last = Math.min(doc.lines, MAX_FRONTMATTER_LINES)
+  for (let i = 2; i <= last; i++) if (FENCE.test(doc.line(i).text)) return n <= i
+  return false
+}
+
+/** True when `at` sits inside a maths span found in the blank-line-bounded block around it. */
+function inLocalMaths(state: EditorState, at: number): boolean {
+  const { doc } = state
+  const here = doc.lineAt(at).number
+  let first = here
+  while (first > 1 && here - first < MAX_BLOCK_LINES && doc.line(first - 1).text.trim() !== '') first--
+  let last = here
+  while (last < doc.lines && last - here < MAX_BLOCK_LINES && doc.line(last + 1).text.trim() !== '') last++
+  const from = doc.line(first).from
+  const text = doc.sliceString(from, doc.line(last).to)
+  return mathRangesIn(text, from).some((r) => at >= r.from && at < r.to)
 }
 
 export function citationCompletionSource(get: () => CitationContext | null): CompletionSource {
@@ -60,17 +107,19 @@ export function citationCompletionSource(get: () => CitationContext | null): Com
     const at = cc.pos - typed[1].length - 1 // position of the "@"
     const prefix = before.slice(0, at - line.from)
     const prev = prefix.slice(-1)
-    const ok = prev === '[' || AFTER_SEPARATOR.test(prefix) || !NOT_BEFORE_BARE.test(prev)
+    const inBracket = (p: string) => p.endsWith('[') || AFTER_SEPARATOR.test(p)
+    // "-@key" is the author-suppressed form, valid only inside a bracket group.
+    const ok = inBracket(prefix) || (prev === '-' && inBracket(prefix.slice(0, -1))) || !NOT_BEFORE_BARE.test(prev)
     if (!ok) return null
 
-    if (isProtected(cc.state, cc.pos)) return null
-    if (mathRanges(cc.state).some((r) => at >= r.from && at < r.to)) return null
+    if (inFrontmatter(cc.state, cc.pos) || isInCode(cc.state, cc.pos)) return null
+    if (inLocalMaths(cc.state, at)) return null
 
     const q = typed[1].toLowerCase()
     const ranked: { entry: CSLEntry; rank: number }[] = []
-    for (const entry of ctx.entries) {
-      const rank = matches(entry, q)
-      if (rank >= 0) ranked.push({ entry, rank })
+    for (const item of index(ctx.entries)) {
+      const r = rank(item, q)
+      if (r >= 0) ranked.push({ entry: item.entry, rank: r })
     }
     ranked.sort((a, b) => a.rank - b.rank)
 

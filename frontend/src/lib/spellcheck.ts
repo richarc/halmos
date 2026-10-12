@@ -73,14 +73,13 @@ function documentWideRanges(state: EditorState): Range[] {
   return found
 }
 
-/** The maths spans (display, inline, bare environments) over the whole document. */
-export function mathRanges(state: EditorState): Range[] {
-  const text = state.doc.toString()
+/** The maths spans in `text` (display, inline, bare environments), shifted by `offset`. */
+export function mathRangesIn(text: string, offset = 0): Range[] {
   const found: Range[] = []
   for (const re of [DISPLAY_MATH, INLINE_MATH, BARE_ENVIRONMENT]) {
     re.lastIndex = 0
     for (let m = re.exec(text); m; m = re.exec(text)) {
-      found.push({ from: m.index, to: m.index + m[0].length })
+      found.push({ from: offset + m.index, to: offset + m.index + m[0].length })
     }
   }
   return found

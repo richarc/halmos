@@ -5,7 +5,7 @@ import type { EditorState } from '@codemirror/state'
 // syntax tree is already maintained for highlighting, so querying it is free.
 const CODE_NODES = new Set(['FencedCode', 'CodeText', 'CodeBlock', 'InlineCode'])
 
-function isInCode(state: EditorState, pos: number): boolean {
+export function isInCode(state: EditorState, pos: number): boolean {
   let node = syntaxTree(state).resolveInner(pos, 1)
   for (;;) {
     if (CODE_NODES.has(node.name)) return true
