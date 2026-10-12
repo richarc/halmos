@@ -7,11 +7,55 @@ in-progress work only; [CHANGELOG.md](CHANGELOG.md) records what has shipped,
 and git history holds the earlier versions of this file with the design notes
 for each release.
 
-## v0.12.0 — Reading and sharing
+## Direction
 
-Candidates from a review of Markdific (markdific.com, 2026-10-11), a general
-Markdown viewer and editor. Picked for academic use and for reaching people
-who have not opened Hermes yet. Not yet planned in detail.
+Agreed 2026-10-12. These rules decide what goes into each release below.
+
+- **The desktop editor stays free, and so do citations.** Citations are
+  Hermes's main strength and the reason to choose it, so making them
+  seamless comes first and is never behind a payment.
+- **Hermes earns money from a hosted back end.** Paid features are the ones
+  that cost money to run: Pandoc conversion on a server, reference lookups
+  and AI calls. A subscription matches that ongoing cost.
+- **AI removes routine work; it does not write the paper.** Acceptable:
+  equations, charts, tables, formatting, conversion, reference clean-up and
+  finding sources in the user's own library. Not offered: writing the
+  user's paragraphs, arguments or conclusions. Hermes keeps a record of what
+  the AI did in each document and can produce the AI-use disclosure
+  statement journals ask for.
+- **Order:** citation improvements, then v1.0.0, then the back end and
+  payment with export and citation services as the first paid features,
+  then AI for routine work, then AI limited to the user's own sources.
+
+## v0.12.0 — Seamless citations
+
+All local, no server. The everyday friction of citing, removed.
+
+- [ ] **Citation autocomplete.** Typing `[@` in the editor lists the
+      entries in the document's `.bib`, filtered as you type, showing author,
+      year and title. Picking one inserts the key. CodeMirror's
+      `@codemirror/autocomplete`, fed from the bibliography Hermes already
+      reads through Go. Must not fire inside code, maths or frontmatter
+      (`isProtected`).
+- [ ] **Reference preview on hover.** Hovering a citation key in the editor
+      shows the formatted reference in the document's style.
+- [ ] **Unknown-key warnings.** A key not in the `.bib` is marked in the
+      editor and the preview, and listed somewhere the user can find all of
+      them before submitting.
+- [ ] **Citation style picker.** Choose from the bundled styles without
+      editing frontmatter, and load any `.csl` file from disk. Five styles
+      are bundled today.
+- [ ] **Zotero without Better BibTeX.** Insert citations from Zotero when the
+      Better BibTeX plugin is not installed, or, if that is not possible,
+      explain clearly what to install when the picker cannot connect.
+- [ ] **Footnotes.** The markdown-it footnote plugin. Must sit correctly
+      with citations and the bibliography at the end of the document, and
+      survive PDF export.
+
+## v0.13.0 — Reading and sharing
+
+Smaller improvements for reading and sharing documents. Can move after
+v1.0.0 if the release work needs the time.
 
 - [ ] **Quick Look preview for `.md` files.** Finder's space-bar preview shows
       the rendered document, so a reader sees Hermes output without opening
@@ -20,12 +64,10 @@ who have not opened Hermes yet. Not yet planned in detail.
       so the extension has to host a web view or reuse the bundled
       `frontend/dist`. Check what this does to signing and notarization in
       `wails3 task release` before starting.
-- [ ] **Rendering additions.** markdown-it plugins for footnotes (the most
-      important for academic writing), task lists and GitHub-style alerts
-      (`> [!NOTE]`). Each needs preview styles in `style.css` under the
-      colour contract, PDF export checked, and spell-check scoping checked.
-      Footnotes must sit correctly with citations and the bibliography at the
-      end of the document.
+- [ ] **Rendering additions.** markdown-it plugins for task lists and
+      GitHub-style alerts (`> [!NOTE]`). Each needs preview styles in
+      `style.css` under the colour contract, PDF export checked, and
+      spell-check scoping checked.
 - [ ] **Copy button on code blocks** in the preview. Hidden in PDF export.
 - [ ] **Paste an image into the editor.** Save the pasted image beside the
       document (an `images/` folder or similar, to decide) and insert
@@ -82,92 +124,79 @@ separate, much larger project and is deliberately not part of this.
       *Status 2026-10-11*: since v0.10.0 Hermes checks a feed
       (`updates/latest.json`) and tells the user a newer version exists, but
       downloading and installing it is still manual.
-- [ ] Windows and Linux stay in the backlog.
+- [ ] **Pricing page on the documentation site**, ready for v1.1.0. The
+      site states what is free (the editor and citations) and what the
+      subscription adds.
+- [ ] Windows and Linux stay in the backlog. Decide before v1.1.0 whether
+      Windows comes before the first paid release: many academics use it,
+      and a Mac-only product limits who can pay.
 
-## v1.1.0 — Advanced features (SaaS back end)
+## v1.1.0 — Back end, payment and first paid services
 
-Paid features served by a hosted back end rather than the desktop binary,
-decided 2026-08-28. Pandoc export moves here from v0.10.0: the dependency
+The hosted back end, decided 2026-08-28 and given its first paid features
+on 2026-10-12. Pandoc export moved here from v0.10.0: the dependency
 question it turns on below — shell out to a user-installed Pandoc, or bundle
-one — dissolves when the conversion runs on a server Hermes controls, and
-`.docx`/LaTeX output is the first thing worth charging for.
+one — dissolves when the conversion runs on a server Hermes controls.
 
+- [ ] **Accounts and sign-in from the desktop app.** The app learns which
+      paid features the user has. Sign-in tokens kept in the macOS Keychain.
+- [ ] **Payment.** A subscription through a merchant of record (Paddle or
+      similar), which handles VAT and sales tax worldwide. Decide whether a
+      free allowance of conversions and lookups is included.
+- [ ] **Hosting, privacy policy and terms.** Documents sent for conversion
+      are processed and not kept. Say so in the policy and design the server
+      so it is true.
 - [ ] Export to DOCX and LaTeX through Pandoc. Hermes already builds toward
       Pandoc without collecting the payoff: `![caption](img)` was chosen
       because it is exactly Pandoc's figure convention, citations are `[@key]`,
       and the figures design argues captions live in each format's native home
       so a Pandoc conversion keeps them. Meanwhile the only output is PDF
-      through the print panel, and co-authors and journals want `.docx`. The
-      decision that used to come first — the dependency: shell out to a
-      Pandoc the user installed (simple, but fails on a fresh machine and
-      needs a not-found path that explains itself), or bundle one (a much
-      larger binary, though v1.0 is already facing signing and notarization,
-      so the packaging conversation is open anyway). Bibliography handling needs
-      thought too — Pandoc can resolve citations itself from the same `.bib`,
+      through the print panel, and co-authors and journals want `.docx`.
+      Pandoc runs on the server, so nothing is installed or bundled on the
+      user's Mac. Bibliography handling needs
+      thought — Pandoc can resolve citations itself from the same `.bib`,
       which may mean handing it the raw markdown rather than anything Hermes
       has already rendered.
+- [ ] **DOI lookup.** Paste a DOI or article URL and get a `.bib` entry added
+      to the document's bibliography (Crossref).
+- [ ] **Reference check.** Flags duplicate entries, missing fields, and
+      retracted papers (Retraction Watch data in Crossref).
+- [ ] **Word export keeps working citations**, so co-authors can edit the
+      `.docx` without breaking references.
 
-## Direction — AI help for academic writing (under consideration)
+## v1.2.0 — AI for routine work
 
-Proposed 2026-10-11, not committed to a release. The idea: Hermes grows into
-an AI-assisted tool for academic research and writing, with LaTeX and
-Vega-Lite charts generated from prompts, then edited in Hermes's own
-builders. Recorded here with the review of it, so the reasoning is not lost.
+Paid, through the v1.1.0 back end. Every result is shown before it is
+inserted, and nothing is written into the document without the user
+accepting it.
 
-**What fits what Hermes already has**
-- The chart builder already reads a Vega-Lite spec into a form and writes it
-  back (`readSpec`/`buildSpec`). A prompt that produces a spec the builder
-  can open is a short step from there.
-- LaTeX maths from a prompt fits, and the live preview shows a wrong result
-  straight away.
-- Citations are the strongest asset. AI writing tools make up references;
-  Hermes can limit suggestions to the user's own `.bib` file and Zotero
-  library, so every inserted key exists.
-- Documents stay plain markdown, so AI output is readable, can be compared
-  line by line, and is never locked in.
+- [ ] **Chart from a prompt.** Describe the chart and the data; the result
+      is a Vega-Lite spec that opens in the existing chart builder
+      (`readSpec`) for editing. If the builder cannot model the spec, say so
+      instead of inserting it unseen.
+- [ ] **LaTeX from a prompt** at the cursor, shown rendered before it is
+      inserted.
+- [ ] **Table from pasted text** (a copied spreadsheet range, a PDF table),
+      opened in the table builder.
+- [ ] **AI-use record and disclosure statement.** Each AI action is recorded
+      with the document (what was asked, what was inserted, when). Hermes
+      can produce a disclosure statement from that record.
+- [ ] **Prompt-injection safety.** An opened document must not be able to
+      instruct the AI. Prerequisite: the Content-Security-Policy item in the
+      backlog.
 
-**Concerns**
-- Settings screens generated by a model on the fly: not recommended. They
-  behave differently each time and are hard to test and document. Use fixed,
-  tested builders that edit what the AI produced; if more controls are
-  needed, derive them from the Vega-Lite schema, not from a model.
-- Crowded market: Overleaf (AI features for LaTeX), general chat and coding
-  assistants, Elicit, SciSpace and NotebookLM (asking questions of papers),
-  Obsidian with plugins (second brain). Hermes's distinct position is a
-  focused tool for writing papers, with citations and figures checked
-  against the user's real sources. A general AI research tool gives that up.
-- Academic integrity: universities and journals have AI rules, and many
-  require disclosure. "AI handles equations, charts, formatting and citation
-  lookup in your own library" is defensible; "AI writes the paper" is not.
-- Privacy and cost: unpublished research is sensitive. Options are the
-  user's own API key, a hosted service (fits the v1.1.0 back end), local
-  models, or a mix. Each changes pricing, support and the privacy promise.
-  Today Hermes makes almost no network requests; cloud AI ends that claim.
-- Security: an opened document can carry hidden instructions to the model.
-  The missing Content-Security-Policy (backlog) becomes a prerequisite.
-- Searching your own documents with AI (RAG) and a "second brain" are a
-  separate, large product, and cut against the single-file decision of
-  2026-08-06. The useful slice for Hermes is searching the PDFs already in
-  the user's Zotero library to back a claim with a source.
-- Focus: v1.0.0 is unfinished. Starting this first risks leaving both the
-  editor and the AI features half done.
+## v1.3.0 — AI limited to the user's own sources
 
-**Suggested order, each step usable on its own**
-1. Ship v1.0.0 as the editor it is now.
-2. Chart from a prompt: describe the chart and data, get a Vega-Lite spec,
-   open it in the existing builder. The cheapest test of demand.
-3. LaTeX from a prompt at the cursor, shown before it is inserted.
-4. Citation help limited to the user's library: suggest references for a
-   paragraph, insert keys only from the `.bib` file.
-5. Search over the PDFs in the user's Zotero library, if 2–4 are used.
-6. Second brain: a separate product, if ever.
+Paid. The AI only ever cites what is in the user's `.bib` file or Zotero
+library, so it cannot invent a reference.
 
-**Decisions needed before any AI work starts**
-- Who pays for model calls: the user's own key, a Hermes subscription, or
-  local models only.
-- Where Hermes stands on AI-written prose compared with AI help on
-  structure, equations and figures.
-- Whether this follows v1.0.0 or replaces part of it.
+- [ ] **Suggest references for a paragraph** from the user's library, with
+      the reason each one fits. The user chooses what to insert.
+- [ ] **Search the PDFs in the user's Zotero library** to find where a
+      source supports a claim. Decide whether the index is built locally or
+      on the server; unpublished work and licensed PDFs argue for local.
+- [ ] **Uncited-claim check.** Point out statements that look like they
+      need a citation. Suggests, never writes.
 
 ## Backlog (unscheduled)
 
