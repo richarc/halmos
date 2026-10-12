@@ -149,7 +149,7 @@
   let scrollFrame: number | null = null
   let toastTimer: ReturnType<typeof setTimeout>
   let formatter = $state<CitationFormatter | undefined>(undefined)
-  let bibEntries = $state<CSLEntry[]>([])
+  let bibEntries = $state.raw<CSLEntry[]>([])
   // Guards against a stale ReadBibliography response landing after a newer
   // request (e.g. rapid frontmatter edits or back-to-back bib:changed
   // events): each call captures its generation and bails after every await
