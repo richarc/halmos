@@ -12,6 +12,7 @@
   import { codeHighlightStyleSpecs } from './lib/syntaxTags'
   import { spellcheckExtension } from './lib/spellcheck'
   import { citationCompletionSource, type CitationContext } from './lib/citationCompletion'
+  import { citationHover } from './lib/citationEditor'
   import { openSearchPanel, findNext, findPrevious } from '@codemirror/search'
 
   let {
@@ -111,6 +112,7 @@
       color: 'var(--editor-fg)',
       border: '1px solid var(--border)',
     },
+    '.cm-citation-tooltip': { maxWidth: '32em', padding: '4px 8px' },
     '.cm-specialChar': { color: 'var(--editor-gutter-fg)' },
     // CodeMirror's base theme hardcodes this pill as #eee on #ddd with #888
     // text — a light chip on a dark page. Same class of gap as the search
@@ -464,6 +466,7 @@
       // basicSetup already installs autocompletion() and its keymap; a source
       // is added through language data so there is only one of each.
       EditorState.languageData.of(() => [{ autocomplete: citationSource }]),
+      citationHover(() => citations?.() ?? null),
       EditorView.updateListener.of((u) => {
         if (u.docChanged) onchange(u.state.doc.toString())
       }),

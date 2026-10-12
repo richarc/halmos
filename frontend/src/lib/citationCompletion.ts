@@ -1,7 +1,7 @@
 import type { Completion, CompletionContext, CompletionResult, CompletionSource } from '@codemirror/autocomplete'
 import type { CSLEntry } from './bibliography'
 import type { EditorState } from '@codemirror/state'
-import { isInCode } from './markdownCommands'
+import { inFrontmatter, isInCode } from './markdownCommands'
 import { mathRangesIn } from './spellcheck'
 
 /** What the editor needs to know about the loaded bibliography. */
@@ -68,18 +68,7 @@ function rank(item: Searchable, q: string): number {
 }
 
 // Protection checks are local: a typing keystroke must not scan the document.
-const FENCE = /^---[ \t]*\r?$/
-const MAX_FRONTMATTER_LINES = 100
 const MAX_BLOCK_LINES = 40
-
-function inFrontmatter(state: EditorState, pos: number): boolean {
-  const { doc } = state
-  const n = doc.lineAt(pos).number
-  if (n > MAX_FRONTMATTER_LINES || !FENCE.test(doc.line(1).text)) return false
-  const last = Math.min(doc.lines, MAX_FRONTMATTER_LINES)
-  for (let i = 2; i <= last; i++) if (FENCE.test(doc.line(i).text)) return n <= i
-  return false
-}
 
 /** True when `at` sits inside a maths span found in the blank-line-bounded block around it. */
 function inLocalMaths(state: EditorState, at: number): boolean {
