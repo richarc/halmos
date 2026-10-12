@@ -1,6 +1,26 @@
 import { describe, it, expect } from 'vitest'
 import { findCitationKeys, unknownCitations } from './citationKeys'
-import { extractCitationKeys } from './citationFeedback'
+import { renderDocument } from './renderer'
+import type { CitationCluster, CitationFormatter } from './citations'
+
+/**
+ * The keys the preview itself finds, in order: the renderer hands every
+ * cluster it parsed to the formatter, so a recording formatter that knows
+ * every key captures exactly what `renderer.ts` treats as a citation.
+ */
+function previewKeys(text: string): string[] {
+  let seen: CitationCluster[] = []
+  const recorder: CitationFormatter = {
+    format(clusters) {
+      seen = clusters
+      return { texts: clusters.map(() => ''), bibliographyHtml: '' }
+    },
+    has: () => true,
+    reference: () => null,
+  }
+  renderDocument(text, { formatter: recorder })
+  return seen.flatMap((c) => c.items.map((it) => it.key))
+}
 
 const CORPUS = [
   'As shown [@smith2020].',
@@ -47,14 +67,26 @@ const CORPUS = [
   '[outer [inner [@a] deep] @b] tail @c',
   '[x](<@a>) [@b](https://z) @c',
   '[[@a]]',
+  // Footnotes: definitions with and without trailing text, and the inline form.
+  'Text.[^2]\n\n[^2]: [@smith2020]',
+  'Text.[^2]\n\n[^2]: [@smith2020].',
+  'Text.[^2]\n\n[^2]: @smith2020',
+  '[^1]: [@a]\n[^2]: see @b',
+  'A claim.^[see @a] And @b.',
+  'A ^[first @a] and ^[second [@b; @c]] then @d',
+  // Bare URLs are links in the preview, not citations.
+  'See https://mastodon.social/@alice',
+  'Follow medium.com/@x for more',
+  'Watch https://youtube.com/@channel and cite @a',
+  // Maths is maths, not a citation.
+  'Inline $f(@a)$ maths and @b',
+  '$$\ng(@a)\n$$\n\nthen @b',
 ]
 
 describe('findCitationKeys', () => {
   it('agrees with the preview rule on a corpus', () => {
     for (const text of CORPUS)
-      expect(findCitationKeys(text).map((s) => s.key), JSON.stringify(text)).toEqual(
-        extractCitationKeys(text),
-      )
+      expect(findCitationKeys(text).map((s) => s.key), JSON.stringify(text)).toEqual(previewKeys(text))
   })
 
   it('reports exact offsets on a corpus', () => {
@@ -99,7 +131,40 @@ describe('table cells', () => {
   })
 })
 
+describe('footnotes and links', () => {
+  it('finds a citation in a footnote definition at its offsets', () => {
+    for (const t of ['x[^2]\n\n[^2]: [@smith2020]', 'x[^2]\n\n[^2]: [@smith2020].', 'x[^2]\n\n[^2]: @smith2020']) {
+      const spans = findCitationKeys(t)
+      expect(spans.map((s) => t.slice(s.from, s.to)), JSON.stringify(t)).toEqual(['smith2020'])
+    }
+  })
+
+  it('finds a footnote definition on a line of its own', () => {
+    const t = '[^2]: see @smith2020'
+    expect(findCitationKeys(t).map((s) => t.slice(s.from, s.to))).toEqual(['smith2020'])
+  })
+
+  it('finds citations inside an inline footnote at their offsets', () => {
+    const t = 'A claim.^[see @a; [@b]] And @c.'
+    expect(findCitationKeys(t).map((s) => [s.key, t.slice(s.from, s.to)])).toEqual([
+      ['a', 'a'],
+      ['b', 'b'],
+      ['c', 'c'],
+    ])
+  })
+
+  it('does not read a handle in a bare URL as a citation', () => {
+    expect(findCitationKeys('See https://mastodon.social/@alice')).toEqual([])
+  })
+})
+
 describe('unknownCitations', () => {
+  it('counts a footnote citation on its own line', () => {
+    expect(unknownCitations('Text.[^1]\n\n[^1]: [@gone]', () => false)).toEqual([{ key: 'gone', line: 3 }])
+  })
+  it('does not count a URL handle', () => {
+    expect(unknownCitations('See https://mastodon.social/@alice', () => false)).toEqual([])
+  })
   it('lists unknown keys with lines', () => {
     expect(unknownCitations('@a\n\n[@b; @a]', (k) => k === 'a')).toEqual([{ key: 'b', line: 3 }])
   })

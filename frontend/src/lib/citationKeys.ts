@@ -1,7 +1,7 @@
-import MarkdownIt from 'markdown-it'
 import type Token from 'markdown-it/lib/token.mjs'
-import { citationPlugin, KEY_RE } from './citations'
+import { KEY_RE } from './citations'
 import { parseFrontmatter } from './frontmatter'
+import { createMarkdownParser } from './markdownParser'
 
 export interface KeySpan {
   key: string
@@ -15,7 +15,17 @@ export interface KeySpan {
 // markdown-it records no source positions, but citationPlugin stamps each
 // citation token's meta with the inline source it matched in and the range, so
 // the tokens that survive backtracking carry their own positions.
-const md = new MarkdownIt({ html: false }).use(citationPlugin)
+//
+// The parser is the preview's (linkify, KaTeX, footnotes), with one change:
+// footnote_tail moves definitions to the end of the token stream, which would
+// put them out of document order and away from the line offsets this file
+// walks. Disabled, each definition stays where it was written.
+const md = createMarkdownParser()
+md.core.ruler.disable('footnote_tail')
+
+interface FootnoteEnv {
+  footnotes?: { list?: { tokens?: Token[] }[] }
+}
 
 /** Same as the trim in citations.ts `parseKey`: trailing . : # ? are prose. */
 function keyAt(text: string): string {
@@ -27,10 +37,16 @@ function isCitation(t: Token): boolean {
   return t.type === 'citation' || t.type === 'citation_narrative'
 }
 
-function collectCitations(tokens: Token[] | null, out: Token[] = []): Token[] {
+/**
+ * Citation tokens in document order. An inline footnote (`^[see @a]`) keeps
+ * its parsed content in `env.footnotes` rather than in its token's children,
+ * so it is visited where its reference sits.
+ */
+function collectCitations(tokens: Token[] | null, env: FootnoteEnv, out: Token[] = []): Token[] {
   for (const t of tokens ?? []) {
     if (isCitation(t)) out.push(t)
-    else collectCitations(t.children, out)
+    else if (t.type === 'footnote_ref') collectCitations(env.footnotes?.list?.[t.meta.id]?.tokens ?? null, env, out)
+    else collectCitations(t.children, env, out)
   }
   return out
 }
@@ -92,17 +108,28 @@ export function findCitationKeys(text: string): KeySpan[] {
   const { body } = parseFrontmatter(text)
   if (!body.trim()) return []
   const shift = text.length - body.length
-  const tokens = md.parse(body, {})
+  const env: FootnoteEnv = {}
+  const tokens = md.parse(body, env)
   const starts = lineStarts(body)
   const spans: KeySpan[] = []
   let map: [number, number] | null = null
   // Cells of one table row share a source line; each starts where the last
   // one ended, so a later cell cannot reuse characters an earlier one matched.
   let cursor = 0
+  // A footnote definition's first block shares its line with the `[^label]:`
+  // marker, which is not part of the block's content: start past it.
+  let footnoteLabel: string | null = null
   for (const token of tokens) {
+    if (token.type === 'footnote_reference_open') footnoteLabel = token.meta.label
     if (token.map && token.map !== map) {
       map = token.map
       cursor = starts[map[0]] ?? 0
+      if (footnoteLabel !== null) {
+        const marker = `[^${footnoteLabel}]:`
+        const at = body.indexOf(marker, cursor)
+        if (at !== -1) cursor = at + marker.length
+        footnoteLabel = null
+      }
     }
     if (token.type !== 'inline') continue
     if (!map) continue
@@ -114,12 +141,15 @@ export function findCitationKeys(text: string): KeySpan[] {
         break
       }
     }
-    for (const t of collectCitations(token.children)) {
+    // Image alt text and inline footnotes are parsed on their own, so their
+    // positions are relative to that substring rather than to the whole
+    // inline content. Searched forwards, since tokens arrive in order.
+    let searchFrom = 0
+    for (const t of collectCitations(token.children, env)) {
       const m = t.meta as Match
-      // Image alt text is parsed on its own, so its positions are relative to
-      // that substring rather than to the whole inline content.
-      const base = m.src === token.content ? 0 : token.content.indexOf(m.src)
+      const base = m.src === token.content ? 0 : token.content.indexOf(m.src, searchFrom)
       if (base === -1) continue
+      searchFrom = base
       for (const { key, at } of keysIn(m)) {
         const from = where[base + at]
         if (key && from !== undefined && from >= 0) {
@@ -128,7 +158,8 @@ export function findCitationKeys(text: string): KeySpan[] {
       }
     }
   }
-  return spans
+  // unknownCitations counts lines with a cursor that only moves forwards.
+  return spans.sort((a, b) => a.from - b.from)
 }
 
 /**

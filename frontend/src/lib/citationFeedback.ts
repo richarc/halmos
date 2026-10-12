@@ -1,14 +1,14 @@
-import MarkdownIt from 'markdown-it'
-import { citationPlugin, type CitationCluster } from './citations'
+import type { CitationCluster } from './citations'
+import { createMarkdownParser } from './markdownParser'
 
-// Parsing goes through the real citation rule rather than a local regex, so a
-// warning can never disagree with what the preview actually resolves.
-const md = new MarkdownIt({ html: false }).use(citationPlugin)
+// Parsing goes through the preview's own parser rather than a local regex, so
+// a warning can never disagree with what the preview actually resolves.
+const md = createMarkdownParser()
 
 export function extractCitationKeys(text: string): string[] {
   if (!text.trim()) return []
   const env: { citations?: CitationCluster[] } = {}
-  md.render(text, env)
+  md.parse(text, env)
   return (env.citations ?? []).flatMap((cluster) => cluster.items.map((item) => item.key))
 }
 

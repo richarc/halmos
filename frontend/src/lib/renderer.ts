@@ -1,12 +1,10 @@
-import MarkdownIt from 'markdown-it'
-import katexPluginModule from '@vscode/markdown-it-katex'
 import katex from 'katex'
-import footnotePlugin from 'markdown-it-footnote'
 import type Token from 'markdown-it/lib/token.mjs'
 import { outlinePlugin, type OutlineEntry } from './outline'
 import { tocPlugin, tocNavHtml, tocDepth, type TocEnv, DEFAULT_TOC_DEPTH } from './toc'
 import { parseFrontmatter } from './frontmatter'
-import { citationPlugin, type CitationFormatter, type CitationCluster } from './citations'
+import type { CitationFormatter, CitationCluster } from './citations'
+import { createMarkdownParser } from './markdownParser'
 import {
   chartWidthPx,
   figureLabel,
@@ -17,12 +15,6 @@ import {
 } from './figures'
 import { parseMermaidSource } from './mermaidSource'
 import { createKatexCache } from './katexCache'
-
-// The plugin ships CJS; Vite's browser interop and Vitest's node interop
-// disagree on whether the default import is the plugin function or the CJS
-// exports object wrapping it. Unwrap so both environments get the function.
-const katexPlugin = ((katexPluginModule as { default?: unknown }).default ??
-  katexPluginModule) as Parameters<MarkdownIt['use']>[0]
 
 /**
  * The per-render environment markdown-it threads through to the rules. Typed
@@ -38,8 +30,10 @@ interface RenderEnv extends TocEnv {
   docPath: string
 }
 
-const md = new MarkdownIt({ html: false, linkify: true })
-
+// Everything that decides what is a citation (linkify, KaTeX, footnotes, the
+// citation rules) comes from createMarkdownParser, which the editor's
+// recognisers share; only rendering concerns are added here.
+//
 // errorColor only decides the .katex-error class exists — KaTeX writes it as
 // an inline `color` style, which style.css's `.sheet .katex-error` rule
 // overrides with !important so the document palette still wins.
@@ -48,7 +42,7 @@ const md = new MarkdownIt({ html: false, linkify: true })
 // (katexCache.ts) so a formula is typeset once and every later render of the
 // unchanged document reads it back. Module-level like `md` itself, so the
 // cache lives as long as the app.
-md.use(katexPlugin, {
+const md = createMarkdownParser({
   throwOnError: false,
   errorColor: '#cc0000',
   katex: createKatexCache(katex),
@@ -254,7 +248,7 @@ function rewriteChartSpec(text: string, widthPx: number, stripTitle: boolean): s
 // Same problem, same fix, for display math (`$$…$$`): @vscode/markdown-it-katex
 // installs its own `math_block` renderer that builds a `<p class="katex-block">`
 // from tokens[idx].content by hand and never calls renderAttrs, so the anchor
-// the core rule set above is silently dropped. Captured after md.use(katexPlugin)
+// the core rule set above is silently dropped. Captured after the KaTeX plugin was applied
 // so this wraps whatever renderer the plugin actually installed, not a guess at
 // its name — this project doesn't pass enableFencedBlocks or enableBareBlocks,
 // so math_block is the only katex renderer that ever emits block-level output.
@@ -265,9 +259,6 @@ md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
   if (!line) return rendered
   return rendered.replace(/^<p /, `<p data-source-line="${md.utils.escapeHtml(line)}" `)
 }
-
-md.use(footnotePlugin as unknown as Parameters<MarkdownIt['use']>[0])
-md.use(citationPlugin)
 
 export interface RenderOptions {
   formatter?: CitationFormatter
