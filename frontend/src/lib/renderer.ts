@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it'
 import katexPluginModule from '@vscode/markdown-it-katex'
 import katex from 'katex'
+import footnotePlugin from 'markdown-it-footnote'
 import type Token from 'markdown-it/lib/token.mjs'
 import { outlinePlugin, type OutlineEntry } from './outline'
 import { tocPlugin, tocNavHtml, tocDepth, type TocEnv, DEFAULT_TOC_DEPTH } from './toc'
@@ -265,6 +266,7 @@ md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
   return rendered.replace(/^<p /, `<p data-source-line="${md.utils.escapeHtml(line)}" `)
 }
 
+md.use(footnotePlugin)
 md.use(citationPlugin)
 
 export interface RenderOptions {
@@ -309,12 +311,26 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
   const outline = env.outline ?? []
   const clusters = env.citations ?? []
   const formatter = opts?.formatter
-  if (!formatter || clusters.length === 0) return { html, outline }
+  // markdown-it-footnote appends its block to the end of the body. Cut it off
+  // so References can go between the text and the notes, and anchor it to the
+  // document's last line the way the References heading is.
+  const docLines = markdown.split(/\r\n?|\n/).length
+  const sepAt = html.indexOf('<hr class="footnotes-sep">')
+  let notes = ''
+  if (sepAt >= 0) {
+    notes = html
+      .slice(sepAt)
+      .replace('<section class="footnotes"', `<section class="footnotes" data-source-line="${docLines}"`)
+    html = html.slice(0, sepAt)
+  }
+  if (!formatter || clusters.length === 0) return { html: html + notes, outline }
 
   const { texts, bibliographyHtml } = formatter.format(
     clusters.map((c) => (resolvable(formatter, c) ? c : { items: [] })),
   )
-  html = html.replace(
+  // Citations inside a footnote are formatted too, so the replacement runs
+  // over the notes as well as the body.
+  const formatCitations = (fragment: string) => fragment.replace(
     // The s flag matters: a hard-wrapped citation group keeps its newline in
     // the placeholder, and without it the group renders as raw markup.
     /<span class="citation" data-cite-index="(\d+)">(.*?)<\/span>/gs,
@@ -335,14 +351,15 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
       return `<span class="citation">${texts[i]}</span>`
     },
   )
+  html = formatCitations(html)
+  notes = formatCitations(notes)
   if (clusters.some((c) => resolvable(formatter, c))) {
     // Anchor the appended heading to the document's last line, so the
     // bibliography's height (often substantial) doesn't collapse into a
     // single interpolated interval hanging off the last real anchor.
-    const docLines = markdown.split(/\r\n?|\n/).length
     html += `<h2 data-source-line="${docLines}">References</h2>\n${bibliographyHtml}\n`
   }
-  return { html, outline }
+  return { html: html + notes, outline }
 }
 
 function resolvable(f: CitationFormatter, c: CitationCluster): boolean {

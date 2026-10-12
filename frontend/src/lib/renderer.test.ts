@@ -373,3 +373,51 @@ describe('local images', () => {
     expect(html).toContain('_hermes/image')
   })
 })
+
+describe('render: footnotes', () => {
+  it('renders footnote references and definitions', () => {
+    const html = render('a[^1]\n\n[^1]: the note')
+    expect(html).toContain('<sup class="footnote-ref"><a href="#fn1"')
+    expect(html).toContain('class="footnotes')
+    expect(html).toContain('id="fn1"')
+    expect(html).toContain('the note')
+  })
+
+  it('renders inline footnotes', () => {
+    const html = render('a^[an inline note]')
+    expect(html).toContain('href="#fn1"')
+    expect(html).toContain('an inline note')
+  })
+
+  it('places footnotes after References', () => {
+    const html = render('Blah [@smith2020][^1].\n\n[^1]: the note', { formatter: FORMATTER })
+    expect(html.indexOf('References')).toBeGreaterThan(-1)
+    expect(html.indexOf('References')).toBeLessThan(html.indexOf('class="footnotes'))
+  })
+
+  it('anchors the footnote block to the last document line', () => {
+    const html = render('a[^1]\n\nb\n\n[^1]: note', { formatter: FORMATTER })
+    expect(html).toMatch(/<section class="footnotes[^"]*" data-source-line="5"/)
+  })
+
+  it('formats a citation inside a footnote', () => {
+    const html = render('a[^1]\n\n[^1]: see [@smith2020]', { formatter: FORMATTER })
+    const notes = html.slice(html.indexOf('class="footnotes'))
+    expect(notes).toContain('Smith')
+    expect(notes).not.toContain('data-cite-index')
+    expect(html).toContain('References')
+  })
+
+  it('formats a citation inside an inline footnote', () => {
+    const html = render('a^[see [@smith2020]]', { formatter: FORMATTER })
+    const notes = html.slice(html.indexOf('class="footnotes'))
+    expect(notes).toContain('Smith')
+    expect(notes).not.toContain('data-cite-index')
+  })
+
+  it('still renders footnotes when there are no citations', () => {
+    const html = render('a[^1]\n\n[^1]: note', { formatter: FORMATTER })
+    expect(html).toContain('class="footnotes')
+    expect(html).not.toContain('References')
+  })
+})
