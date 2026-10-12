@@ -86,16 +86,17 @@ export function frontmatterKeyChange(
   // Walk the block's lines by offset; the closing fence is the last line the
   // match consumed (its trailing line ending, if any, stays outside the line).
   const keyRe = new RegExp(`^${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:`)
+  // The LAST matching line, because that is the one parseFrontmatter reads.
   let offset = 0
+  let found: { from: number; to: number } | null = null
   const lines = match[0].split(/(?<=\n)/)
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]
     const content = raw.replace(/\r?\n$/, '')
-    if (i > 0 && i < lines.length - 1 && keyRe.test(content)) {
-      return { from: offset, to: offset + content.length, insert: line }
-    }
+    if (i > 0 && i < lines.length - 1 && keyRe.test(content)) found = { from: offset, to: offset + content.length }
     offset += raw.length
   }
+  if (found) return { ...found, insert: line }
   // No such key: insert before the closing fence line.
   const closing = lines[lines.length - 1]
   return { from: match[0].length - closing.length, to: match[0].length - closing.length, insert: line + eol }

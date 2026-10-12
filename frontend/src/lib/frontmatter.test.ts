@@ -113,6 +113,13 @@ describe('frontmatterKeyChange', () => {
     expect(apply(doc, 'csl', 'ieee')).toBe('---\nbibliography: refs.bib\ncsl: ieee\n---\n# T\n')
   })
 
+  it('replaces the last of two csl lines, the one parseFrontmatter reads', () => {
+    const doc = '---\ncsl: apa\ncsl: chicago\n---\n# T\n'
+    const out = apply(doc, 'csl', 'ieee')
+    expect(out).toBe('---\ncsl: apa\ncsl: ieee\n---\n# T\n')
+    expect(parseFrontmatter(out).csl).toBe('ieee')
+  })
+
   it('adds csl before the closing fence', () => {
     const doc = '---\nbibliography: refs.bib\n---\n# T\n'
     expect(apply(doc, 'csl', 'ieee')).toBe('---\nbibliography: refs.bib\ncsl: ieee\n---\n# T\n')
