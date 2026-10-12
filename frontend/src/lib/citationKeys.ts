@@ -1,5 +1,4 @@
 import MarkdownIt from 'markdown-it'
-import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs'
 import type Token from 'markdown-it/lib/token.mjs'
 import { citationPlugin, KEY_RE } from './citations'
 import { parseFrontmatter } from './frontmatter'
@@ -11,37 +10,12 @@ export interface KeySpan {
   to: number
 }
 
-// A citation the inline rules accepted: the inline source it was matched in,
-// and the half-open range of the whole citation (`[...]` or `@key`) inside it.
-interface Match {
-  src: string
-  start: number
-  end: number
-}
-
-type Rule = (state: StateInline, silent: boolean) => boolean
-
 // The recogniser runs the real citation rules, so it cannot disagree with the
 // preview about what is a citation or where code, links and emails stop one.
-// markdown-it records no source positions, so each rule is wrapped to note
-// where it fired; the positions are then mapped back to the document.
+// markdown-it records no source positions, but citationPlugin stamps each
+// citation token's meta with the inline source it matched in and the range, so
+// the tokens that survive backtracking carry their own positions.
 const md = new MarkdownIt({ html: false }).use(citationPlugin)
-for (const name of ['citation', 'citation_narrative']) {
-  const rules = (md.inline.ruler as unknown as { __rules__: { name: string; fn: Rule }[] })
-    .__rules__
-  const rule = rules.find((r) => r.name === name)
-  if (!rule) throw new Error(`citation rule ${name} is not registered`)
-  const original = rule.fn
-  rule.fn = (state, silent) => {
-    const start = state.pos
-    const matched = original(state, silent)
-    if (matched && !silent) {
-      const env = state.env as { matches?: Match[] }
-      ;(env.matches ??= []).push({ src: state.src, start, end: state.pos })
-    }
-    return matched
-  }
-}
 
 /** Same as the trim in citations.ts `parseKey`: trailing . : # ? are prose. */
 function keyAt(text: string): string {
@@ -53,10 +27,12 @@ function isCitation(t: Token): boolean {
   return t.type === 'citation' || t.type === 'citation_narrative'
 }
 
-function countCitations(tokens: Token[] | null): number {
-  let n = 0
-  for (const t of tokens ?? []) n += isCitation(t) ? 1 : countCitations(t.children)
-  return n
+function collectCitations(tokens: Token[] | null, out: Token[] = []): Token[] {
+  for (const t of tokens ?? []) {
+    if (isCitation(t)) out.push(t)
+    else collectCitations(t.children, out)
+  }
+  return out
 }
 
 /** Start offset of every line, split the way markdown-it splits them. */
@@ -86,6 +62,12 @@ function align(content: string, text: string, from: number, to: number): Int32Ar
   return map
 }
 
+interface Match {
+  src: string
+  start: number
+  end: number
+}
+
 function keysIn(m: Match): { key: string; at: number }[] {
   if (m.src[m.start] === '@') {
     return [{ key: keyAt(m.src.slice(m.start + 1, m.end)), at: m.start + 1 }]
@@ -100,28 +82,40 @@ function keysIn(m: Match): { key: string; at: number }[] {
   return out
 }
 
+/**
+ * Every citation key in `text` with its exact offsets, as the preview reads
+ * them (so none inside code, links' destinations, emails or frontmatter).
+ * Parses the whole input with markdown-it: call it on a line or a visible
+ * range, never per keystroke on a full document.
+ */
 export function findCitationKeys(text: string): KeySpan[] {
   const { body } = parseFrontmatter(text)
   if (!body.trim()) return []
   const shift = text.length - body.length
-  const env: { matches?: Match[] } = {}
-  const tokens = md.parse(body, env)
-  const matches = env.matches ?? []
+  const tokens = md.parse(body, {})
   const starts = lineStarts(body)
   const spans: KeySpan[] = []
-  let next = 0
   let map: [number, number] | null = null
+  // Cells of one table row share a source line; each starts where the last
+  // one ended, so a later cell cannot reuse characters an earlier one matched.
+  let cursor = 0
   for (const token of tokens) {
-    if (token.map) map = token.map
+    if (token.map && token.map !== map) {
+      map = token.map
+      cursor = starts[map[0]] ?? 0
+    }
     if (token.type !== 'inline') continue
-    const count = countCitations(token.children)
-    const mine = matches.slice(next, next + count)
-    next += count
-    if (!mine.length || !map) continue
-    const lo = starts[map[0]] ?? 0
+    if (!map) continue
     const hi = starts[map[1]] ?? body.length
-    const where = align(token.content, body, lo, hi)
-    for (const m of mine) {
+    const where = align(token.content, body, cursor, hi)
+    for (let c = token.content.length - 1; c >= 0; c--) {
+      if (where[c] >= 0) {
+        cursor = where[c] + 1
+        break
+      }
+    }
+    for (const t of collectCitations(token.children)) {
+      const m = t.meta as Match
       // Image alt text is parsed on its own, so its positions are relative to
       // that substring rather than to the whole inline content.
       const base = m.src === token.content ? 0 : token.content.indexOf(m.src)
@@ -137,7 +131,11 @@ export function findCitationKeys(text: string): KeySpan[] {
   return spans
 }
 
-/** Citations whose key `has` rejects, in document order, one per occurrence. */
+/**
+ * Citations whose key `has` rejects, in document order, one per occurrence,
+ * with 1-based lines. Same cost as findCitationKeys: not for every keystroke
+ * on a full document.
+ */
 export function unknownCitations(
   text: string,
   has: (key: string) => boolean,

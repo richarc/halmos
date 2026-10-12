@@ -38,6 +38,15 @@ const CORPUS = [
   '   ',
   '[ @a ]',
   '[-@a; -@b, p. 3]',
+  '| @a1 | @a2 |\n|---|---|\n| x | y |',
+  '| h1 | h2 |\n|---|---|\n| @b1 | [@b2; @b3] |\n| @b4 | @b5 |',
+  '[text with [@a] inside](https://x.y) then @b',
+  '![alt @a](x.png "t") and [@b]',
+  '![[@a]](x.png)',
+  '[see @a][undefined] and [@b][also undefined]',
+  '[outer [inner [@a] deep] @b] tail @c',
+  '[x](<@a>) [@b](https://z) @c',
+  '[[@a]]',
 ]
 
 describe('findCitationKeys', () => {
@@ -78,6 +87,15 @@ describe('findCitationKeys', () => {
   it('works on a lone line slice', () => {
     const t = '  - note @abc, then [@d]'
     expect(findCitationKeys(t).map((s) => t.slice(s.from, s.to))).toEqual(['abc', 'd'])
+  })
+})
+
+describe('table cells', () => {
+  it('gives each cell its own offsets in header and body rows', () => {
+    const t = '| @a1 | @a2 |\n|---|---|\n| @b1 | @b2 |'
+    const spans = findCitationKeys(t)
+    expect(spans.map((s) => s.key)).toEqual(['a1', 'a2', 'b1', 'b2'])
+    expect(spans.map((s) => t.slice(s.from, s.to))).toEqual(['a1', 'a2', 'b1', 'b2'])
   })
 })
 

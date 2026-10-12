@@ -220,13 +220,18 @@ function pushCitation(
   tokenType: string,
   cluster: CitationCluster,
   raw: string,
+  start: number,
 ): void {
   const env = state.env as { citations?: CitationCluster[] }
   env.citations ??= []
   const index = env.citations.length
   env.citations.push(cluster)
   const token = state.push(tokenType, '', 0)
-  token.meta = { index }
+  // `src`/`start`/`end` locate the match in the inline source it was parsed
+  // from. Nothing in the preview reads them; citationKeys.ts uses them to map
+  // a citation back to the document, and because they ride on the token they
+  // vanish with it if the surrounding construct is backtracked.
+  token.meta = { index, src: state.src, start, end: state.pos }
   token.content = raw
 }
 
@@ -274,8 +279,8 @@ function bracketRule(state: StateInline, silent: boolean): boolean {
   if (content.includes('[')) return false
   const items = parseBracketContent(content)
   if (!items) return false
-  if (!silent) pushCitation(state, 'citation', { items }, src.slice(pos, close + 1))
   state.pos = close + 1
+  if (!silent) pushCitation(state, 'citation', { items }, src.slice(pos, close + 1), pos)
   return true
 }
 
@@ -295,15 +300,16 @@ function narrativeRule(state: StateInline, silent: boolean): boolean {
   if (before && /[\w.\-@[]/.test(before)) return false
   const parsed = parseKey(src.slice(pos + 1))
   if (!parsed) return false
+  state.pos = pos + 1 + parsed.key.length
   if (!silent) {
     pushCitation(
       state,
       'citation_narrative',
       { items: [{ key: parsed.key }], mode: 'composite' },
       `@${parsed.key}`,
+      pos,
     )
   }
-  state.pos = pos + 1 + parsed.key.length
   return true
 }
 
