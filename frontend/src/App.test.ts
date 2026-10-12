@@ -1832,3 +1832,59 @@ describe('opening a file from Finder', () => {
     await vi.waitFor(() => expect(DocumentService.OpenPath).toHaveBeenCalledWith('/tmp/y.md'))
   })
 })
+
+describe('unknown citations in the status bar', () => {
+  const bib = '@article{a, title={A}, author={Doe, Jane}, year={2020}}'
+  const fm = '---\nbibliography: refs.bib\n---\n'
+
+  async function openWithBib(body: string) {
+    DocumentService.ReadBibliography.mockResolvedValue(bib)
+    return openDoc(`${fm}# Results\n\n${body}\n`)
+  }
+
+  afterEach(() => DocumentService.ReadBibliography.mockResolvedValue(''))
+
+  it('shows the unknown citation count in the status bar', async () => {
+    const target = await openWithBib('[@a; @b]')
+    await vi.waitFor(() =>
+      expect(target.querySelector('.status-bar')?.textContent).toContain('1 unknown citation'),
+    )
+    expect(target.querySelector('.status-bar')?.textContent).not.toContain('citations')
+  })
+
+  it('pluralises the count', async () => {
+    const target = await openWithBib('[@b; @c]')
+    await vi.waitFor(() =>
+      expect(target.querySelector('.status-bar')?.textContent).toContain('2 unknown citations'),
+    )
+  })
+
+  it('hides the count without a bibliography', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(bib)
+    const target = await openDoc('# Results\n\n[@b]\n')
+    await new Promise((r) => setTimeout(r, 400))
+    expect(target.querySelector('.status-bar')?.textContent).not.toContain('unknown')
+  })
+
+  it('jumps to the line from the list', async () => {
+    const target = await openWithBib('[@a]\n\n[@b]')
+    const btn = await vi.waitFor(() => {
+      const b = target.querySelector<HTMLButtonElement>('.unknown-count')
+      expect(b).not.toBeNull()
+      return b!
+    })
+    btn.click()
+    flushSync()
+    const dlg = target.querySelector<HTMLDialogElement>('dialog[aria-label="Unknown citations"]')!
+    expect(dlg.open).toBe(true)
+    expect(dlg.textContent).toContain('[@b]')
+    expect(dlg.textContent).toContain('line 8')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const entry = dlg.querySelector<HTMLButtonElement>('.unknown-list button')!
+    entry.click()
+    flushSync()
+    expect(dlg.open).toBe(false)
+    const line = view.state.doc.lineAt(view.state.selection.main.head).number
+    expect(line).toBe(8)
+  })
+})

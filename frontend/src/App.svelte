@@ -47,6 +47,8 @@
   import TableBuilder from './TableBuilder.svelte'
   import { parsePipeTable, serializePipeTable, type PipeTable } from './lib/pipeTable'
   import Dialog from './Dialog.svelte'
+  import UnknownCitations from './UnknownCitations.svelte'
+  import { unknownCitations } from './lib/citationKeys'
   import { readSpec, type BuilderState } from './lib/chartSpec'
   import type { ChartWidth, FigureAlignment } from './lib/figures'
   import {
@@ -168,6 +170,28 @@
       : null,
   )
   const fmCsl = $derived(fm.csl)
+
+  // Citation keys the bibliography does not have. unknownCitations parses the
+  // whole document, so this is never run per keystroke: debounced on text
+  // change, immediate when the formatter (or the bibliography name) changes.
+  let unknown = $state<{ key: string; line: number }[]>([])
+  let unknownOpen = $state(false)
+  function recountUnknown(text: string) {
+    const f = formatter
+    unknown = f && fmBibliography ? unknownCitations(text, (k) => f.has(k)) : []
+    if (unknown.length === 0) unknownOpen = false
+  }
+  const recountUnknownSoon = debounce(recountUnknown, 300)
+  $effect(() => {
+    void formatter
+    void fmBibliography
+    recountUnknownSoon.cancel()
+    untrack(() => recountUnknown(content))
+  })
+  function jumpToUnknown(line: number) {
+    unknownOpen = false
+    jumpToLine(line)
+  }
 
   // The wait follows the cost of the last update: twice the measured time,
   // between 60 and 300 ms, starting at 100 until the first measurement. The
@@ -520,6 +544,7 @@
     content = text
     welcomeDismissed = true
     updatePreview(text)
+    recountUnknownSoon(text)
   }
 
   // `cursor` is 'end' for a document created a moment ago, so typing starts
@@ -1140,6 +1165,11 @@
 
   <footer class="status-bar">
     <span>{filename}{dirty ? ' •' : ''}</span>
+    {#if unknown.length > 0}
+      <button class="link-button unknown-count" onclick={() => (unknownOpen = true)}
+        >{unknown.length} unknown citation{unknown.length === 1 ? '' : 's'}</button
+      >
+    {/if}
   </footer>
 
   {#if showWelcome}
@@ -1235,6 +1265,8 @@
       <button class="primary" onclick={restoreDraft}>Restore</button>
     {/snippet}
   </Dialog>
+
+  <UnknownCitations open={unknownOpen} items={unknown} onclose={() => (unknownOpen = false)} onjump={jumpToUnknown} />
 
   <Dialog open={askUpdates} label="Check for updates" onclose={() => void answerUpdateQuestion('off')}>
     <p>
