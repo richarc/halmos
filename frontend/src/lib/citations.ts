@@ -63,18 +63,29 @@ export interface CitationFormatter {
   reference(key: string): string | null
 }
 
+/** True for a `csl:` value that names a style file rather than a bundled id. */
+export function isStyleFile(csl: string): boolean {
+  return !STYLE_IDS.includes(csl) && /\.csl$/i.test(csl)
+}
+
 /**
  * Loads the engine and the requested style, then returns a formatter whose
  * format() is synchronous — the render path calls it on every keystroke, so
  * the awaiting is done once, here, rather than per render. An unknown style id
  * falls back to APA.
+ * With `styleXml` the supplied style replaces the bundled one, and the engine
+ * is built here rather than lazily, so a style citeproc rejects throws from
+ * this call instead of from a later render.
  */
 export async function createCitationFormatter(
   entries: CSLEntry[],
   styleId: string,
+  styleXml?: string,
 ): Promise<CitationFormatter> {
   const [styleModule, localeModule, citeprocModule] = await Promise.all([
-    (STYLE_LOADERS[styleId] ?? STYLE_LOADERS.apa)(),
+    styleXml === undefined
+      ? (STYLE_LOADERS[styleId] ?? STYLE_LOADERS.apa)()
+      : Promise.resolve({ default: styleXml }),
     import('../assets/csl/locales-en-US.xml?raw'),
     import('citeproc'),
   ])
@@ -102,6 +113,7 @@ export async function createCitationFormatter(
   // from the cluster list it is handed, so a reused engine carries nothing over
   // from the previous render — see the reuse tests in citations.test.ts.
   let engine: CiteprocEngine | undefined
+  if (styleXml !== undefined) engine = new CSL.Engine(sys, style)
   // The last cluster list, serialised, and what it formatted to. A render
   // happens on every keystroke pause but the citations change on very few of
   // them, and rebuildProcessorState plus makeBibliography cost ~15 ms for 30

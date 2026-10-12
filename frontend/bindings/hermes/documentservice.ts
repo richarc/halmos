@@ -138,6 +138,15 @@ export function ReadBibliography(path: string, docPath: string): $CancellablePro
 }
 
 /**
+ * ReadCitationStyle returns the text of a CSL style file named by a
+ * document's `csl:` key, resolved against the document the same way
+ * ReadBibliography resolves a bibliography.
+ */
+export function ReadCitationStyle(path: string, docPath: string): $CancellablePromise<string> {
+    return $Call.ByID(1006359938, path, docPath);
+}
+
+/**
  * RecentFiles takes no lock: the list is written atomically, so a concurrent
  * update is either fully visible or not visible at all — there is no partial
  * state on disk to read. Only the read-modify-write in addRecent needs

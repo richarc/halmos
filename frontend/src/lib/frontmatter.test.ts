@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseFrontmatter } from './frontmatter'
+import { parseFrontmatter, frontmatterKeyChange } from './frontmatter'
 
 describe('parseFrontmatter', () => {
   it('extracts bibliography and csl and strips the block', () => {
@@ -99,5 +99,47 @@ describe('bodyStartLine', () => {
 
   it('is 1 for an unterminated block, which is not frontmatter', () => {
     expect(parseFrontmatter('---\nnot closed\n# Title\n').bodyStartLine).toBe(1)
+  })
+})
+
+describe('frontmatterKeyChange', () => {
+  const apply = (doc: string, key: string, value: string) => {
+    const c = frontmatterKeyChange(doc, key, value)
+    return doc.slice(0, c.from) + c.insert + doc.slice(c.to)
+  }
+
+  it('replaces an existing csl line', () => {
+    const doc = '---\nbibliography: refs.bib\ncsl: "apa"\n---\n# T\n'
+    expect(apply(doc, 'csl', 'ieee')).toBe('---\nbibliography: refs.bib\ncsl: ieee\n---\n# T\n')
+  })
+
+  it('adds csl before the closing fence', () => {
+    const doc = '---\nbibliography: refs.bib\n---\n# T\n'
+    expect(apply(doc, 'csl', 'ieee')).toBe('---\nbibliography: refs.bib\ncsl: ieee\n---\n# T\n')
+  })
+
+  it('creates a frontmatter block when there is none', () => {
+    expect(apply('# T\n', 'csl', 'ieee')).toBe('---\ncsl: ieee\n---\n# T\n')
+  })
+
+  it('handles an empty block and CRLF documents', () => {
+    expect(apply('---\n---\nx', 'csl', 'ieee')).toBe('---\ncsl: ieee\n---\nx')
+    expect(apply('---\r\ncsl: apa\r\n---\r\nx', 'csl', 'ieee')).toBe('---\r\ncsl: ieee\r\n---\r\nx')
+    expect(apply('---\r\nbibliography: a.bib\r\n---\r\nx', 'csl', 'ieee')).toBe(
+      '---\r\nbibliography: a.bib\r\ncsl: ieee\r\n---\r\nx',
+    )
+    expect(apply('# T\r\n', 'csl', 'ieee')).toBe('---\r\ncsl: ieee\r\n---\r\n# T\r\n')
+  })
+
+  it('quotes values plain YAML would misread, and only those', () => {
+    expect(apply('# T', 'csl', 'my styles/x.csl')).toContain('csl: my styles/x.csl\n')
+    expect(apply('# T', 'csl', 'a: b')).toContain('csl: "a: b"\n')
+    expect(apply('# T', 'csl', 'a #b')).toContain('csl: "a #b"\n')
+    expect(apply('# T', 'csl', ' x')).toContain('csl: " x"\n')
+  })
+
+  it('does not match a longer key or text outside the block', () => {
+    const doc = '---\ncsl-note: x\n---\ncsl: body\n'
+    expect(apply(doc, 'csl', 'ieee')).toBe('---\ncsl-note: x\ncsl: ieee\n---\ncsl: body\n')
   })
 })

@@ -420,6 +420,17 @@ func (s *DocumentService) ReadBibliography(path, docPath string) (string, error)
 	return string(data), nil
 }
 
+// ReadCitationStyle returns the text of a CSL style file named by a
+// document's `csl:` key, resolved against the document the same way
+// ReadBibliography resolves a bibliography.
+func (s *DocumentService) ReadCitationStyle(path, docPath string) (string, error) {
+	data, err := os.ReadFile(resolveAgainstDoc(path, docPath))
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 // WatchBibliography (re)arms the single bibliography watcher. An empty path
 // stops watching. The goroutine polls mtime+size and notifies on change; a
 // missing file keeps polling and notifies when it appears.

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { createCitationFormatter, STYLE_IDS } from './citations'
+import { createCitationFormatter, STYLE_IDS, isStyleFile } from './citations'
+import minimalCsl from './fixtures/minimal.csl?raw'
 import type { CSLEntry } from './bibliography'
 import MarkdownIt from 'markdown-it'
 import { citationPlugin } from './citations'
@@ -329,5 +330,25 @@ describe('CitationFormatter.reference', () => {
   it('reference() returns the same string for repeat calls', async () => {
     const f = await createCitationFormatter(ENTRIES, 'apa')
     expect(f.reference('doe2021')).toBe(f.reference('doe2021'))
+  })
+})
+
+describe('style files', () => {
+  it('isStyleFile', () => {
+    expect(isStyleFile('styles/x.CSL')).toBe(true)
+    expect(isStyleFile('apa.csl')).toBe(true)
+    expect(isStyleFile('apa')).toBe(false)
+    expect(isStyleFile('ieee')).toBe(false)
+  })
+
+  it('uses supplied style XML', async () => {
+    const f = await createCitationFormatter(ENTRIES, 'styles/min.csl', minimalCsl)
+    const { texts } = f.format([{ items: [{ key: 'smith2020' }] }])
+    expect(texts[0]).toBe('{Smith}')
+    expect(f.reference('smith2020')).toContain('A study')
+  })
+
+  it('throws for style XML citeproc rejects', async () => {
+    await expect(createCitationFormatter(ENTRIES, 'bad.csl', '<not-csl/>')).rejects.toThrow()
   })
 })
