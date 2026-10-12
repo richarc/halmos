@@ -52,7 +52,9 @@ export function parseFrontmatter(markdown: string): Frontmatter {
  */
 function unquote(raw: string): string {
   const quoted = raw.match(/^(["'])(.*)\1$/)
-  if (quoted) return quoted[2]
+  // Inside double quotes `\\` and `\"` are escapes (what frontmatterKeyChange
+  // writes); single-quoted text is taken literally, as before.
+  if (quoted) return quoted[1] === '"' ? quoted[2].replace(/\\(["\\])/g, '$1') : quoted[2]
   return raw.replace(/\s+#.*$/, '').trim()
 }
 
@@ -63,8 +65,10 @@ function unquote(raw: string): string {
  * document's own line ending (CRLF or LF) is used for anything inserted.
  *
  * The value is double-quoted only when plain YAML would misread it: it
- * contains `:` or `#`, starts or ends with a space, or is empty. Quotes and
- * backslashes inside are escaped.
+ * contains `:` or `#`, starts or ends with a space, starts or ends with a
+ * quote character (parseFrontmatter would strip it), or is empty. Quotes and
+ * backslashes inside are escaped, and parseFrontmatter unescapes them, so the
+ * value reads back unchanged.
  */
 export function frontmatterKeyChange(
   doc: string,
@@ -72,7 +76,7 @@ export function frontmatterKeyChange(
   value: string,
 ): { from: number; to: number; insert: string } {
   const eol = doc.includes('\r\n') ? '\r\n' : '\n'
-  const needsQuotes = value === '' || /[:#]/.test(value) || /^\s|\s$/.test(value)
+  const needsQuotes = value === '' || /[:#]/.test(value) || /^\s|\s$/.test(value) || /^["']|["']$/.test(value)
   const text = needsQuotes ? `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : value
   const line = `${key}: ${text}`
 

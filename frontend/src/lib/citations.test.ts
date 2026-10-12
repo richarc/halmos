@@ -351,4 +351,14 @@ describe('style files', () => {
   it('throws for style XML citeproc rejects', async () => {
     await expect(createCitationFormatter(ENTRIES, 'bad.csl', '<not-csl/>')).rejects.toThrow()
   })
+
+  // Chosen behaviour: a style with a <citation> but no <bibliography> loads,
+  // and reference() returns null instead of throwing.
+  it('loads a style without a bibliography section and gives no reference', async () => {
+    const noBib = minimalCsl.replace(/<bibliography>[\s\S]*<\/bibliography>/, '')
+    expect(noBib).not.toContain('<bibliography')
+    const f = await createCitationFormatter(ENTRIES, 'nobib.csl', noBib)
+    expect(f.format([{ items: [{ key: 'smith2020' }] }]).texts[0]).toBe('{Smith}')
+    expect(f.reference('smith2020')).toBeNull()
+  })
 })

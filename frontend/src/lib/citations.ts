@@ -113,7 +113,6 @@ export async function createCitationFormatter(
   // from the cluster list it is handed, so a reused engine carries nothing over
   // from the previous render — see the reuse tests in citations.test.ts.
   let engine: CiteprocEngine | undefined
-  if (styleXml !== undefined) engine = new CSL.Engine(sys, style)
   // The last cluster list, serialised, and what it formatted to. A render
   // happens on every keystroke pause but the citations change on very few of
   // them, and rebuildProcessorState plus makeBibliography cost ~15 ms for 30
@@ -166,6 +165,17 @@ export async function createCitationFormatter(
     return { texts, bibliographyHtml }
   }
 
+  // A supplied style is untrusted: citeproc can accept it at construction and
+  // still fail when asked to format. Build the engine and run one cluster
+  // through the real formatting path now, so a broken style throws from here
+  // and the caller falls back, instead of throwing inside a render. A style
+  // with no <bibliography> section is accepted: makeBibliography reports false
+  // for it and format() returns an empty bibliography.
+  if (styleXml !== undefined) {
+    engine = new CSL.Engine(sys, style)
+    if (entries.length > 0) formatUncached([{ items: [{ key: entries[0].id }] }])
+  }
+
   // A second engine, built on the first reference() call, so a hover never
   // rebuilds the processor state format() has cached on the main engine.
   let refEngine: CiteprocEngine | undefined
@@ -175,19 +185,24 @@ export async function createCitationFormatter(
     if (!byId.has(key)) return null
     const hit = refCache.get(key)
     if (hit !== undefined) return hit
-    refEngine ??= new CSL.Engine(sys, style)
-    refEngine.rebuildProcessorState(
-      [
-        {
-          citationID: 'ref',
-          citationItems: [{ id: key }],
-          properties: { noteIndex: 0 },
-        },
-      ],
-      'html',
-    )
-    const bib = refEngine.makeBibliography()
-    const html = bib ? bib[1].join('') : null
+    let html: string | null = null
+    try {
+      refEngine ??= new CSL.Engine(sys, style)
+      refEngine.rebuildProcessorState(
+        [
+          {
+            citationID: 'ref',
+            citationItems: [{ id: key }],
+            properties: { noteIndex: 0 },
+          },
+        ],
+        'html',
+      )
+      const bib = refEngine.makeBibliography()
+      html = bib ? bib[1].join('') : null
+    } catch {
+      // A style that cannot render a reference means no hover, not a crash.
+    }
     refCache.set(key, html)
     return html
   }

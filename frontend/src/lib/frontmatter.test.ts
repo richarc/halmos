@@ -142,4 +142,16 @@ describe('frontmatterKeyChange', () => {
     const doc = '---\ncsl-note: x\n---\ncsl: body\n'
     expect(apply(doc, 'csl', 'ieee')).toBe('---\ncsl-note: x\ncsl: ieee\n---\ncsl: body\n')
   })
+
+  it('reads back exactly what it wrote', () => {
+    const values = [
+      'styles/x.csl', 'my styles/x.csl', 'a#b.csl', 'a: b.csl',
+      'my "x": b.csl', 'a\\b:c.csl', "'q'.csl", '"q".csl',
+    ]
+    for (const value of values) {
+      for (const doc of ['# T\n', '---\nbibliography: r.bib\n---\n# T\n', '---\ncsl: old\n---\nx']) {
+        expect(parseFrontmatter(apply(doc, 'csl', value)).csl).toBe(value)
+      }
+    }
+  })
 })

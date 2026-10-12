@@ -1888,3 +1888,26 @@ describe('unknown citations in the status bar', () => {
     expect(line).toBe(8)
   })
 })
+
+describe('csl style files in an unsaved document', () => {
+  async function typeIntoUntitled(text: string) {
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.cm-editor')).not.toBeNull())
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } })
+    return target
+  }
+  const toastText = (t: HTMLElement) => t.querySelector('.toast')?.textContent
+
+  it('asks to save when only a .csl style is named', async () => {
+    const target = await typeIntoUntitled('---\ncsl: my.csl\n---\n# Results\n')
+    await vi.waitFor(() => expect(toastText(target)).toBe('Save the document to load my.csl'))
+  })
+
+  it('names both files when a bibliography is also set', async () => {
+    const target = await typeIntoUntitled('---\nbibliography: refs.bib\ncsl: my.csl\n---\n# Results\n')
+    await vi.waitFor(() =>
+      expect(toastText(target)).toBe('Save the document to load refs.bib and my.csl'),
+    )
+  })
+})

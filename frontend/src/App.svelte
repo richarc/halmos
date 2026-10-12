@@ -260,6 +260,7 @@
       // One toast: a second would replace the first. A style file is named
       // too, since it resolves against the saved document just as the .bib does.
       if (unsaved) toast(styleFile ? `${unsaved} and ${styleFile}` : unsaved)
+      else if (styleFile && !path) toast(`Save the document to load ${styleFile}`)
       void DocumentService.WatchBibliography('', path ?? '')
       return
     }
