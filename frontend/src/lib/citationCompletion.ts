@@ -21,6 +21,10 @@ const TYPED_KEY = /@([\w:#$%&\-+?<>~/.]*)$/
 const NOT_BEFORE_BARE = /[\w.\-@[]/
 // Inside an open bracket group, after a ";" separator.
 const AFTER_SEPARATOR = /\[[^[\]]*;\s*$/
+// The text before the "@" is a URL or path being typed (https://x.social/@me,
+// medium.com/@me): the preview reads those as links, so offering keys there
+// is noise.
+const IN_URL = /(?:\/|[a-z][\w+.-]*:\/\/\S*|www\.\S*)$/i
 
 function names(entry: CSLEntry): string[] {
   return (entry.author ?? entry.editor ?? []).map((n) => n.family ?? n.literal ?? '').filter(Boolean)
@@ -99,7 +103,7 @@ export function citationCompletionSource(get: () => CitationContext | null): Com
     const inBracket = (p: string) => p.endsWith('[') || AFTER_SEPARATOR.test(p)
     // "-@key" is the author-suppressed form, valid only inside a bracket group.
     const ok = inBracket(prefix) || (prev === '-' && inBracket(prefix.slice(0, -1))) || !NOT_BEFORE_BARE.test(prev)
-    if (!ok) return null
+    if (!ok || IN_URL.test(prefix)) return null
 
     if (inFrontmatter(cc.state, cc.pos) || isInCode(cc.state, cc.pos)) return null
     if (inLocalMaths(cc.state, at)) return null

@@ -47,6 +47,12 @@ describe('citationCompletionSource', () => {
     expect(run('[@zzz|')).toBeNull()
   })
 
+  it('does not trigger inside a URL', () => {
+    expect(run('See https://mastodon.social/@al|')).toBeNull()
+    expect(run('Follow medium.com/@s|')).toBeNull()
+    expect(run('See https://x.org/?u=@s|')).toBeNull()
+  })
+
   it('does not trigger after a word character (email)', () => {
     expect(run('a@|')).toBeNull()
     expect(run('mail me@exa|')).toBeNull()
