@@ -406,3 +406,21 @@ func TestCreateDocumentWithoutBibliography(t *testing.T) {
 		t.Errorf("expected only notes.md in %s, got %v", dir, entries)
 	}
 }
+
+func TestSetCitationStyleNotifiesOnChangeOnly(t *testing.T) {
+	s := newTestService(t)
+	fired := 0
+	s.onCitationStyleChanged = func() { fired++ }
+	if got := s.currentCitationStyle(); got != "apa" {
+		t.Fatalf("default style = %q, want apa", got)
+	}
+	s.SetCitationStyle("ieee")
+	s.SetCitationStyle("ieee")
+	if fired != 1 {
+		t.Fatalf("fired %d times for one change, want 1", fired)
+	}
+	s.SetCitationStyle("apa")
+	if fired != 2 || s.currentCitationStyle() != "apa" {
+		t.Fatalf("fired %d, style %q", fired, s.currentCitationStyle())
+	}
+}

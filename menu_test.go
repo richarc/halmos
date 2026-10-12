@@ -4,6 +4,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -163,5 +164,30 @@ func TestWhenVisibleRunsOnShownWindow(t *testing.T) {
 	whenVisible(true, func() { ran++ })
 	if ran != 1 {
 		t.Errorf("a document command on a shown window ran %d times, want 1", ran)
+	}
+}
+
+// The menu's style ids and the formatter's loader keys are two lists of the
+// same thing; a style added to one and not the other would tick nothing or
+// fail to load.
+func TestCitationStyleIDsMatchFrontend(t *testing.T) {
+	src, err := os.ReadFile("frontend/src/lib/citations.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	block := regexp.MustCompile(`(?s)STYLE_LOADERS[^\n]*\{\n(.*?)\n\}`).FindSubmatch(src)
+	if block == nil {
+		t.Fatal("no STYLE_LOADERS table in citations.ts")
+	}
+	want := map[string]bool{}
+	for _, m := range regexp.MustCompile(`(?m)^\s*'?([a-z-]+)'?:\s*\(\)`).FindAllSubmatch(block[1], -1) {
+		want[string(m[1])] = true
+	}
+	got := map[string]bool{}
+	for _, st := range citationStyles {
+		got[st.id] = true
+	}
+	if len(want) == 0 || !reflect.DeepEqual(got, want) {
+		t.Fatalf("menu ids %v, frontend ids %v", got, want)
 	}
 }

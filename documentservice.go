@@ -35,6 +35,14 @@ type DocumentService struct {
 	// Notified whenever the recents list changes (add or clear), so the
 	// native Open Recent menu can be rebuilt. Set once during startup.
 	onRecentsChanged func()
+	// Notified when the open document's citation style changes, so the
+	// Format → Citation Style ticks can be rebuilt. Set once during startup.
+	onCitationStyleChanged func()
+	// The open document's `csl:` value ("apa" when it has none), as last
+	// reported by the frontend. Guarded by styleMu: SetCitationStyle runs on a
+	// binding goroutine and installMenu reads it on the main thread.
+	styleMu       sync.Mutex
+	citationStyle string
 	// Brings the window back to the front. Set once during startup; nil in
 	// tests, where there is no window. See PickCitations for why it exists.
 	onRefocus func()
@@ -214,6 +222,39 @@ func (s *DocumentService) ChooseBibliography() (string, error) {
 		SetTitle("Choose Bibliography").
 		AddFilter("BibTeX files", "*.bib").
 		PromptForSingleSelection()
+}
+
+// ChooseCitationStyle is the open panel behind Format → Citation Style →
+// Other Style File…. It returns "" when the author cancels.
+func (s *DocumentService) ChooseCitationStyle() (string, error) {
+	return application.Get().Dialog.OpenFile().
+		SetTitle("Choose Citation Style").
+		AddFilter("CSL styles", "*.csl").
+		PromptForSingleSelection()
+}
+
+// SetCitationStyle records the open document's `csl:` value (the frontend
+// sends "apa" when there is none) so the menu can tick it. The menu is only
+// rebuilt on a real change.
+func (s *DocumentService) SetCitationStyle(csl string) {
+	s.styleMu.Lock()
+	changed := s.citationStyle != csl
+	s.citationStyle = csl
+	s.styleMu.Unlock()
+	if changed && s.onCitationStyleChanged != nil {
+		s.onCitationStyleChanged()
+	}
+}
+
+// currentCitationStyle is what the menu ticks; "apa" until the frontend says
+// otherwise, because that is the formatter's default.
+func (s *DocumentService) currentCitationStyle() string {
+	s.styleMu.Lock()
+	defer s.styleMu.Unlock()
+	if s.citationStyle == "" {
+		return "apa"
+	}
+	return s.citationStyle
 }
 
 // CreateDocument is the second half: it writes the document, and — when

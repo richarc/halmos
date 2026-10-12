@@ -20,7 +20,7 @@
     bibliographyReference,
   } from './lib/documentTemplate'
   import NewDocument, { type BibliographyChoice } from './NewDocument.svelte'
-  import { parseFrontmatter } from './lib/frontmatter'
+  import { parseFrontmatter, frontmatterKeyChange } from './lib/frontmatter'
   import { parseBib, type CSLEntry } from './lib/bibliography'
   import type { CitationContext } from './lib/citationCompletion'
   import { resolveTheme, applyTheme, type ThemeSetting } from './lib/theme'
@@ -170,6 +170,12 @@
       : null,
   )
   const fmCsl = $derived(fm.csl)
+
+  // Format → Citation Style ticks the current style; tell Go whenever it
+  // changes (including on open and close, where content changes under it).
+  $effect(() => {
+    void DocumentService.SetCitationStyle(fmCsl ?? 'apa')
+  })
 
   // Citation keys the bibliography does not have. unknownCitations parses the
   // whole document, so this is never run per keystroke: debounced on text
@@ -559,6 +565,37 @@
     // cannot intercept an event arriving through Go's bus.
     if (showWelcome || chartOpen || tableOpen) return
     editor.insertCodeBlockAtCursor(language)
+  }
+
+  // Format → Citation Style. Writes `csl:` through the editor so it is one
+  // undo step and marks the document dirty like any other edit.
+  async function applyCitationStyle(choice: string) {
+    // Same guard as applyFormat: the menu fires over the welcome pane and
+    // over the builders and the New dialog.
+    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    let value = choice
+    if (choice === 'other') {
+      if (path === null) {
+        toast('Save the document before choosing a style file')
+        return
+      }
+      const docPath = path
+      let chosen = ''
+      try {
+        chosen = await DocumentService.ChooseCitationStyle()
+      } catch (e) {
+        toast(String(e))
+        return
+      }
+      if (!chosen) return
+      // The panel is not modal to the webview: the document may have changed.
+      if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen) return
+      value = bibliographyReference(chosen, docPath)
+    } else if (!STYLE_IDS.includes(choice)) {
+      return
+    }
+    const change = frontmatterKeyChange(content, 'csl', value)
+    editor.replaceRange(change.from, change.to, change.insert)
   }
 
   function onEditorChange(text: string) {
@@ -1078,6 +1115,9 @@
     })
     Events.On('menu:find', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') applyFind(ev.data)
+    })
+    Events.On('menu:citation-style', (ev: { data: unknown }) => {
+      if (typeof ev.data === 'string') void applyCitationStyle(ev.data)
     })
     Events.On('menu:fold', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') applyFold(ev.data)

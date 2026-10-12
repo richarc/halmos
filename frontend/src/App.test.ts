@@ -44,6 +44,8 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       ImportData: vi.fn(async () => ''),
       ChooseNewDocumentPath: vi.fn(async () => ''),
       ChooseBibliography: vi.fn(async () => ''),
+      ChooseCitationStyle: vi.fn(async () => ''),
+      SetCitationStyle: vi.fn(async (_csl: string) => {}),
       CreateDocument: vi.fn(async (path: string, content: string, _bibName: string, _bibContent: string) => ({ path, content })),
       WriteDraft: vi.fn(async (_docPath: string, _content: string) => {}),
       DiscardDraft: vi.fn(async (_docPath: string) => {}),
@@ -1909,5 +1911,60 @@ describe('csl style files in an unsaved document', () => {
     await vi.waitFor(() =>
       expect(toastText(target)).toBe('Save the document to load refs.bib and my.csl'),
     )
+  })
+})
+
+describe('Format → Citation Style', () => {
+  const editorText = (t: HTMLElement) => EditorView.findFromDOM(t.querySelector('.cm-editor')!)!.state.doc.toString()
+
+  it('writes csl into the frontmatter from the menu', async () => {
+    const target = await openDoc('# Results\n')
+    listeners['menu:citation-style']({ data: 'ieee' })
+    await vi.waitFor(() => expect(editorText(target)).toContain('csl: ieee'))
+    await vi.waitFor(() => expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true))
+  })
+
+  it('writes a relative path for a chosen style file', async () => {
+    recents.current = ['/doc/dir/p.md']
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/doc/dir/p.md', content: '# Results\n' })
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    listeners['menu:open-recent']({ data: '/doc/dir/p.md' })
+    await vi.waitFor(() => expect(target.textContent).toContain('Results'))
+    DocumentService.ChooseCitationStyle.mockResolvedValueOnce('/doc/dir/styles/x.csl')
+    listeners['menu:citation-style']({ data: 'other' })
+    await vi.waitFor(() => expect(editorText(target)).toContain('csl: styles/x.csl'))
+  })
+
+  it('does nothing when the style file panel is cancelled', async () => {
+    const target = await openDoc('# Results\n')
+    listeners['menu:citation-style']({ data: 'other' })
+    await vi.waitFor(() => expect(DocumentService.ChooseCitationStyle).toHaveBeenCalled())
+    await Promise.resolve()
+    expect(editorText(target)).not.toContain('csl:')
+  })
+
+  it('asks to save first for a style file in an untitled document', async () => {
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.cm-editor')).not.toBeNull())
+    DocumentService.ChooseCitationStyle.mockClear()
+    listeners['menu:citation-style']({ data: 'other' })
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe('Save the document before choosing a style file'),
+    )
+    expect(DocumentService.ChooseCitationStyle).not.toHaveBeenCalled()
+  })
+
+  it('reports the current style to Go', async () => {
+    const target = await openDoc('---\ncsl: ieee\n---\n# Results\n')
+    await vi.waitFor(() => expect(DocumentService.SetCitationStyle).toHaveBeenLastCalledWith('ieee'))
+    listeners['menu:citation-style']({ data: 'harvard' })
+    await vi.waitFor(() => expect(DocumentService.SetCitationStyle).toHaveBeenLastCalledWith('harvard'))
+    void target
+  })
+
+  it('reports apa when the document has no csl', async () => {
+    await openDoc('# Results\n')
+    await vi.waitFor(() => expect(DocumentService.SetCitationStyle).toHaveBeenLastCalledWith('apa'))
   })
 })

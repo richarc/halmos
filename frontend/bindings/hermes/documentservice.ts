@@ -32,6 +32,14 @@ export function ChooseBibliography(): $CancellablePromise<string> {
 }
 
 /**
+ * ChooseCitationStyle is the open panel behind Format → Citation Style →
+ * Other Style File…. It returns "" when the author cancels.
+ */
+export function ChooseCitationStyle(): $CancellablePromise<string> {
+    return $Call.ByID(2734702569);
+}
+
+/**
  * ChooseNewDocumentPath asks where a new document should live. It is the
  * first half of File → New…: the frontend needs the chosen name before it can
  * compose the document, because the live `bibliography:` key names a `.bib`
@@ -166,6 +174,15 @@ export function Save(path: string, content: string): $CancellablePromise<void> {
 
 export function SaveAs(content: string): $CancellablePromise<string> {
     return $Call.ByID(1161953465, content);
+}
+
+/**
+ * SetCitationStyle records the open document's `csl:` value (the frontend
+ * sends "apa" when there is none) so the menu can tick it. The menu is only
+ * rebuilt on a real change.
+ */
+export function SetCitationStyle(csl: string): $CancellablePromise<void> {
+    return $Call.ByID(1583563558, csl);
 }
 
 export function SetDirty(dirty: boolean): $CancellablePromise<void> {
