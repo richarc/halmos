@@ -266,7 +266,7 @@ md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
   return rendered.replace(/^<p /, `<p data-source-line="${md.utils.escapeHtml(line)}" `)
 }
 
-md.use(footnotePlugin)
+md.use(footnotePlugin as unknown as Parameters<MarkdownIt['use']>[0])
 md.use(citationPlugin)
 
 export interface RenderOptions {
