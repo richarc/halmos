@@ -241,7 +241,17 @@ func (s *DocumentService) SetCitationStyle(csl string) {
 	changed := s.citationStyle != csl
 	s.citationStyle = csl
 	s.styleMu.Unlock()
-	if changed && s.onCitationStyleChanged != nil {
+	if changed {
+		s.rebuildStyleMenu()
+	}
+}
+
+// rebuildStyleMenu asks for the menu to be rebuilt so the ticks match the
+// stored style. Menu clicks call it unconditionally: a checkbox flips itself
+// when clicked, so without a rebuild a click on the ticked item leaves it
+// unticked.
+func (s *DocumentService) rebuildStyleMenu() {
+	if s.onCitationStyleChanged != nil {
 		s.onCitationStyleChanged()
 	}
 }

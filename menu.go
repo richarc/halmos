@@ -18,6 +18,15 @@ var citationStyles = []struct{ label, id string }{
 	{"Vancouver", "vancouver"},
 }
 
+// citationStyleClicked handles a click on a style checkbox: send the choice,
+// then always rebuild the menu. The checkbox has already flipped itself, and
+// the stored style may not change (clicking the ticked item), so only a
+// rebuild puts the tick back.
+func citationStyleClicked(docs *DocumentService, emit func()) {
+	emit()
+	docs.rebuildStyleMenu()
+}
+
 // installMenu builds and sets the application menu. It is called again
 // whenever the recents list changes, so the Open Recent submenu stays
 // current; the rebuild is dispatched to the main thread by the caller.
@@ -253,7 +262,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, st := range citationStyles {
 		id := st.id
 		style.AddCheckbox(st.label, currentStyle == id).OnClick(func(*application.Context) {
-			docEmit("menu:citation-style", id)
+			citationStyleClicked(docs, func() { docEmit("menu:citation-style", id) })
 		})
 	}
 	style.AddSeparator()

@@ -442,6 +442,14 @@
     return view.state.doc.sliceString(from, to)
   }
 
+  /**
+   * Applies an edit without touching focus; the selection is mapped through
+   * it, so a writer's caret stays in their text. One undo step.
+   */
+  export function applyChange(from: number, to: number, text: string): void {
+    view.dispatch({ changes: { from, to, insert: text } })
+  }
+
   /** Replaces a document range, leaving the cursor after the inserted text. */
   export function replaceRange(from: number, to: number, text: string): void {
     view.dispatch({

@@ -1955,6 +1955,28 @@ describe('Format → Citation Style', () => {
     expect(DocumentService.ChooseCitationStyle).not.toHaveBeenCalled()
   })
 
+  it('keeps the caret in the body text after a style choice', async () => {
+    const target = await openDoc('# Results\n\nSome prose here.\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const anchor = view.state.doc.toString().indexOf('prose')
+    view.dispatch({ selection: { anchor } })
+    listeners['menu:citation-style']({ data: 'ieee' })
+    await vi.waitFor(() => expect(view.state.doc.toString()).toContain('csl: ieee'))
+    const after = view.state.doc.toString()
+    expect(after.slice(view.state.selection.main.head)).toMatch(/^prose here/)
+  })
+
+  it('leaves the document clean when the style is already written', async () => {
+    const target = await openDoc('---\ncsl: ieee\n---\n# Results\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const before = view.state.doc.toString()
+    listeners['menu:citation-style']({ data: 'ieee' })
+    await Promise.resolve()
+    flushSync()
+    expect(view.state.doc.toString()).toBe(before)
+    expect(DocumentService.SetDirty).not.toHaveBeenLastCalledWith(true)
+  })
+
   it('reports the current style to Go', async () => {
     const target = await openDoc('---\ncsl: ieee\n---\n# Results\n')
     await vi.waitFor(() => expect(DocumentService.SetCitationStyle).toHaveBeenLastCalledWith('ieee'))

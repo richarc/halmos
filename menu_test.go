@@ -191,3 +191,15 @@ func TestCitationStyleIDsMatchFrontend(t *testing.T) {
 		t.Fatalf("menu ids %v, frontend ids %v", got, want)
 	}
 }
+
+func TestCitationStyleClickAlwaysRebuildsMenu(t *testing.T) {
+	s := newTestService(t)
+	rebuilt, emitted := 0, 0
+	s.onCitationStyleChanged = func() { rebuilt++ }
+	for i := 0; i < 2; i++ {
+		citationStyleClicked(s, func() { emitted++ })
+	}
+	if emitted != 2 || rebuilt != 2 {
+		t.Fatalf("emitted %d, rebuilt %d; want 2 and 2", emitted, rebuilt)
+	}
+}

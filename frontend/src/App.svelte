@@ -595,7 +595,9 @@
       return
     }
     const change = frontmatterKeyChange(content, 'csl', value)
-    editor.replaceRange(change.from, change.to, change.insert)
+    // Choosing the style already written would only dirty the document.
+    if (content.slice(change.from, change.to) === change.insert) return
+    editor.applyChange(change.from, change.to, change.insert)
   }
 
   function onEditorChange(text: string) {
