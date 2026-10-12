@@ -39,9 +39,14 @@ export function citationTooltip(
       dom.className = 'cm-citation-tooltip'
       // citeproc HTML-escapes entry fields and emits only formatting tags, so
       // the reference is set as HTML (citationEditor.test.ts pins this).
-      const html = ctx.has(span.key) ? ctx.reference(span.key) : null
-      if (html) dom.innerHTML = html
-      else dom.textContent = `Not in ${ctx.bibName}`
+      if (!ctx.has(span.key)) {
+        dom.textContent = `Not in ${ctx.bibName}`
+      } else {
+        const html = ctx.reference(span.key)
+        if (html) dom.innerHTML = html
+        // The entry exists; the style just produced nothing for it.
+        else dom.textContent = `${span.key}: No reference format in this style`
+      }
       return { dom }
     },
   }

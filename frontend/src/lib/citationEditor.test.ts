@@ -72,6 +72,11 @@ describe('citationTooltip', () => {
     expect(dom(ctx(), at('nobody'))!.textContent).toBe('Not in refs.bib')
   })
 
+  it('says the style has no format for a key the bibliography has', () => {
+    const el = dom(ctx({ has: () => true, reference: () => null }), at('nobody'))!
+    expect(el.textContent).toBe('nobody: No reference format in this style')
+  })
+
   it('shows nothing without a bibliography', () => {
     expect(dom(null, at('smith2020'))).toBeNull()
   })
