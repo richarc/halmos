@@ -12,7 +12,7 @@
   import { codeHighlightStyleSpecs } from './lib/syntaxTags'
   import { spellcheckExtension } from './lib/spellcheck'
   import { citationCompletionSource, type CitationContext } from './lib/citationCompletion'
-  import { citationHover } from './lib/citationEditor'
+  import { citationHover, unknownKeyMarks, refreshCitationsEffect } from './lib/citationEditor'
   import { openSearchPanel, findNext, findPrevious } from '@codemirror/search'
 
   let {
@@ -113,6 +113,7 @@
       border: '1px solid var(--border)',
     },
     '.cm-citation-tooltip': { maxWidth: '32em', padding: '4px 8px' },
+    '.cm-cite-unknown': { textDecoration: 'underline wavy var(--cite-error-fg)' },
     '.cm-specialChar': { color: 'var(--editor-gutter-fg)' },
     // CodeMirror's base theme hardcodes this pill as #eee on #ddd with #888
     // text — a light chip on a dark page. Same class of gap as the search
@@ -303,6 +304,11 @@
     return opened
   }
 
+  /** Re-evaluate citation marks after the bibliography changed. */
+  export function refreshCitations(): void {
+    view?.dispatch({ effects: refreshCitationsEffect.of(null) })
+  }
+
   /** Total lines in the document, for mapping against the preview's extent. */
   export function lineCount(): number {
     return view.state.doc.lines
@@ -467,6 +473,7 @@
       // is added through language data so there is only one of each.
       EditorState.languageData.of(() => [{ autocomplete: citationSource }]),
       citationHover(() => citations?.() ?? null),
+      unknownKeyMarks(() => citations?.() ?? null),
       EditorView.updateListener.of((u) => {
         if (u.docChanged) onchange(u.state.doc.toString())
       }),

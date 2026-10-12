@@ -27,6 +27,7 @@ interface EditorApi {
   enclosingTable(): { from: number; to: number; text: string } | null
   replaceRange(from: number, to: number, text: string): void
   find(cmd: 'open' | 'replace' | 'next' | 'previous'): boolean
+  refreshCitations(): void
 }
 
 /**
@@ -679,5 +680,46 @@ describe('Editor citation completion', () => {
 
   it('offers nothing when no bibliography is loaded', async () => {
     expect(await typeAndComplete(() => null)).toBeNull()
+  })
+})
+
+describe('Editor unknown citation keys', () => {
+  const entries = [{ id: 'a', type: 'book', title: 'T', author: [{ family: 'A' }] }]
+  const marks = (target: HTMLElement) =>
+    [...target.querySelectorAll('.cm-cite-unknown')].map((e) => e.textContent)
+
+  it('marks keys missing from the bibliography', () => {
+    const citations = () => ({ entries, has: (k: string) => k === 'a', reference: () => null, bibName: 'refs.bib' })
+    const { editor, target, cleanup } = mountEditor({ citations })
+    editor.setContent('[@a; @b]')
+    expect(marks(target)).toEqual(['b'])
+    cleanup()
+  })
+
+  it('marks nothing without a bibliography', () => {
+    const { editor, target, cleanup } = mountEditor({ citations: () => null })
+    editor.setContent('[@a; @b]')
+    expect(marks(target)).toEqual([])
+    cleanup()
+  })
+
+  it('does not mark keys in code or frontmatter', () => {
+    const citations = () => ({ entries, has: () => false, reference: () => null, bibName: 'refs.bib' })
+    const { editor, target, cleanup } = mountEditor({ citations })
+    editor.setContent('---\nnote: [@fm]\n---\n\n`[@code]` and [@real]')
+    expect(marks(target)).toEqual(['real'])
+    cleanup()
+  })
+
+  it('refreshCitations re-evaluates after the bibliography changes', () => {
+    let known = false
+    const citations = () => ({ entries, has: () => known, reference: () => null, bibName: 'refs.bib' })
+    const { editor, target, cleanup } = mountEditor({ citations })
+    editor.setContent('[@b]')
+    expect(marks(target)).toEqual(['b'])
+    known = true
+    editor.refreshCitations()
+    expect(marks(target)).toEqual([])
+    cleanup()
   })
 })

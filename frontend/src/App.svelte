@@ -270,6 +270,8 @@
   $effect(() => {
     void formatter
     void chartWidth
+    // The editor's unknown-key marks read the same bibliography.
+    editor?.refreshCitations()
     renderInto(untrack(() => content))
   })
 

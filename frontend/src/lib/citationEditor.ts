@@ -1,5 +1,5 @@
-import { hoverTooltip, type Tooltip } from '@codemirror/view'
-import type { EditorState, Extension } from '@codemirror/state'
+import { Decoration, hoverTooltip, ViewPlugin, type DecorationSet, type EditorView, type Tooltip, type ViewUpdate } from '@codemirror/view'
+import { RangeSetBuilder, StateEffect, type EditorState, type Extension } from '@codemirror/state'
 import { findCitationKeys, type KeySpan } from './citationKeys'
 import { inFrontmatter, isInCode } from './markdownCommands'
 import type { CitationContext } from './citationCompletion'
@@ -49,4 +49,46 @@ export function citationTooltip(
 
 export function citationHover(get: () => CitationContext | null): Extension {
   return hoverTooltip((view, pos) => citationTooltip(get, view.state, pos))
+}
+
+/** Dispatched to re-evaluate the unknown-key marks when the bibliography changes. */
+export const refreshCitationsEffect = StateEffect.define<null>()
+
+const unknownMark = Decoration.mark({ class: 'cm-cite-unknown' })
+
+function buildUnknownMarks(view: EditorView, ctx: CitationContext | null): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>()
+  if (!ctx) return builder.finish()
+  const { state } = view
+  let scanned = -1
+  for (const range of view.visibleRanges) {
+    // Whole lines, so the range edge cannot split a key.
+    const start = Math.max(state.doc.lineAt(range.from).from, scanned)
+    const end = state.doc.lineAt(range.to).to
+    if (start >= end) continue
+    scanned = end
+    for (const span of findCitationKeys(state.sliceDoc(start, end))) {
+      const from = start + span.from
+      if (ctx.has(span.key) || inFrontmatter(state, from) || isInCode(state, from)) continue
+      builder.add(from, start + span.to, unknownMark)
+    }
+  }
+  return builder.finish()
+}
+
+/** Underlines citation keys that are absent from the loaded bibliography. */
+export function unknownKeyMarks(get: () => CitationContext | null): Extension {
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet
+      constructor(view: EditorView) {
+        this.decorations = buildUnknownMarks(view, get())
+      }
+      update(u: ViewUpdate) {
+        if (u.docChanged || u.viewportChanged || u.transactions.some((t) => t.effects.some((e) => e.is(refreshCitationsEffect))))
+          this.decorations = buildUnknownMarks(u.view, get())
+      }
+    },
+    { decorations: (v) => v.decorations },
+  )
 }
