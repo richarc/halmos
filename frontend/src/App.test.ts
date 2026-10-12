@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, unmount, flushSync } from 'svelte'
 import { EditorView } from '@codemirror/view'
+import { completionStatus } from '@codemirror/autocomplete'
 
 const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.hoisted(() => {
   const listeners: Record<string, (ev: { data: unknown }) => void> = {}
@@ -2049,5 +2050,52 @@ describe('Zotero picker failure', () => {
     listeners['menu:insert-citation']({ data: undefined })
     await vi.waitFor(() => expect(target.querySelector('.toast')?.textContent).toContain('zotero picker unavailable'))
     expect(zoteroDialog(target).open).toBe(false)
+  })
+})
+
+describe('citation completion and hover in the mounted app', () => {
+  const bib = '@article{smith2020, title={On Things}, author={Smith, Jane}, year={2020}}'
+  const fm = '---\nbibliography: refs.bib\n---\n'
+
+  afterEach(() => DocumentService.ReadBibliography.mockResolvedValue(''))
+  // jsdom's Range has no geometry; CodeMirror measures the selection with it.
+  beforeEach(() => {
+    Range.prototype.getClientRects = () => ({ length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] }) as unknown as DOMRectList
+    Range.prototype.getBoundingClientRect = () => new DOMRect()
+  })
+
+  async function openWithBib(body: string) {
+    DocumentService.ReadBibliography.mockResolvedValue(bib)
+    const target = await openDoc(`${fm}# Results\n\n${body}\n`)
+    // The preview formats the citation once the formatter has loaded.
+    await vi.waitFor(() => expect(target.querySelector('.preview-pane')?.textContent).toContain('Smith'))
+    return { target, view: EditorView.findFromDOM(target.querySelector('.cm-editor')!)! }
+  }
+
+  it('opens the completion popup while typing [@ and letters', async () => {
+    const { view } = await openWithBib('See [@smith2020].\n\nAlso ')
+    const at = view.state.doc.toString().indexOf('Also ') + 5
+    view.dispatch({ selection: { anchor: at } })
+    view.focus()
+    let pos = at
+    for (const ch of '[@smi') {
+      view.dispatch({ changes: { from: pos, insert: ch }, selection: { anchor: pos + 1 }, userEvent: 'input.type' })
+      pos++
+    }
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'), { timeout: 2000 })
+  })
+
+  it('shows a hover tooltip over a key in the editor', async () => {
+    const { target, view } = await openWithBib('See [@smith2020].')
+    const pos = view.state.doc.toString().indexOf('smith2020') + 2
+    // jsdom has no layout: pin the coordinate mapping to the key, then move
+    // the mouse over the line the way a real pointer would.
+    view.posAtCoords = (() => pos) as typeof view.posAtCoords
+    view.coordsAtPos = (() => ({ top: 0, bottom: 20, left: 0, right: 10 })) as typeof view.coordsAtPos
+    const line = [...view.contentDOM.querySelectorAll('.cm-line')].find((l) => l.textContent?.includes('smith2020'))!
+    line.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 5, clientY: 5 }))
+    await vi.waitFor(() => expect(target.querySelector('.cm-citation-tooltip')?.textContent).toContain('Smith'), {
+      timeout: 2000,
+    })
   })
 })
