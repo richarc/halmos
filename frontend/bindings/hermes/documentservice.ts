@@ -234,3 +234,14 @@ export function WatchBibliography(path: string, docPath: string): $CancellablePr
 export function WriteDraft(docPath: string, content: string): $CancellablePromise<void> {
     return $Call.ByID(1661680238, docPath, content);
 }
+
+/**
+ * ZoteroStatus says why the picker might not open: "not-running" when Zotero
+ * does not answer its connector ping, "no-better-bibtex" when it answers but
+ * Better BibTeX's CAYW probe does not say "ready", otherwise "ready". The
+ * frontend asks only after PickCitations has failed, so the picker is never
+ * probed on the happy path.
+ */
+export function ZoteroStatus(): $CancellablePromise<string> {
+    return $Call.ByID(3375477033);
+}

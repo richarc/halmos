@@ -4,8 +4,33 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
+
+// ZoteroStatus says why the picker might not open: "not-running" when Zotero
+// does not answer its connector ping, "no-better-bibtex" when it answers but
+// Better BibTeX's CAYW probe does not say "ready", otherwise "ready". The
+// frontend asks only after PickCitations has failed, so the picker is never
+// probed on the happy path.
+func (s *DocumentService) ZoteroStatus() string {
+	client := &http.Client{Timeout: 2 * time.Second}
+	ping, err := client.Get(s.caywBase + "/connector/ping")
+	if err != nil {
+		return "not-running"
+	}
+	ping.Body.Close()
+	resp, err := client.Get(s.caywBase + "/better-bibtex/cayw?probe=true")
+	if err != nil {
+		return "no-better-bibtex"
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil || resp.StatusCode != http.StatusOK || strings.TrimSpace(string(body)) != "ready" {
+		return "no-better-bibtex"
+	}
+	return "ready"
+}
 
 // PickCitations opens Zotero's citation picker via Better BibTeX's CAYW
 // endpoint and returns the chosen citations in Pandoc format. The timeout is

@@ -88,6 +88,7 @@
   let updateCheck = $state<UpdateCheckSetting>('unasked')
   // The first-launch question; true only until it has been answered once.
   let askUpdates = $state(false)
+  let zoteroHelp = $state<'not-running' | 'no-better-bibtex' | null>(null)
   // A newer version, awaiting Later / View Release. Null when no dialog is up.
   let updateNotice = $state<UpdateResult | null>(null)
   let spellCheck = $state(true)
@@ -347,8 +348,18 @@
           if (unresolved) toast(unresolved)
         }
       }
-    } catch {
-      toast("Zotero (with Better BibTeX) isn't running")
+    } catch (e) {
+      // Ask why only now: probing before every pick would add two requests to
+      // the path that works. A status check that itself fails means Zotero
+      // did not answer, which reads the same as not running.
+      let status = 'not-running'
+      try {
+        status = await DocumentService.ZoteroStatus()
+      } catch {
+        // keep the default
+      }
+      if (status === 'ready') toast(String(e))
+      else zoteroHelp = status === 'no-better-bibtex' ? 'no-better-bibtex' : 'not-running'
     }
   }
 
@@ -1330,6 +1341,21 @@
   </Dialog>
 
   <UnknownCitations open={unknownOpen} items={unknown} onclose={() => (unknownOpen = false)} onjump={jumpToUnknown} />
+
+  <Dialog open={zoteroHelp !== null} label="Zotero" onclose={() => (zoteroHelp = null)}>
+    {#if zoteroHelp === 'no-better-bibtex'}
+      <p>Zotero is running but the Better BibTeX plugin isn't installed. Hermes uses it to pick citations and to export your library as a .bib file.</p>
+      <p>You can also type [@ to cite from your .bib without Zotero.</p>
+    {:else}
+      <p>Zotero isn't running. Open Zotero, then try again.</p>
+    {/if}
+    {#snippet footer()}
+      {#if zoteroHelp === 'no-better-bibtex'}
+        <button onclick={() => void Browser.OpenURL('https://retorque.re/zotero-better-bibtex/installation/')}>Open Install Page</button>
+      {/if}
+      <button class="primary" onclick={() => (zoteroHelp = null)}>OK</button>
+    {/snippet}
+  </Dialog>
 
   <Dialog open={askUpdates} label="Check for updates" onclose={() => void answerUpdateQuestion('off')}>
     <p>

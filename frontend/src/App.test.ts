@@ -38,6 +38,7 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       CloseWindow: vi.fn(async () => {}),
       TakeLaunchFile: vi.fn(async () => ''),
       PickCitations: vi.fn(async () => ''),
+      ZoteroStatus: vi.fn(async () => 'ready'),
       ExportPDF: vi.fn(async () => {}),
       Settings: vi.fn(async () => settings.current),
       UpdateSettings: vi.fn(async (_next: typeof DEFAULT_SETTINGS) => {}),
@@ -1988,5 +1989,65 @@ describe('Format → Citation Style', () => {
   it('reports apa when the document has no csl', async () => {
     await openDoc('# Results\n')
     await vi.waitFor(() => expect(DocumentService.SetCitationStyle).toHaveBeenLastCalledWith('apa'))
+  })
+})
+
+describe('Zotero picker failure', () => {
+  const NOT_RUNNING = "Zotero isn't running. Open Zotero, then try again."
+  const NO_BBT =
+    "Zotero is running but the Better BibTeX plugin isn't installed. Hermes uses it to pick citations and to export your library as a .bib file."
+  const INSTALL_URL = 'https://retorque.re/zotero-better-bibtex/installation/'
+
+  function zoteroDialog(target: HTMLElement) {
+    return target.querySelector<HTMLDialogElement>('dialog[aria-label="Zotero"]')!
+  }
+
+  beforeEach(() => {
+    DocumentService.PickCitations.mockImplementation(async () => {
+      throw new Error('zotero picker unavailable')
+    })
+  })
+  afterEach(() => {
+    DocumentService.PickCitations.mockImplementation(async () => '')
+    DocumentService.ZoteroStatus.mockImplementation(async () => 'ready')
+  })
+
+  it('explains that Zotero is not running', async () => {
+    DocumentService.ZoteroStatus.mockImplementation(async () => 'not-running')
+    const { target } = mountApp()
+    listeners['menu:insert-citation']({ data: undefined })
+    await vi.waitFor(() => expect(zoteroDialog(target).open).toBe(true))
+    expect(zoteroDialog(target).textContent).toContain(NOT_RUNNING)
+  })
+
+  it('falls back to the not-running message when the status check itself fails', async () => {
+    DocumentService.ZoteroStatus.mockImplementation(async () => {
+      throw new Error('boom')
+    })
+    const { target } = mountApp()
+    listeners['menu:insert-citation']({ data: undefined })
+    await vi.waitFor(() => expect(zoteroDialog(target).open).toBe(true))
+    expect(zoteroDialog(target).textContent).toContain(NOT_RUNNING)
+  })
+
+  it('explains that Better BibTeX is missing and offers the install page', async () => {
+    DocumentService.ZoteroStatus.mockImplementation(async () => 'no-better-bibtex')
+    const { target } = mountApp()
+    listeners['menu:insert-citation']({ data: undefined })
+    await vi.waitFor(() => expect(zoteroDialog(target).open).toBe(true))
+    const text = zoteroDialog(target).textContent ?? ''
+    expect(text).toContain(NO_BBT)
+    expect(text).toContain('You can also type [@ to cite from your .bib without Zotero.')
+
+    buttonByText(zoteroDialog(target), 'Open Install Page')!.click()
+    expect(Browser.OpenURL).toHaveBeenCalledWith(INSTALL_URL)
+  })
+
+  it('shows the error itself when Zotero reports ready', async () => {
+    DocumentService.ZoteroStatus.mockImplementation(async () => 'ready')
+    const { target } = mountApp()
+    listeners['menu:insert-citation']({ data: undefined })
+    await vi.waitFor(() => expect(target.querySelector('.toast')?.textContent).toContain('zotero picker unavailable'))
+    expect(zoteroDialog(target).open).toBe(false)
   })
 })
