@@ -303,3 +303,31 @@ describe('citationPlugin: adjacent brackets and declined links (round-2 fix)', (
     expect(html).not.toContain('<a href')
   })
 })
+
+describe('CitationFormatter.reference', () => {
+  const CLUSTERS: CitationCluster[] = [
+    { items: [{ key: 'smith2020' }] },
+    { items: [{ key: 'doe2021' }] },
+  ]
+  const OTHER_CLUSTERS: CitationCluster[] = [{ items: [{ key: 'smith2020x' }] }]
+
+  it('reference() formats one entry', async () => {
+    const f = await createCitationFormatter(ENTRIES, 'apa')
+    expect(f.reference('smith2020')).toContain('Smith')
+    expect(f.reference('missing')).toBeNull()
+  })
+
+  it('reference() does not disturb format()', async () => {
+    const f = await createCitationFormatter(ENTRIES, 'apa')
+    const before = f.format(CLUSTERS)
+    f.reference('doe2021')
+    expect(f.format(CLUSTERS)).toEqual(before)
+    const fresh = await createCitationFormatter(ENTRIES, 'apa')
+    expect(f.format(OTHER_CLUSTERS)).toEqual(fresh.format(OTHER_CLUSTERS))
+  })
+
+  it('reference() returns the same string for repeat calls', async () => {
+    const f = await createCitationFormatter(ENTRIES, 'apa')
+    expect(f.reference('doe2021')).toBe(f.reference('doe2021'))
+  })
+})

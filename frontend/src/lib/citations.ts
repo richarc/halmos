@@ -56,6 +56,11 @@ export interface FormatResult {
 export interface CitationFormatter {
   format(clusters: CitationCluster[]): FormatResult
   has(key: string): boolean
+  /**
+   * Bibliography HTML for one entry in this style, or null for an unknown key.
+   * Cached per key. Uses its own engine, so format() and its cache are untouched.
+   */
+  reference(key: string): string | null
 }
 
 /**
@@ -149,8 +154,35 @@ export async function createCitationFormatter(
     return { texts, bibliographyHtml }
   }
 
+  // A second engine, built on the first reference() call, so a hover never
+  // rebuilds the processor state format() has cached on the main engine.
+  let refEngine: CiteprocEngine | undefined
+  const refCache = new Map<string, string | null>()
+
+  function reference(key: string): string | null {
+    if (!byId.has(key)) return null
+    const hit = refCache.get(key)
+    if (hit !== undefined) return hit
+    refEngine ??= new CSL.Engine(sys, style)
+    refEngine.rebuildProcessorState(
+      [
+        {
+          citationID: 'ref',
+          citationItems: [{ id: key }],
+          properties: { noteIndex: 0 },
+        },
+      ],
+      'html',
+    )
+    const bib = refEngine.makeBibliography()
+    const html = bib ? bib[1].join('') : null
+    refCache.set(key, html)
+    return html
+  }
+
   return {
     has: (key) => byId.has(key),
+    reference,
     format(clusters) {
       const key = JSON.stringify(clusters)
       // Handed back as is: renderer.ts only reads the result, and copying the
