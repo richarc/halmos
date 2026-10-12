@@ -11,6 +11,7 @@
   import type { SyntaxNode } from '@lezer/common'
   import { codeHighlightStyleSpecs } from './lib/syntaxTags'
   import { spellcheckExtension } from './lib/spellcheck'
+  import { citationCompletionSource, type CitationContext } from './lib/citationCompletion'
   import { openSearchPanel, findNext, findPrevious } from '@codemirror/search'
 
   let {
@@ -18,11 +19,13 @@
     onformat,
     onscroll,
     spellcheck = true,
+    citations,
   }: {
     onchange: (text: string) => void
     onformat?: (name: string) => void
     onscroll?: () => void
     spellcheck?: boolean
+    citations?: () => CitationContext | null
   } = $props()
 
   // Menu accelerators normally win, because AppKit dispatches them before the
@@ -447,6 +450,8 @@
    * state from scratch to drop the undo history, and needs the same
    * extensions to build it with.
    */
+  const citationSource = citationCompletionSource(() => citations?.() ?? null)
+
   function editorExtensions() {
     return [
       stolenChords,
@@ -456,6 +461,9 @@
       markdown({ codeLanguages: languages, extensions: [Table] }),
       EditorView.lineWrapping,
       spellcheckCompartment.of(spellcheckFor(spellcheck)),
+      // basicSetup already installs autocompletion() and its keymap; a source
+      // is added through language data so there is only one of each.
+      EditorState.languageData.of(() => [{ autocomplete: citationSource }]),
       EditorView.updateListener.of((u) => {
         if (u.docChanged) onchange(u.state.doc.toString())
       }),

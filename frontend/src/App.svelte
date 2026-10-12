@@ -21,7 +21,8 @@
   } from './lib/documentTemplate'
   import NewDocument, { type BibliographyChoice } from './NewDocument.svelte'
   import { parseFrontmatter } from './lib/frontmatter'
-  import { parseBib } from './lib/bibliography'
+  import { parseBib, type CSLEntry } from './lib/bibliography'
+  import type { CitationContext } from './lib/citationCompletion'
   import { resolveTheme, applyTheme, type ThemeSetting } from './lib/theme'
   import { createCitationFormatter, STYLE_IDS, type CitationFormatter } from './lib/citations'
   import {
@@ -145,6 +146,7 @@
   let scrollFrame: number | null = null
   let toastTimer: ReturnType<typeof setTimeout>
   let formatter = $state<CitationFormatter | undefined>(undefined)
+  let bibEntries = $state<CSLEntry[]>([])
   // Guards against a stale ReadBibliography response landing after a newer
   // request (e.g. rapid frontmatter edits or back-to-back bib:changed
   // events): each call captures its generation and bails after every await
@@ -160,6 +162,11 @@
   // fields separately lets each one's own equality check (plain !==) gate
   // correctly, so the reload effect below only fires on a real change.
   const fmBibliography = $derived(fm.bibliography)
+  const citationContext = $derived<CitationContext | null>(
+    formatter && fmBibliography
+      ? { entries: bibEntries, has: (k) => formatter!.has(k), reference: (k) => formatter!.reference(k), bibName: fmBibliography }
+      : null,
+  )
   const fmCsl = $derived(fm.csl)
 
   // The wait follows the cost of the last update: twice the measured time,
@@ -221,6 +228,7 @@
     const wanted = fmBibliography ?? null
     if (!wanted || !path) {
       formatter = undefined
+      bibEntries = []
       // A named bibliography resolves relative to the document, so an unsaved
       // document cannot load one. Say so rather than failing silently.
       const unsaved = unsavedBibliographyMessage(wanted ?? undefined, path ?? null)
@@ -237,10 +245,12 @@
       const next = await createCitationFormatter(entries, fmCsl ?? 'apa')
       if (gen !== reloadGeneration) return // superseded while the style loaded
       formatter = next
+      bibEntries = entries
       if (fmCsl && !STYLE_IDS.includes(fmCsl)) toast(`Unknown citation style "${fmCsl}" — using APA`)
     } catch {
       if (gen !== reloadGeneration) return // superseded by a newer request
       formatter = undefined
+      bibEntries = []
       toast(`Bibliography not found: ${wanted}`)
     }
     void DocumentService.WatchBibliography(wanted, path)
@@ -1108,7 +1118,7 @@
       >
     {/if}
     <section class="editor-pane" style="width: {editorWidth}%">
-      <Editor bind:this={editor} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} spellcheck={spellCheck} />
+      <Editor bind:this={editor} citations={() => citationContext} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} spellcheck={spellCheck} />
     </section>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -- WAI-ARIA "window splitter" pattern: a focusable separator with arrow-key resizing is the recommended markup -->
     <div

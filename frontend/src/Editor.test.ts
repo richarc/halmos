@@ -5,6 +5,7 @@ import { EditorView, type Command } from '@codemirror/view'
 import { foldCode, forceParsing } from '@codemirror/language'
 import { undo } from '@codemirror/commands'
 import { setSearchQuery, SearchQuery } from '@codemirror/search'
+import { startCompletion, completionStatus } from '@codemirror/autocomplete'
 import Editor from './Editor.svelte'
 import { toggleBold } from './lib/markdownCommands'
 
@@ -650,5 +651,33 @@ describe('Editor.find', () => {
     editor.find('previous')
     expect(view.state.selection.main.from).toBe(0)
     cleanup()
+  })
+})
+
+describe('Editor citation completion', () => {
+  const ctx = {
+    entries: [{ id: 'smith2020', type: 'book', title: 'T', author: [{ family: 'Smith' }] }],
+    has: (k: string) => k === 'smith2020',
+    reference: () => null,
+    bibName: 'refs.bib',
+  }
+
+  async function typeAndComplete(citations: () => typeof ctx | null) {
+    const { editor, target, cleanup } = mountEditor({ citations })
+    editor.setContent('[@sm', 'end')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor') as HTMLElement)!
+    startCompletion(view)
+    await new Promise((r) => setTimeout(r, 50))
+    const status = completionStatus(view.state)
+    cleanup()
+    return status
+  }
+
+  it('opens the completion list for a key prefix', async () => {
+    expect(await typeAndComplete(() => ctx)).toBe('active')
+  })
+
+  it('offers nothing when no bibliography is loaded', async () => {
+    expect(await typeAndComplete(() => null)).toBeNull()
   })
 })

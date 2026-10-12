@@ -73,6 +73,19 @@ function documentWideRanges(state: EditorState): Range[] {
   return found
 }
 
+/** The maths spans (display, inline, bare environments) over the whole document. */
+export function mathRanges(state: EditorState): Range[] {
+  const text = state.doc.toString()
+  const found: Range[] = []
+  for (const re of [DISPLAY_MATH, INLINE_MATH, BARE_ENVIRONMENT]) {
+    re.lastIndex = 0
+    for (let m = re.exec(text); m; m = re.exec(text)) {
+      found.push({ from: m.index, to: m.index + m[0].length })
+    }
+  }
+  return found
+}
+
 /** Protected nodes from the syntax tree, restricted to [from, to). */
 function treeRanges(state: EditorState, from: number, to: number): Range[] {
   const found: Range[] = []
