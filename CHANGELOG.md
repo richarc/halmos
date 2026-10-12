@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   100 at a time. Picking one inserts the key. There is no popup when the
   document has no bibliography.
 - Hovering a citation key in the editor shows the formatted reference in
-  the document's style, or "Not in <bib name>" if the key is missing.
+  the document's style, or `Not in <bib name>` if the key is missing.
 - Keys that are not in the `.bib` get a red wavy underline in the editor.
   The status bar shows "N unknown citations"; clicking it lists them with
   line numbers and jumps to the line.

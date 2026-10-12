@@ -81,8 +81,7 @@ maths or frontmatter.
 ### Hover and unknown citations
 
 Hover over a citation key in the editor to see the formatted reference in the
-document's style. If the key is not in the `.bib`, the hover says "Not in
-<bib name>".
+document's style. If the key is not in the `.bib`, the hover says `Not in <bib name>`.
 
 Keys that are not in the `.bib` get a red wavy underline. The status bar shows
 "N unknown citations"; click it to see the list with line numbers, and click a
