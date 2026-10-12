@@ -31,26 +31,28 @@ Agreed 2026-10-12. These rules decide what goes into each release below.
 
 All local, no server. The everyday friction of citing, removed.
 
-- [ ] **Citation autocomplete.** Typing `[@` in the editor lists the
+- [x] **Citation autocomplete.** Typing `[@` in the editor lists the
       entries in the document's `.bib`, filtered as you type, showing author,
       year and title. Picking one inserts the key. CodeMirror's
       `@codemirror/autocomplete`, fed from the bibliography Hermes already
       reads through Go. Must not fire inside code, maths or frontmatter
-      (`isProtected`).
-- [ ] **Reference preview on hover.** Hovering a citation key in the editor
-      shows the formatted reference in the document's style.
-- [ ] **Unknown-key warnings.** A key not in the `.bib` is marked in the
+      (`isProtected`). Done 2026-10-12.
+- [x] **Reference preview on hover.** Hovering a citation key in the editor
+      shows the formatted reference in the document's style. Done 2026-10-12.
+- [x] **Unknown-key warnings.** A key not in the `.bib` is marked in the
       editor and the preview, and listed somewhere the user can find all of
-      them before submitting.
-- [ ] **Citation style picker.** Choose from the bundled styles without
+      them before submitting. Done 2026-10-12.
+- [x] **Citation style picker.** Choose from the bundled styles without
       editing frontmatter, and load any `.csl` file from disk. Five styles
-      are bundled today.
-- [ ] **Zotero without Better BibTeX.** Insert citations from Zotero when the
+      are bundled today. Done 2026-10-12.
+- [x] **Zotero without Better BibTeX.** Insert citations from Zotero when the
       Better BibTeX plugin is not installed, or, if that is not possible,
       explain clearly what to install when the picker cannot connect.
-- [ ] **Footnotes.** The markdown-it footnote plugin. Must sit correctly
+      Done 2026-10-12: the picker needs Better BibTeX, so a dialog now says
+      what is missing.
+- [x] **Footnotes.** The markdown-it footnote plugin. Must sit correctly
       with citations and the bibliography at the end of the document, and
-      survive PDF export.
+      survive PDF export. Done 2026-10-12.
 
 ## v0.13.0 — Reading and sharing
 

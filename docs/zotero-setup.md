@@ -95,10 +95,13 @@ updates within a couple of seconds. There is nothing to reopen.
 
 ## Troubleshooting
 
-### "Zotero (with Better BibTeX) isn't running"
+### "Zotero is not running" or "Better BibTeX is not installed"
 
-Zotero is closed, or Better BibTeX is not installed. Check the connection
-independently, so you know which end to fix:
+Hermes shows one of these two dialogs when the picker cannot open. The first
+means Zotero is closed. The second means Zotero is open but the Better BibTeX
+plugin is missing; the dialog has a button to its install page. The dialog
+also notes that typing `[@` inserts citations from the `.bib` without Zotero.
+To check the connection yourself, so you know which end to fix:
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" \

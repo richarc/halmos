@@ -28,8 +28,11 @@ reads. All are optional. The bibliography path is resolved relative to the
 document, so the `.bib` normally sits beside it; `toc` and `toc-depth` are
 described under [A table of contents](#a-table-of-contents) below.
 
-`csl` must be one of five bundled styles — `apa`, `chicago-author-date`,
-`ieee`, `vancouver`, `harvard`. Anything else falls back to APA with a warning.
+`csl` is one of five bundled styles — `apa`, `chicago-author-date`,
+`ieee`, `vancouver`, `harvard` — or the path to a `.csl` file, relative to the
+document or absolute. A name Hermes does not know, or a file it cannot load,
+falls back to APA with a warning. You do not have to type this line: use
+Format → Citation Style (see [Citations](#citations)).
 
 **The whole frontmatter block is removed before rendering.** A `title:` or
 `author:` there will not appear anywhere. Put the title in the document:
@@ -66,6 +69,51 @@ in your own sentence:
 
 The bibliography is generated automatically at the end of the document under a
 "References" heading. Do not write one by hand.
+
+### Autocomplete
+
+With a `bibliography:` set, typing `[@`, `; @`, `-@` or a bare `@` opens a list
+of entries from the `.bib`: key, author and year, and title. Keep typing to
+narrow it; Return inserts the key. The list shows up to 100 entries at a time.
+There is no list when the document names no bibliography, and none inside code,
+maths or frontmatter.
+
+### Hover and unknown citations
+
+Hover over a citation key in the editor to see the formatted reference in the
+document's style. If the key is not in the `.bib`, the hover says "Not in
+<bib name>".
+
+Keys that are not in the `.bib` get a red wavy underline. The status bar shows
+"N unknown citations"; click it to see the list with line numbers, and click a
+line to jump to it. Check this before you submit.
+
+### Choosing a style
+
+Format → Citation Style lists APA, Chicago (author-date), Harvard, IEEE and
+Vancouver. The current one is ticked. Choosing one rewrites the `csl:` line in
+the frontmatter.
+
+Other Style File… opens a `.csl` file from disk. If the file is inside the
+document's folder, `csl:` holds a path relative to the document; otherwise it
+holds the absolute path. A document that has not been saved yet has no folder,
+so save it first. Hermes does not watch the style file: after editing it,
+reopen the document or choose the style again.
+
+## Footnotes
+
+```markdown
+The result held in every run.[^1] Some runs were repeated.^[Three times each.]
+
+[^1]: Run 4 was discarded after a laser fault [@alqedra2026].
+```
+
+- `[^1]` marks the spot; `[^1]: text` defines the note. The definition can sit
+  anywhere in the document.
+- `^[text]` is an inline note with no separate definition.
+- Notes are numbered in the order they are cited and listed after the
+  References.
+- Citations inside a footnote are formatted like any other.
 
 ## Maths
 
