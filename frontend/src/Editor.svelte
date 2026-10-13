@@ -11,6 +11,8 @@
   import type { SyntaxNode } from '@lezer/common'
   import { codeHighlightStyleSpecs } from './lib/syntaxTags'
   import { spellcheckExtension } from './lib/spellcheck'
+  import { citationCompletionSource, type CitationContext } from './lib/citationCompletion'
+  import { citationHover, unknownKeyMarks, refreshCitationsEffect } from './lib/citationEditor'
   import { openSearchPanel, findNext, findPrevious } from '@codemirror/search'
 
   let {
@@ -18,11 +20,13 @@
     onformat,
     onscroll,
     spellcheck = true,
+    citations,
   }: {
     onchange: (text: string) => void
     onformat?: (name: string) => void
     onscroll?: () => void
     spellcheck?: boolean
+    citations?: () => CitationContext | null
   } = $props()
 
   // Menu accelerators normally win, because AppKit dispatches them before the
@@ -108,6 +112,8 @@
       color: 'var(--editor-fg)',
       border: '1px solid var(--border)',
     },
+    '.cm-citation-tooltip': { maxWidth: '32em', padding: '4px 8px' },
+    '.cm-cite-unknown': { textDecoration: 'underline wavy var(--cite-error-fg)' },
     '.cm-specialChar': { color: 'var(--editor-gutter-fg)' },
     // CodeMirror's base theme hardcodes this pill as #eee on #ddd with #888
     // text — a light chip on a dark page. Same class of gap as the search
@@ -298,6 +304,11 @@
     return opened
   }
 
+  /** Re-evaluate citation marks after the bibliography changed. */
+  export function refreshCitations(): void {
+    view?.dispatch({ effects: refreshCitationsEffect.of(null) })
+  }
+
   /** Total lines in the document, for mapping against the preview's extent. */
   export function lineCount(): number {
     return view.state.doc.lines
@@ -431,6 +442,14 @@
     return view.state.doc.sliceString(from, to)
   }
 
+  /**
+   * Applies an edit without touching focus; the selection is mapped through
+   * it, so a writer's caret stays in their text. One undo step.
+   */
+  export function applyChange(from: number, to: number, text: string): void {
+    view.dispatch({ changes: { from, to, insert: text } })
+  }
+
   /** Replaces a document range, leaving the cursor after the inserted text. */
   export function replaceRange(from: number, to: number, text: string): void {
     view.dispatch({
@@ -447,6 +466,8 @@
    * state from scratch to drop the undo history, and needs the same
    * extensions to build it with.
    */
+  const citationSource = citationCompletionSource(() => citations?.() ?? null)
+
   function editorExtensions() {
     return [
       stolenChords,
@@ -456,6 +477,11 @@
       markdown({ codeLanguages: languages, extensions: [Table] }),
       EditorView.lineWrapping,
       spellcheckCompartment.of(spellcheckFor(spellcheck)),
+      // basicSetup already installs autocompletion() and its keymap; a source
+      // is added through language data so there is only one of each.
+      EditorState.languageData.of(() => [{ autocomplete: citationSource }]),
+      citationHover(() => citations?.() ?? null),
+      unknownKeyMarks(() => citations?.() ?? null),
       EditorView.updateListener.of((u) => {
         if (u.docChanged) onchange(u.state.doc.toString())
       }),

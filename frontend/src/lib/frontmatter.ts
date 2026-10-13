@@ -52,6 +52,52 @@ export function parseFrontmatter(markdown: string): Frontmatter {
  */
 function unquote(raw: string): string {
   const quoted = raw.match(/^(["'])(.*)\1$/)
-  if (quoted) return quoted[2]
+  // Inside double quotes `\\` and `\"` are escapes (what frontmatterKeyChange
+  // writes); single-quoted text is taken literally, as before.
+  if (quoted) return quoted[1] === '"' ? quoted[2].replace(/\\(["\\])/g, '$1') : quoted[2]
   return raw.replace(/\s+#.*$/, '').trim()
+}
+
+/**
+ * The edit that sets `key: value` in a document's frontmatter, as a
+ * CodeMirror-style change against `doc`: the key's line is replaced, or a new
+ * line goes before the closing fence, or a block is created at the top. The
+ * document's own line ending (CRLF or LF) is used for anything inserted.
+ *
+ * The value is double-quoted only when plain YAML would misread it: it
+ * contains `:` or `#`, starts or ends with a space, starts or ends with a
+ * quote character (parseFrontmatter would strip it), or is empty. Quotes and
+ * backslashes inside are escaped, and parseFrontmatter unescapes them, so the
+ * value reads back unchanged.
+ */
+export function frontmatterKeyChange(
+  doc: string,
+  key: string,
+  value: string,
+): { from: number; to: number; insert: string } {
+  const eol = doc.includes('\r\n') ? '\r\n' : '\n'
+  const needsQuotes = value === '' || /[:#]/.test(value) || /^\s|\s$/.test(value) || /^["']|["']$/.test(value)
+  const text = needsQuotes ? `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : value
+  const line = `${key}: ${text}`
+
+  const match = BLOCK_RE.exec(doc)
+  if (!match) return { from: 0, to: 0, insert: `---${eol}${line}${eol}---${eol}` }
+
+  // Walk the block's lines by offset; the closing fence is the last line the
+  // match consumed (its trailing line ending, if any, stays outside the line).
+  const keyRe = new RegExp(`^${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:`)
+  // The LAST matching line, because that is the one parseFrontmatter reads.
+  let offset = 0
+  let found: { from: number; to: number } | null = null
+  const lines = match[0].split(/(?<=\n)/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]
+    const content = raw.replace(/\r?\n$/, '')
+    if (i > 0 && i < lines.length - 1 && keyRe.test(content)) found = { from: offset, to: offset + content.length }
+    offset += raw.length
+  }
+  if (found) return { ...found, insert: line }
+  // No such key: insert before the closing fence line.
+  const closing = lines[lines.length - 1]
+  return { from: match[0].length - closing.length, to: match[0].length - closing.length, insert: line + eol }
 }

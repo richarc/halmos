@@ -181,6 +181,28 @@ func TestReadBibliographyResolvesRelativeToDocument(t *testing.T) {
 	}
 }
 
+func TestReadCitationStyleResolvesAgainstDocument(t *testing.T) {
+	s := newTestService(t)
+	dir := t.TempDir()
+	docPath := filepath.Join(dir, "paper.md")
+	stylePath := filepath.Join(dir, "my.csl")
+	if err := os.WriteFile(stylePath, []byte("<style/>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.ReadCitationStyle("my.csl", docPath)
+	if err != nil || got != "<style/>" {
+		t.Errorf("relative read: %q, %v", got, err)
+	}
+	got, err = s.ReadCitationStyle(stylePath, docPath)
+	if err != nil || got != "<style/>" {
+		t.Errorf("absolute read: %q, %v", got, err)
+	}
+	if _, err := s.ReadCitationStyle("missing.csl", docPath); err == nil {
+		t.Error("want error for missing style")
+	}
+}
+
 func TestWatchBibliographyEmitsOnChange(t *testing.T) {
 	s := newTestService(t)
 	s.watchTick = 10 * time.Millisecond
@@ -382,5 +404,23 @@ func TestCreateDocumentWithoutBibliography(t *testing.T) {
 	entries, _ := os.ReadDir(dir)
 	if len(entries) != 1 || entries[0].Name() != "notes.md" {
 		t.Errorf("expected only notes.md in %s, got %v", dir, entries)
+	}
+}
+
+func TestSetCitationStyleNotifiesOnChangeOnly(t *testing.T) {
+	s := newTestService(t)
+	fired := 0
+	s.onCitationStyleChanged = func() { fired++ }
+	if got := s.currentCitationStyle(); got != "apa" {
+		t.Fatalf("default style = %q, want apa", got)
+	}
+	s.SetCitationStyle("ieee")
+	s.SetCitationStyle("ieee")
+	if fired != 1 {
+		t.Fatalf("fired %d times for one change, want 1", fired)
+	}
+	s.SetCitationStyle("apa")
+	if fired != 2 || s.currentCitationStyle() != "apa" {
+		t.Fatalf("fired %d, style %q", fired, s.currentCitationStyle())
 	}
 }

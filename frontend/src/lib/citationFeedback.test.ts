@@ -22,6 +22,11 @@ describe('extractCitationKeys', () => {
     expect(extractCitationKeys('@smith2020')).toEqual(['smith2020'])
   })
 
+  it('reads the preview\'s footnote and URL rules', () => {
+    expect(extractCitationKeys('x[^1]\n\n[^1]: [@a]')).toEqual(['a'])
+    expect(extractCitationKeys('https://mastodon.social/@alice')).toEqual([])
+  })
+
   it('returns nothing for text that is not a citation', () => {
     expect(extractCitationKeys('mail me at test@example.com')).toEqual([])
     expect(extractCitationKeys('')).toEqual([])

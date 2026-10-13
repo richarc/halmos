@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Citation autocomplete. Typing `[@`, `; @`, `-@` or a bare `@` lists the
+  entries in the document's `.bib` with key, author, year and title, up to
+  100 at a time. Picking one inserts the key. There is no popup when the
+  document has no bibliography.
+- Hovering a citation key in the editor shows the formatted reference in
+  the document's style, or `Not in <bib name>` if the key is missing.
+- Keys that are not in the `.bib` get a red wavy underline in the editor.
+  The status bar shows "N unknown citations"; clicking it lists them with
+  line numbers and jumps to the line.
+- Format → Citation Style: APA, Chicago (author-date), Harvard, IEEE and
+  Vancouver, plus Other Style File… for a `.csl` file on disk. The choice is
+  written to the `csl:` line in the frontmatter, relative to the document
+  when the file is inside its folder and absolute otherwise. An untitled
+  document has to be saved first. A `.csl` file that cannot be loaded falls
+  back to APA with a message. Style files are not watched for changes.
+- Footnotes: `[^1]` with a `[^1]: text` definition, and inline `^[text]`.
+  They are listed after the References, and citations inside a footnote are
+  formatted.
+
+### Changed
+
+- When the Zotero picker cannot open, a dialog now says whether Zotero is
+  not running or Better BibTeX is not installed, with a button to the Better
+  BibTeX install page. It also says that typing `[@` works without Zotero.
+
 ## [0.11.4] - 2026-10-11
 
 ### Added

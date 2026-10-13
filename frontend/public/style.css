@@ -494,7 +494,12 @@ textarea:focus-visible,
 .status-bar {
   padding: 4px 12px; border-top: 1px solid var(--border);
   font-size: 12px; color: var(--muted);
+  display: flex; gap: 16px;
 }
+.status-bar .unknown-count { font-size: 12px; padding: 0; }
+.unknown-list { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; }
+.unknown-list button { display: flex; gap: 12px; width: 100%; text-align: left; }
+.unknown-line { color: var(--muted); }
 
 .welcome {
   position: absolute; inset: 0; background: var(--overlay-bg);
@@ -724,7 +729,7 @@ dialog::backdrop { background: var(--backdrop); }
   .sheet {
     width: auto; padding: 0; box-shadow: none;
   }
-  .katex-display, .vega-lite-chart, .mermaid-diagram, figure, .chart-error, .csl-entry { break-inside: avoid; }
+  .katex-display, .vega-lite-chart, .mermaid-diagram, figure, .chart-error, .csl-entry, .footnotes li { break-inside: avoid; }
   /* The printed page is true paper width, so the preview's fit does not
      apply — and a scrollbar means nothing on paper. */
   .sheet .katex-display > .katex { font-size: 1.21em; }
@@ -739,3 +744,9 @@ dialog::backdrop { background: var(--backdrop); }
   h1, h2, h3 { break-after: avoid; }
   @page { margin: 25mm; }
 }
+.preview-pane .footnotes { font-size: 0.9em; }
+.preview-pane .footnotes-sep { border: 0; border-top: 1px solid var(--border); margin: 1.5em 0 0.75em; }
+.preview-pane .footnotes ol { padding-left: 1.5em; }
+.preview-pane .footnotes li { margin-bottom: 0.5em; }
+.preview-pane .footnotes li p { margin: 0; }
+.preview-pane .footnote-ref { font-size: 0.8em; }

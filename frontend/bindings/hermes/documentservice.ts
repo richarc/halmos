@@ -32,6 +32,14 @@ export function ChooseBibliography(): $CancellablePromise<string> {
 }
 
 /**
+ * ChooseCitationStyle is the open panel behind Format → Citation Style →
+ * Other Style File…. It returns "" when the author cancels.
+ */
+export function ChooseCitationStyle(): $CancellablePromise<string> {
+    return $Call.ByID(2734702569);
+}
+
+/**
  * ChooseNewDocumentPath asks where a new document should live. It is the
  * first half of File → New…: the frontend needs the chosen name before it can
  * compose the document, because the live `bibliography:` key names a `.bib`
@@ -138,6 +146,15 @@ export function ReadBibliography(path: string, docPath: string): $CancellablePro
 }
 
 /**
+ * ReadCitationStyle returns the text of a CSL style file named by a
+ * document's `csl:` key, resolved against the document the same way
+ * ReadBibliography resolves a bibliography.
+ */
+export function ReadCitationStyle(path: string, docPath: string): $CancellablePromise<string> {
+    return $Call.ByID(1006359938, path, docPath);
+}
+
+/**
  * RecentFiles takes no lock: the list is written atomically, so a concurrent
  * update is either fully visible or not visible at all — there is no partial
  * state on disk to read. Only the read-modify-write in addRecent needs
@@ -157,6 +174,15 @@ export function Save(path: string, content: string): $CancellablePromise<void> {
 
 export function SaveAs(content: string): $CancellablePromise<string> {
     return $Call.ByID(1161953465, content);
+}
+
+/**
+ * SetCitationStyle records the open document's `csl:` value (the frontend
+ * sends "apa" when there is none) so the menu can tick it. The menu is only
+ * rebuilt on a real change.
+ */
+export function SetCitationStyle(csl: string): $CancellablePromise<void> {
+    return $Call.ByID(1583563558, csl);
 }
 
 export function SetDirty(dirty: boolean): $CancellablePromise<void> {
@@ -207,4 +233,15 @@ export function WatchBibliography(path: string, docPath: string): $CancellablePr
  */
 export function WriteDraft(docPath: string, content: string): $CancellablePromise<void> {
     return $Call.ByID(1661680238, docPath, content);
+}
+
+/**
+ * ZoteroStatus says why the picker might not open: "not-running" when Zotero
+ * does not answer its connector ping, "no-better-bibtex" when it answers but
+ * Better BibTeX's CAYW probe does not say "ready", otherwise "ready". The
+ * frontend asks only after PickCitations has failed, so the picker is never
+ * probed on the happy path.
+ */
+export function ZoteroStatus(): $CancellablePromise<string> {
+    return $Call.ByID(3375477033);
 }

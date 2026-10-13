@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { createCitationFormatter, STYLE_IDS } from './citations'
+import { createCitationFormatter, STYLE_IDS, isStyleFile } from './citations'
+import minimalCsl from './fixtures/minimal.csl?raw'
 import type { CSLEntry } from './bibliography'
 import MarkdownIt from 'markdown-it'
 import { citationPlugin } from './citations'
@@ -301,5 +302,63 @@ describe('citationPlugin: adjacent brackets and declined links (round-2 fix)', (
     expect(html).toContain('data-cite-index="0"')
     expect(html).toContain('[TODO check]')
     expect(html).not.toContain('<a href')
+  })
+})
+
+describe('CitationFormatter.reference', () => {
+  const CLUSTERS: CitationCluster[] = [
+    { items: [{ key: 'smith2020' }] },
+    { items: [{ key: 'doe2021' }] },
+  ]
+  const OTHER_CLUSTERS: CitationCluster[] = [{ items: [{ key: 'smith2020x' }] }]
+
+  it('reference() formats one entry', async () => {
+    const f = await createCitationFormatter(ENTRIES, 'apa')
+    expect(f.reference('smith2020')).toContain('Smith')
+    expect(f.reference('missing')).toBeNull()
+  })
+
+  it('reference() does not disturb format()', async () => {
+    const f = await createCitationFormatter(ENTRIES, 'apa')
+    const before = f.format(CLUSTERS)
+    f.reference('doe2021')
+    expect(f.format(CLUSTERS)).toEqual(before)
+    const fresh = await createCitationFormatter(ENTRIES, 'apa')
+    expect(f.format(OTHER_CLUSTERS)).toEqual(fresh.format(OTHER_CLUSTERS))
+  })
+
+  it('reference() returns the same string for repeat calls', async () => {
+    const f = await createCitationFormatter(ENTRIES, 'apa')
+    expect(f.reference('doe2021')).toBe(f.reference('doe2021'))
+  })
+})
+
+describe('style files', () => {
+  it('isStyleFile', () => {
+    expect(isStyleFile('styles/x.CSL')).toBe(true)
+    expect(isStyleFile('apa.csl')).toBe(true)
+    expect(isStyleFile('apa')).toBe(false)
+    expect(isStyleFile('ieee')).toBe(false)
+  })
+
+  it('uses supplied style XML', async () => {
+    const f = await createCitationFormatter(ENTRIES, 'styles/min.csl', minimalCsl)
+    const { texts } = f.format([{ items: [{ key: 'smith2020' }] }])
+    expect(texts[0]).toBe('{Smith}')
+    expect(f.reference('smith2020')).toContain('A study')
+  })
+
+  it('throws for style XML citeproc rejects', async () => {
+    await expect(createCitationFormatter(ENTRIES, 'bad.csl', '<not-csl/>')).rejects.toThrow()
+  })
+
+  // Chosen behaviour: a style with a <citation> but no <bibliography> loads,
+  // and reference() returns null instead of throwing.
+  it('loads a style without a bibliography section and gives no reference', async () => {
+    const noBib = minimalCsl.replace(/<bibliography>[\s\S]*<\/bibliography>/, '')
+    expect(noBib).not.toContain('<bibliography')
+    const f = await createCitationFormatter(ENTRIES, 'nobib.csl', noBib)
+    expect(f.format([{ items: [{ key: 'smith2020' }] }]).texts[0]).toBe('{Smith}')
+    expect(f.reference('smith2020')).toBeNull()
   })
 })

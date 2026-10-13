@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, unmount, flushSync } from 'svelte'
 import { EditorView } from '@codemirror/view'
+import { completionStatus } from '@codemirror/autocomplete'
 
 const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.hoisted(() => {
   const listeners: Record<string, (ev: { data: unknown }) => void> = {}
@@ -38,12 +39,15 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       CloseWindow: vi.fn(async () => {}),
       TakeLaunchFile: vi.fn(async () => ''),
       PickCitations: vi.fn(async () => ''),
+      ZoteroStatus: vi.fn(async () => 'ready'),
       ExportPDF: vi.fn(async () => {}),
       Settings: vi.fn(async () => settings.current),
       UpdateSettings: vi.fn(async (_next: typeof DEFAULT_SETTINGS) => {}),
       ImportData: vi.fn(async () => ''),
       ChooseNewDocumentPath: vi.fn(async () => ''),
       ChooseBibliography: vi.fn(async () => ''),
+      ChooseCitationStyle: vi.fn(async () => ''),
+      SetCitationStyle: vi.fn(async (_csl: string) => {}),
       CreateDocument: vi.fn(async (path: string, content: string, _bibName: string, _bibContent: string) => ({ path, content })),
       WriteDraft: vi.fn(async (_docPath: string, _content: string) => {}),
       DiscardDraft: vi.fn(async (_docPath: string) => {}),
@@ -1830,5 +1834,268 @@ describe('opening a file from Finder', () => {
     DocumentService.OpenPath.mockResolvedValueOnce({ path: '/tmp/y.md', content: '# Other\n' })
     buttonByText(confirm, "Don't Save")!.click()
     await vi.waitFor(() => expect(DocumentService.OpenPath).toHaveBeenCalledWith('/tmp/y.md'))
+  })
+})
+
+describe('unknown citations in the status bar', () => {
+  const bib = '@article{a, title={A}, author={Doe, Jane}, year={2020}}'
+  const fm = '---\nbibliography: refs.bib\n---\n'
+
+  async function openWithBib(body: string) {
+    DocumentService.ReadBibliography.mockResolvedValue(bib)
+    return openDoc(`${fm}# Results\n\n${body}\n`)
+  }
+
+  afterEach(() => DocumentService.ReadBibliography.mockResolvedValue(''))
+
+  it('shows the unknown citation count in the status bar', async () => {
+    const target = await openWithBib('[@a; @b]')
+    await vi.waitFor(() =>
+      expect(target.querySelector('.status-bar')?.textContent).toContain('1 unknown citation'),
+    )
+    expect(target.querySelector('.status-bar')?.textContent).not.toContain('citations')
+  })
+
+  it('pluralises the count', async () => {
+    const target = await openWithBib('[@b; @c]')
+    await vi.waitFor(() =>
+      expect(target.querySelector('.status-bar')?.textContent).toContain('2 unknown citations'),
+    )
+  })
+
+  it('hides the count without a bibliography', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(bib)
+    const target = await openDoc('# Results\n\n[@b]\n')
+    await new Promise((r) => setTimeout(r, 400))
+    expect(target.querySelector('.status-bar')?.textContent).not.toContain('unknown')
+  })
+
+  it('jumps to the line from the list', async () => {
+    const target = await openWithBib('[@a]\n\n[@b]')
+    const btn = await vi.waitFor(() => {
+      const b = target.querySelector<HTMLButtonElement>('.unknown-count')
+      expect(b).not.toBeNull()
+      return b!
+    })
+    btn.click()
+    flushSync()
+    const dlg = target.querySelector<HTMLDialogElement>('dialog[aria-label="Unknown citations"]')!
+    expect(dlg.open).toBe(true)
+    expect(dlg.textContent).toContain('[@b]')
+    expect(dlg.textContent).toContain('line 8')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const entry = dlg.querySelector<HTMLButtonElement>('.unknown-list button')!
+    entry.click()
+    flushSync()
+    expect(dlg.open).toBe(false)
+    const line = view.state.doc.lineAt(view.state.selection.main.head).number
+    expect(line).toBe(8)
+  })
+})
+
+describe('csl style files in an unsaved document', () => {
+  async function typeIntoUntitled(text: string) {
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.cm-editor')).not.toBeNull())
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } })
+    return target
+  }
+  const toastText = (t: HTMLElement) => t.querySelector('.toast')?.textContent
+
+  it('asks to save when only a .csl style is named', async () => {
+    const target = await typeIntoUntitled('---\ncsl: my.csl\n---\n# Results\n')
+    await vi.waitFor(() => expect(toastText(target)).toBe('Save the document to load my.csl'))
+  })
+
+  it('names both files when a bibliography is also set', async () => {
+    const target = await typeIntoUntitled('---\nbibliography: refs.bib\ncsl: my.csl\n---\n# Results\n')
+    await vi.waitFor(() =>
+      expect(toastText(target)).toBe('Save the document to load refs.bib and my.csl'),
+    )
+  })
+})
+
+describe('Format → Citation Style', () => {
+  const editorText = (t: HTMLElement) => EditorView.findFromDOM(t.querySelector('.cm-editor')!)!.state.doc.toString()
+
+  it('writes csl into the frontmatter from the menu', async () => {
+    const target = await openDoc('# Results\n')
+    listeners['menu:citation-style']({ data: 'ieee' })
+    await vi.waitFor(() => expect(editorText(target)).toContain('csl: ieee'))
+    await vi.waitFor(() => expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true))
+  })
+
+  it('writes a relative path for a chosen style file', async () => {
+    recents.current = ['/doc/dir/p.md']
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/doc/dir/p.md', content: '# Results\n' })
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    listeners['menu:open-recent']({ data: '/doc/dir/p.md' })
+    await vi.waitFor(() => expect(target.textContent).toContain('Results'))
+    DocumentService.ChooseCitationStyle.mockResolvedValueOnce('/doc/dir/styles/x.csl')
+    listeners['menu:citation-style']({ data: 'other' })
+    await vi.waitFor(() => expect(editorText(target)).toContain('csl: styles/x.csl'))
+  })
+
+  it('does nothing when the style file panel is cancelled', async () => {
+    const target = await openDoc('# Results\n')
+    listeners['menu:citation-style']({ data: 'other' })
+    await vi.waitFor(() => expect(DocumentService.ChooseCitationStyle).toHaveBeenCalled())
+    await Promise.resolve()
+    expect(editorText(target)).not.toContain('csl:')
+  })
+
+  it('asks to save first for a style file in an untitled document', async () => {
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.cm-editor')).not.toBeNull())
+    DocumentService.ChooseCitationStyle.mockClear()
+    listeners['menu:citation-style']({ data: 'other' })
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe('Save the document before choosing a style file'),
+    )
+    expect(DocumentService.ChooseCitationStyle).not.toHaveBeenCalled()
+  })
+
+  it('keeps the caret in the body text after a style choice', async () => {
+    const target = await openDoc('# Results\n\nSome prose here.\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const anchor = view.state.doc.toString().indexOf('prose')
+    view.dispatch({ selection: { anchor } })
+    listeners['menu:citation-style']({ data: 'ieee' })
+    await vi.waitFor(() => expect(view.state.doc.toString()).toContain('csl: ieee'))
+    const after = view.state.doc.toString()
+    expect(after.slice(view.state.selection.main.head)).toMatch(/^prose here/)
+  })
+
+  it('leaves the document clean when the style is already written', async () => {
+    const target = await openDoc('---\ncsl: ieee\n---\n# Results\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const before = view.state.doc.toString()
+    listeners['menu:citation-style']({ data: 'ieee' })
+    await Promise.resolve()
+    flushSync()
+    expect(view.state.doc.toString()).toBe(before)
+    expect(DocumentService.SetDirty).not.toHaveBeenLastCalledWith(true)
+  })
+
+  it('reports the current style to Go', async () => {
+    const target = await openDoc('---\ncsl: ieee\n---\n# Results\n')
+    await vi.waitFor(() => expect(DocumentService.SetCitationStyle).toHaveBeenLastCalledWith('ieee'))
+    listeners['menu:citation-style']({ data: 'harvard' })
+    await vi.waitFor(() => expect(DocumentService.SetCitationStyle).toHaveBeenLastCalledWith('harvard'))
+    void target
+  })
+
+  it('reports apa when the document has no csl', async () => {
+    await openDoc('# Results\n')
+    await vi.waitFor(() => expect(DocumentService.SetCitationStyle).toHaveBeenLastCalledWith('apa'))
+  })
+})
+
+describe('Zotero picker failure', () => {
+  const NOT_RUNNING = "Zotero isn't running. Open Zotero, then try again."
+  const NO_BBT =
+    "Zotero is running but the Better BibTeX plugin isn't installed. Hermes uses it to pick citations and to export your library as a .bib file."
+  const INSTALL_URL = 'https://retorque.re/zotero-better-bibtex/installation/'
+
+  function zoteroDialog(target: HTMLElement) {
+    return target.querySelector<HTMLDialogElement>('dialog[aria-label="Zotero"]')!
+  }
+
+  beforeEach(() => {
+    DocumentService.PickCitations.mockImplementation(async () => {
+      throw new Error('zotero picker unavailable')
+    })
+  })
+  afterEach(() => {
+    DocumentService.PickCitations.mockImplementation(async () => '')
+    DocumentService.ZoteroStatus.mockImplementation(async () => 'ready')
+  })
+
+  it('explains that Zotero is not running', async () => {
+    DocumentService.ZoteroStatus.mockImplementation(async () => 'not-running')
+    const { target } = mountApp()
+    listeners['menu:insert-citation']({ data: undefined })
+    await vi.waitFor(() => expect(zoteroDialog(target).open).toBe(true))
+    expect(zoteroDialog(target).textContent).toContain(NOT_RUNNING)
+  })
+
+  it('falls back to the not-running message when the status check itself fails', async () => {
+    DocumentService.ZoteroStatus.mockImplementation(async () => {
+      throw new Error('boom')
+    })
+    const { target } = mountApp()
+    listeners['menu:insert-citation']({ data: undefined })
+    await vi.waitFor(() => expect(zoteroDialog(target).open).toBe(true))
+    expect(zoteroDialog(target).textContent).toContain(NOT_RUNNING)
+  })
+
+  it('explains that Better BibTeX is missing and offers the install page', async () => {
+    DocumentService.ZoteroStatus.mockImplementation(async () => 'no-better-bibtex')
+    const { target } = mountApp()
+    listeners['menu:insert-citation']({ data: undefined })
+    await vi.waitFor(() => expect(zoteroDialog(target).open).toBe(true))
+    const text = zoteroDialog(target).textContent ?? ''
+    expect(text).toContain(NO_BBT)
+    expect(text).toContain('You can also type [@ to cite from your .bib without Zotero.')
+
+    buttonByText(zoteroDialog(target), 'Open Install Page')!.click()
+    expect(Browser.OpenURL).toHaveBeenCalledWith(INSTALL_URL)
+  })
+
+  it('shows the error itself when Zotero reports ready', async () => {
+    DocumentService.ZoteroStatus.mockImplementation(async () => 'ready')
+    const { target } = mountApp()
+    listeners['menu:insert-citation']({ data: undefined })
+    await vi.waitFor(() => expect(target.querySelector('.toast')?.textContent).toContain('zotero picker unavailable'))
+    expect(zoteroDialog(target).open).toBe(false)
+  })
+})
+
+describe('citation completion and hover in the mounted app', () => {
+  const bib = '@article{smith2020, title={On Things}, author={Smith, Jane}, year={2020}}'
+  const fm = '---\nbibliography: refs.bib\n---\n'
+
+  afterEach(() => DocumentService.ReadBibliography.mockResolvedValue(''))
+  // jsdom's Range has no geometry; CodeMirror measures the selection with it.
+  beforeEach(() => {
+    Range.prototype.getClientRects = () => ({ length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] }) as unknown as DOMRectList
+    Range.prototype.getBoundingClientRect = () => new DOMRect()
+  })
+
+  async function openWithBib(body: string) {
+    DocumentService.ReadBibliography.mockResolvedValue(bib)
+    const target = await openDoc(`${fm}# Results\n\n${body}\n`)
+    // The preview formats the citation once the formatter has loaded.
+    await vi.waitFor(() => expect(target.querySelector('.preview-pane')?.textContent).toContain('Smith'))
+    return { target, view: EditorView.findFromDOM(target.querySelector('.cm-editor')!)! }
+  }
+
+  it('opens the completion popup while typing [@ and letters', async () => {
+    const { view } = await openWithBib('See [@smith2020].\n\nAlso ')
+    const at = view.state.doc.toString().indexOf('Also ') + 5
+    view.dispatch({ selection: { anchor: at } })
+    view.focus()
+    let pos = at
+    for (const ch of '[@smi') {
+      view.dispatch({ changes: { from: pos, insert: ch }, selection: { anchor: pos + 1 }, userEvent: 'input.type' })
+      pos++
+    }
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'), { timeout: 2000 })
+  })
+
+  it('shows a hover tooltip over a key in the editor', async () => {
+    const { target, view } = await openWithBib('See [@smith2020].')
+    const pos = view.state.doc.toString().indexOf('smith2020') + 2
+    // jsdom has no layout: pin the coordinate mapping to the key, then move
+    // the mouse over the line the way a real pointer would.
+    view.posAtCoords = (() => pos) as typeof view.posAtCoords
+    view.coordsAtPos = (() => ({ top: 0, bottom: 20, left: 0, right: 10 })) as typeof view.coordsAtPos
+    const line = [...view.contentDOM.querySelectorAll('.cm-line')].find((l) => l.textContent?.includes('smith2020'))!
+    line.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 5, clientY: 5 }))
+    await vi.waitFor(() => expect(target.querySelector('.cm-citation-tooltip')?.textContent).toContain('Smith'), {
+      timeout: 2000,
+    })
   })
 })

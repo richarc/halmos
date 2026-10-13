@@ -159,6 +159,11 @@ func main() {
 		})
 		app.Event.Emit("recents:changed")
 	}
+	docs.onCitationStyleChanged = func() {
+		application.InvokeAsync(func() {
+			installMenu(app, win, docs)
+		})
+	}
 	// One notification for every preference: the menu re-reads whichever ones
 	// it renders, and the frontend is told so it can pick up the rest. Adding
 	// a setting needs no new wiring here.

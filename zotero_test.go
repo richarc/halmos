@@ -107,3 +107,54 @@ func TestPickCitationsDoesNotRefocusWhenZoteroIsUnreachable(t *testing.T) {
 		t.Errorf("want no refocus when the picker never ran, got %d", refocused)
 	}
 }
+
+func zoteroStatusServer(t *testing.T, probe func(w http.ResponseWriter)) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/connector/ping":
+			_, _ = w.Write([]byte("<html>Zotero is running</html>"))
+		case "/better-bibtex/cayw":
+			if r.URL.Query().Get("probe") != "true" {
+				t.Errorf("probe query missing: %s", r.URL.RawQuery)
+			}
+			probe(w)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+}
+
+func TestZoteroStatusNotRunning(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	url := srv.URL
+	srv.Close()
+
+	s := newTestService(t)
+	s.caywBase = url
+	if got := s.ZoteroStatus(); got != "not-running" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestZoteroStatusNoBetterBibTeX(t *testing.T) {
+	srv := zoteroStatusServer(t, func(w http.ResponseWriter) { http.Error(w, "nope", http.StatusNotFound) })
+	defer srv.Close()
+
+	s := newTestService(t)
+	s.caywBase = srv.URL
+	if got := s.ZoteroStatus(); got != "no-better-bibtex" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestZoteroStatusReady(t *testing.T) {
+	srv := zoteroStatusServer(t, func(w http.ResponseWriter) { _, _ = w.Write([]byte("ready\n")) })
+	defer srv.Close()
+
+	s := newTestService(t)
+	s.caywBase = srv.URL
+	if got := s.ZoteroStatus(); got != "ready" {
+		t.Errorf("got %q", got)
+	}
+}

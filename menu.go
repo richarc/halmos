@@ -8,6 +8,25 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/mac"
 )
 
+// citationStyles are the styles bundled with the app, in menu order. The ids
+// must match STYLE_LOADERS in frontend/src/lib/citations.ts.
+var citationStyles = []struct{ label, id string }{
+	{"APA", "apa"},
+	{"Chicago (author-date)", "chicago-author-date"},
+	{"Harvard", "harvard"},
+	{"IEEE", "ieee"},
+	{"Vancouver", "vancouver"},
+}
+
+// citationStyleClicked handles a click on a style checkbox: send the choice,
+// then always rebuild the menu. The checkbox has already flipped itself, and
+// the stored style may not change (clicking the ticked item), so only a
+// rebuild puts the tick back.
+func citationStyleClicked(docs *DocumentService, emit func()) {
+	emit()
+	docs.rebuildStyleMenu()
+}
+
 // installMenu builds and sets the application menu. It is called again
 // whenever the recents list changes, so the Open Recent submenu stays
 // current; the rebuild is dispatched to the main thread by the caller.
@@ -236,6 +255,19 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	heading.AddSeparator()
 	heading.Add("Paragraph").SetAccelerator("cmdorctrl+0").OnClick(func(*application.Context) {
 		docEmit("menu:format", "heading:0")
+	})
+
+	style := format.AddSubmenu("Citation Style")
+	currentStyle := docs.currentCitationStyle()
+	for _, st := range citationStyles {
+		id := st.id
+		style.AddCheckbox(st.label, currentStyle == id).OnClick(func(*application.Context) {
+			citationStyleClicked(docs, func() { docEmit("menu:citation-style", id) })
+		})
+	}
+	style.AddSeparator()
+	style.Add("Other Style File…").OnClick(func(*application.Context) {
+		docEmit("menu:citation-style", "other")
 	})
 
 	format.AddSeparator()

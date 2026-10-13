@@ -206,3 +206,10 @@ describe('spellcheckExtension', () => {
     cleanup()
   })
 })
+
+describe('protectedRanges: footnotes', () => {
+  it('protects footnote markers and definition labels', () => {
+    const doc = 'Prose[^note1] here.\n\n[^note1]: The note text.\n'
+    expect(protectedText(doc)).toEqual(['[^note1]', '[^note1]:'])
+  })
+})

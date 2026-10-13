@@ -56,6 +56,16 @@ export interface FormatResult {
 export interface CitationFormatter {
   format(clusters: CitationCluster[]): FormatResult
   has(key: string): boolean
+  /**
+   * Bibliography HTML for one entry in this style, or null for an unknown key.
+   * Cached per key. Uses its own engine, so format() and its cache are untouched.
+   */
+  reference(key: string): string | null
+}
+
+/** True for a `csl:` value that names a style file rather than a bundled id. */
+export function isStyleFile(csl: string): boolean {
+  return !STYLE_IDS.includes(csl) && /\.csl$/i.test(csl)
 }
 
 /**
@@ -63,13 +73,19 @@ export interface CitationFormatter {
  * format() is synchronous — the render path calls it on every keystroke, so
  * the awaiting is done once, here, rather than per render. An unknown style id
  * falls back to APA.
+ * With `styleXml` the supplied style replaces the bundled one, and the engine
+ * is built here rather than lazily, so a style citeproc rejects throws from
+ * this call instead of from a later render.
  */
 export async function createCitationFormatter(
   entries: CSLEntry[],
   styleId: string,
+  styleXml?: string,
 ): Promise<CitationFormatter> {
   const [styleModule, localeModule, citeprocModule] = await Promise.all([
-    (STYLE_LOADERS[styleId] ?? STYLE_LOADERS.apa)(),
+    styleXml === undefined
+      ? (STYLE_LOADERS[styleId] ?? STYLE_LOADERS.apa)()
+      : Promise.resolve({ default: styleXml }),
     import('../assets/csl/locales-en-US.xml?raw'),
     import('citeproc'),
   ])
@@ -149,8 +165,51 @@ export async function createCitationFormatter(
     return { texts, bibliographyHtml }
   }
 
+  // A supplied style is untrusted: citeproc can accept it at construction and
+  // still fail when asked to format. Build the engine and run one cluster
+  // through the real formatting path now, so a broken style throws from here
+  // and the caller falls back, instead of throwing inside a render. A style
+  // with no <bibliography> section is accepted: makeBibliography reports false
+  // for it and format() returns an empty bibliography.
+  if (styleXml !== undefined) {
+    engine = new CSL.Engine(sys, style)
+    if (entries.length > 0) formatUncached([{ items: [{ key: entries[0].id }] }])
+  }
+
+  // A second engine, built on the first reference() call, so a hover never
+  // rebuilds the processor state format() has cached on the main engine.
+  let refEngine: CiteprocEngine | undefined
+  const refCache = new Map<string, string | null>()
+
+  function reference(key: string): string | null {
+    if (!byId.has(key)) return null
+    const hit = refCache.get(key)
+    if (hit !== undefined) return hit
+    let html: string | null = null
+    try {
+      refEngine ??= new CSL.Engine(sys, style)
+      refEngine.rebuildProcessorState(
+        [
+          {
+            citationID: 'ref',
+            citationItems: [{ id: key }],
+            properties: { noteIndex: 0 },
+          },
+        ],
+        'html',
+      )
+      const bib = refEngine.makeBibliography()
+      html = bib ? bib[1].join('') : null
+    } catch {
+      // A style that cannot render a reference means no hover, not a crash.
+    }
+    refCache.set(key, html)
+    return html
+  }
+
   return {
     has: (key) => byId.has(key),
+    reference,
     format(clusters) {
       const key = JSON.stringify(clusters)
       // Handed back as is: renderer.ts only reads the result, and copying the
@@ -220,13 +279,18 @@ function pushCitation(
   tokenType: string,
   cluster: CitationCluster,
   raw: string,
+  start: number,
 ): void {
   const env = state.env as { citations?: CitationCluster[] }
   env.citations ??= []
   const index = env.citations.length
   env.citations.push(cluster)
   const token = state.push(tokenType, '', 0)
-  token.meta = { index }
+  // `src`/`start`/`end` locate the match in the inline source it was parsed
+  // from. Nothing in the preview reads them; citationKeys.ts uses them to map
+  // a citation back to the document, and because they ride on the token they
+  // vanish with it if the surrounding construct is backtracked.
+  token.meta = { index, src: state.src, start, end: state.pos }
   token.content = raw
 }
 
@@ -274,8 +338,8 @@ function bracketRule(state: StateInline, silent: boolean): boolean {
   if (content.includes('[')) return false
   const items = parseBracketContent(content)
   if (!items) return false
-  if (!silent) pushCitation(state, 'citation', { items }, src.slice(pos, close + 1))
   state.pos = close + 1
+  if (!silent) pushCitation(state, 'citation', { items }, src.slice(pos, close + 1), pos)
   return true
 }
 
@@ -295,15 +359,16 @@ function narrativeRule(state: StateInline, silent: boolean): boolean {
   if (before && /[\w.\-@[]/.test(before)) return false
   const parsed = parseKey(src.slice(pos + 1))
   if (!parsed) return false
+  state.pos = pos + 1 + parsed.key.length
   if (!silent) {
     pushCitation(
       state,
       'citation_narrative',
       { items: [{ key: parsed.key }], mode: 'composite' },
       `@${parsed.key}`,
+      pos,
     )
   }
-  state.pos = pos + 1 + parsed.key.length
   return true
 }
 

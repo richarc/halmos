@@ -20,10 +20,11 @@
     bibliographyReference,
   } from './lib/documentTemplate'
   import NewDocument, { type BibliographyChoice } from './NewDocument.svelte'
-  import { parseFrontmatter } from './lib/frontmatter'
-  import { parseBib } from './lib/bibliography'
+  import { parseFrontmatter, frontmatterKeyChange } from './lib/frontmatter'
+  import { parseBib, type CSLEntry } from './lib/bibliography'
+  import type { CitationContext } from './lib/citationCompletion'
   import { resolveTheme, applyTheme, type ThemeSetting } from './lib/theme'
-  import { createCitationFormatter, STYLE_IDS, type CitationFormatter } from './lib/citations'
+  import { createCitationFormatter, isStyleFile, STYLE_IDS, type CitationFormatter } from './lib/citations'
   import {
     unresolvedInsertionMessage,
     unsavedBibliographyMessage,
@@ -46,6 +47,8 @@
   import TableBuilder from './TableBuilder.svelte'
   import { parsePipeTable, serializePipeTable, type PipeTable } from './lib/pipeTable'
   import Dialog from './Dialog.svelte'
+  import UnknownCitations from './UnknownCitations.svelte'
+  import { unknownCitations } from './lib/citationKeys'
   import { readSpec, type BuilderState } from './lib/chartSpec'
   import type { ChartWidth, FigureAlignment } from './lib/figures'
   import {
@@ -85,6 +88,7 @@
   let updateCheck = $state<UpdateCheckSetting>('unasked')
   // The first-launch question; true only until it has been answered once.
   let askUpdates = $state(false)
+  let zoteroHelp = $state<'not-running' | 'no-better-bibtex' | null>(null)
   // A newer version, awaiting Later / View Release. Null when no dialog is up.
   let updateNotice = $state<UpdateResult | null>(null)
   let spellCheck = $state(true)
@@ -145,6 +149,7 @@
   let scrollFrame: number | null = null
   let toastTimer: ReturnType<typeof setTimeout>
   let formatter = $state<CitationFormatter | undefined>(undefined)
+  let bibEntries = $state.raw<CSLEntry[]>([])
   // Guards against a stale ReadBibliography response landing after a newer
   // request (e.g. rapid frontmatter edits or back-to-back bib:changed
   // events): each call captures its generation and bails after every await
@@ -160,7 +165,40 @@
   // fields separately lets each one's own equality check (plain !==) gate
   // correctly, so the reload effect below only fires on a real change.
   const fmBibliography = $derived(fm.bibliography)
+  const citationContext = $derived<CitationContext | null>(
+    formatter && fmBibliography
+      ? { entries: bibEntries, has: (k) => formatter!.has(k), reference: (k) => formatter!.reference(k), bibName: fmBibliography }
+      : null,
+  )
   const fmCsl = $derived(fm.csl)
+
+  // Format → Citation Style ticks the current style; tell Go whenever it
+  // changes (including on open and close, where content changes under it).
+  $effect(() => {
+    void DocumentService.SetCitationStyle(fmCsl ?? 'apa')
+  })
+
+  // Citation keys the bibliography does not have. unknownCitations parses the
+  // whole document, so this is never run per keystroke: debounced on text
+  // change, immediate when the formatter (or the bibliography name) changes.
+  let unknown = $state<{ key: string; line: number }[]>([])
+  let unknownOpen = $state(false)
+  function recountUnknown(text: string) {
+    const f = formatter
+    unknown = f && fmBibliography ? unknownCitations(text, (k) => f.has(k)) : []
+    if (unknown.length === 0) unknownOpen = false
+  }
+  const recountUnknownSoon = debounce(recountUnknown, 300)
+  $effect(() => {
+    void formatter
+    void fmBibliography
+    recountUnknownSoon.cancel()
+    untrack(() => recountUnknown(content))
+  })
+  function jumpToUnknown(line: number) {
+    unknownOpen = false
+    jumpToLine(line)
+  }
 
   // The wait follows the cost of the last update: twice the measured time,
   // between 60 and 300 ms, starting at 100 until the first measurement. The
@@ -221,10 +259,15 @@
     const wanted = fmBibliography ?? null
     if (!wanted || !path) {
       formatter = undefined
+      bibEntries = []
       // A named bibliography resolves relative to the document, so an unsaved
       // document cannot load one. Say so rather than failing silently.
+      const styleFile = fmCsl && isStyleFile(fmCsl) ? fmCsl : undefined
       const unsaved = unsavedBibliographyMessage(wanted ?? undefined, path ?? null)
-      if (unsaved) toast(unsaved)
+      // One toast: a second would replace the first. A style file is named
+      // too, since it resolves against the saved document just as the .bib does.
+      if (unsaved) toast(styleFile ? `${unsaved} and ${styleFile}` : unsaved)
+      else if (styleFile && !path) toast(`Save the document to load ${styleFile}`)
       void DocumentService.WatchBibliography('', path ?? '')
       return
     }
@@ -234,13 +277,32 @@
       const { entries, warnings } = parseBib(text)
       if (warnings.length)
         toast(`Bibliography: ${warnings.length} entr${warnings.length === 1 ? 'y' : 'ies'} could not be parsed`)
-      const next = await createCitationFormatter(entries, fmCsl ?? 'apa')
+      let next: CitationFormatter
+      let styleNotice: string | null = null
+      if (fmCsl && isStyleFile(fmCsl)) {
+        // A style file resolves relative to the document, like the bibliography.
+        // Any failure to read or build it falls back to APA, never to no citations.
+        try {
+          const xml = await DocumentService.ReadCitationStyle(fmCsl, path)
+          if (gen !== reloadGeneration) return // superseded while the file was read
+          next = await createCitationFormatter(entries, fmCsl, xml)
+        } catch {
+          if (gen !== reloadGeneration) return
+          next = await createCitationFormatter(entries, 'apa')
+          styleNotice = `Citation style could not be loaded: ${fmCsl} — using APA`
+        }
+      } else {
+        next = await createCitationFormatter(entries, fmCsl ?? 'apa')
+        if (fmCsl && !STYLE_IDS.includes(fmCsl)) styleNotice = `Unknown citation style "${fmCsl}" — using APA`
+      }
       if (gen !== reloadGeneration) return // superseded while the style loaded
       formatter = next
-      if (fmCsl && !STYLE_IDS.includes(fmCsl)) toast(`Unknown citation style "${fmCsl}" — using APA`)
+      bibEntries = entries
+      if (styleNotice) toast(styleNotice)
     } catch {
       if (gen !== reloadGeneration) return // superseded by a newer request
       formatter = undefined
+      bibEntries = []
       toast(`Bibliography not found: ${wanted}`)
     }
     void DocumentService.WatchBibliography(wanted, path)
@@ -260,6 +322,8 @@
   $effect(() => {
     void formatter
     void chartWidth
+    // The editor's unknown-key marks read the same bibliography.
+    editor?.refreshCitations()
     renderInto(untrack(() => content))
   })
 
@@ -284,8 +348,18 @@
           if (unresolved) toast(unresolved)
         }
       }
-    } catch {
-      toast("Zotero (with Better BibTeX) isn't running")
+    } catch (e) {
+      // Ask why only now: probing before every pick would add two requests to
+      // the path that works. A status check that itself fails means Zotero
+      // did not answer, which reads the same as not running.
+      let status = 'not-running'
+      try {
+        status = await DocumentService.ZoteroStatus()
+      } catch {
+        // keep the default
+      }
+      if (status === 'ready') toast(String(e))
+      else zoteroHelp = status === 'no-better-bibtex' ? 'no-better-bibtex' : 'not-running'
     }
   }
 
@@ -504,10 +578,44 @@
     editor.insertCodeBlockAtCursor(language)
   }
 
+  // Format → Citation Style. Writes `csl:` through the editor so it is one
+  // undo step and marks the document dirty like any other edit.
+  async function applyCitationStyle(choice: string) {
+    // Same guard as applyFormat: the menu fires over the welcome pane and
+    // over the builders and the New dialog.
+    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    let value = choice
+    if (choice === 'other') {
+      if (path === null) {
+        toast('Save the document before choosing a style file')
+        return
+      }
+      const docPath = path
+      let chosen = ''
+      try {
+        chosen = await DocumentService.ChooseCitationStyle()
+      } catch (e) {
+        toast(String(e))
+        return
+      }
+      if (!chosen) return
+      // The panel is not modal to the webview: the document may have changed.
+      if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen) return
+      value = bibliographyReference(chosen, docPath)
+    } else if (!STYLE_IDS.includes(choice)) {
+      return
+    }
+    const change = frontmatterKeyChange(content, 'csl', value)
+    // Choosing the style already written would only dirty the document.
+    if (content.slice(change.from, change.to) === change.insert) return
+    editor.applyChange(change.from, change.to, change.insert)
+  }
+
   function onEditorChange(text: string) {
     content = text
     welcomeDismissed = true
     updatePreview(text)
+    recountUnknownSoon(text)
   }
 
   // `cursor` is 'end' for a document created a moment ago, so typing starts
@@ -1021,6 +1129,9 @@
     Events.On('menu:find', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') applyFind(ev.data)
     })
+    Events.On('menu:citation-style', (ev: { data: unknown }) => {
+      if (typeof ev.data === 'string') void applyCitationStyle(ev.data)
+    })
     Events.On('menu:fold', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') applyFold(ev.data)
     })
@@ -1108,7 +1219,7 @@
       >
     {/if}
     <section class="editor-pane" style="width: {editorWidth}%">
-      <Editor bind:this={editor} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} spellcheck={spellCheck} />
+      <Editor bind:this={editor} citations={() => citationContext} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} spellcheck={spellCheck} />
     </section>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -- WAI-ARIA "window splitter" pattern: a focusable separator with arrow-key resizing is the recommended markup -->
     <div
@@ -1128,6 +1239,11 @@
 
   <footer class="status-bar">
     <span>{filename}{dirty ? ' •' : ''}</span>
+    {#if unknown.length > 0}
+      <button class="link-button unknown-count" onclick={() => (unknownOpen = true)}
+        >{unknown.length} unknown citation{unknown.length === 1 ? '' : 's'}</button
+      >
+    {/if}
   </footer>
 
   {#if showWelcome}
@@ -1221,6 +1337,23 @@
     {#snippet footer()}
       <button onclick={discardRecoveredDraft}>Discard Draft</button>
       <button class="primary" onclick={restoreDraft}>Restore</button>
+    {/snippet}
+  </Dialog>
+
+  <UnknownCitations open={unknownOpen} items={unknown} onclose={() => (unknownOpen = false)} onjump={jumpToUnknown} />
+
+  <Dialog open={zoteroHelp !== null} label="Zotero" onclose={() => (zoteroHelp = null)}>
+    {#if zoteroHelp === 'no-better-bibtex'}
+      <p>Zotero is running but the Better BibTeX plugin isn't installed. Hermes uses it to pick citations and to export your library as a .bib file.</p>
+      <p>You can also type [@ to cite from your .bib without Zotero.</p>
+    {:else}
+      <p>Zotero isn't running. Open Zotero, then try again.</p>
+    {/if}
+    {#snippet footer()}
+      {#if zoteroHelp === 'no-better-bibtex'}
+        <button onclick={() => void Browser.OpenURL('https://retorque.re/zotero-better-bibtex/installation/')}>Open Install Page</button>
+      {/if}
+      <button class="primary" onclick={() => (zoteroHelp = null)}>OK</button>
     {/snippet}
   </Dialog>
 

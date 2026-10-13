@@ -5,7 +5,7 @@ import type { EditorState } from '@codemirror/state'
 // syntax tree is already maintained for highlighting, so querying it is free.
 const CODE_NODES = new Set(['FencedCode', 'CodeText', 'CodeBlock', 'InlineCode'])
 
-function isInCode(state: EditorState, pos: number): boolean {
+export function isInCode(state: EditorState, pos: number): boolean {
   let node = syntaxTree(state).resolveInner(pos, 1)
   for (;;) {
     if (CODE_NODES.has(node.name)) return true
@@ -15,6 +15,20 @@ function isInCode(state: EditorState, pos: number): boolean {
 }
 
 const FENCE_RE = /^---[ \t]*\r?$/
+
+// Bounded frontmatter check for per-keystroke and per-hover callers: unlike
+// frontmatterEndLine it never walks past MAX_FRONTMATTER_LINES, and an unclosed
+// fence reads as prose.
+const MAX_FRONTMATTER_LINES = 100
+
+export function inFrontmatter(state: EditorState, pos: number): boolean {
+  const { doc } = state
+  const n = doc.lineAt(pos).number
+  if (n > MAX_FRONTMATTER_LINES || !FENCE_RE.test(doc.line(1).text)) return false
+  const last = Math.min(doc.lines, MAX_FRONTMATTER_LINES)
+  for (let i = 2; i <= last; i++) if (FENCE_RE.test(doc.line(i).text)) return n <= i
+  return false
+}
 
 // The markdown grammar has no frontmatter concept — it reads the block as a
 // setext heading — so the fence is located by line instead. Mirrors the rule

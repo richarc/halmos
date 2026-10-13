@@ -5,6 +5,7 @@ import { EditorView, type Command } from '@codemirror/view'
 import { foldCode, forceParsing } from '@codemirror/language'
 import { undo } from '@codemirror/commands'
 import { setSearchQuery, SearchQuery } from '@codemirror/search'
+import { startCompletion, completionStatus } from '@codemirror/autocomplete'
 import Editor from './Editor.svelte'
 import { toggleBold } from './lib/markdownCommands'
 
@@ -26,6 +27,7 @@ interface EditorApi {
   enclosingTable(): { from: number; to: number; text: string } | null
   replaceRange(from: number, to: number, text: string): void
   find(cmd: 'open' | 'replace' | 'next' | 'previous'): boolean
+  refreshCitations(): void
 }
 
 /**
@@ -649,6 +651,75 @@ describe('Editor.find', () => {
     expect(view.state.selection.main.from).toBe(4)
     editor.find('previous')
     expect(view.state.selection.main.from).toBe(0)
+    cleanup()
+  })
+})
+
+describe('Editor citation completion', () => {
+  const ctx = {
+    entries: [{ id: 'smith2020', type: 'book', title: 'T', author: [{ family: 'Smith' }] }],
+    has: (k: string) => k === 'smith2020',
+    reference: () => null,
+    bibName: 'refs.bib',
+  }
+
+  async function typeAndComplete(citations: () => typeof ctx | null) {
+    const { editor, target, cleanup } = mountEditor({ citations })
+    editor.setContent('[@sm', 'end')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor') as HTMLElement)!
+    startCompletion(view)
+    await new Promise((r) => setTimeout(r, 50))
+    const status = completionStatus(view.state)
+    cleanup()
+    return status
+  }
+
+  it('opens the completion list for a key prefix', async () => {
+    expect(await typeAndComplete(() => ctx)).toBe('active')
+  })
+
+  it('offers nothing when no bibliography is loaded', async () => {
+    expect(await typeAndComplete(() => null)).toBeNull()
+  })
+})
+
+describe('Editor unknown citation keys', () => {
+  const entries = [{ id: 'a', type: 'book', title: 'T', author: [{ family: 'A' }] }]
+  const marks = (target: HTMLElement) =>
+    [...target.querySelectorAll('.cm-cite-unknown')].map((e) => e.textContent)
+
+  it('marks keys missing from the bibliography', () => {
+    const citations = () => ({ entries, has: (k: string) => k === 'a', reference: () => null, bibName: 'refs.bib' })
+    const { editor, target, cleanup } = mountEditor({ citations })
+    editor.setContent('[@a; @b]')
+    expect(marks(target)).toEqual(['b'])
+    cleanup()
+  })
+
+  it('marks nothing without a bibliography', () => {
+    const { editor, target, cleanup } = mountEditor({ citations: () => null })
+    editor.setContent('[@a; @b]')
+    expect(marks(target)).toEqual([])
+    cleanup()
+  })
+
+  it('does not mark keys in code or frontmatter', () => {
+    const citations = () => ({ entries, has: () => false, reference: () => null, bibName: 'refs.bib' })
+    const { editor, target, cleanup } = mountEditor({ citations })
+    editor.setContent('---\nnote: [@fm]\n---\n\n`[@code]` and [@real]')
+    expect(marks(target)).toEqual(['real'])
+    cleanup()
+  })
+
+  it('refreshCitations re-evaluates after the bibliography changes', () => {
+    let known = false
+    const citations = () => ({ entries, has: () => known, reference: () => null, bibName: 'refs.bib' })
+    const { editor, target, cleanup } = mountEditor({ citations })
+    editor.setContent('[@b]')
+    expect(marks(target)).toEqual(['b'])
+    known = true
+    editor.refreshCitations()
+    expect(marks(target)).toEqual([])
     cleanup()
   })
 })
