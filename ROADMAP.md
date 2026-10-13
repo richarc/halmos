@@ -99,6 +99,17 @@ separate, much larger project and is deliberately not part of this.
       *Status 2026-10-11*: since v0.10.0 Hermes checks a feed
       (`updates/latest.json`) and tells the user a newer version exists, but
       downloading and installing it is still manual.
+- [ ] **Third-party licence notices in the app.** The MIT, BSD and ISC
+      licences of the bundled libraries (about 260: CodeMirror, markdown-it,
+      KaTeX, Mermaid, Vega and their dependencies) require their copyright
+      and licence text to travel with every copy. `bundle:licences` ships
+      only LICENSE, NOTICE, citeproc-js and the CSL licence, and the build
+      strips the licence comments from the bundle. Generate one
+      third-party licences file during the frontend build (a licence plugin
+      for Vite), copy it in with `bundle:licences`, and optionally add
+      Help → Acknowledgements to open it. Also correct NOTICE, which says
+      these dependencies "are credited in README.md": a credit is not the
+      licence text.
 - [ ] **Pricing page on the documentation site**, ready for v1.1.0. The
       site states what is free (the editor and citations) and what the
       subscription adds.
@@ -121,6 +132,15 @@ one — dissolves when the conversion runs on a server Hermes controls.
 - [ ] **Hosting, privacy policy and terms.** Documents sent for conversion
       are processed and not kept. Say so in the policy and design the server
       so it is true.
+- [ ] **Licence and name.** Decided 2026-10-13: the desktop app stays
+      Apache-2.0 and the server code stays private. Before charging: check
+      and register the product name as a trademark ("Hermes" alone is a
+      crowded name; Apache-2.0 grants no trademark rights), and have a
+      lawyer review the licence, trademark and terms together.
+- [ ] **Contributor licence agreement** before accepting outside pull
+      requests. Today every commit is the author's, so the licence of future
+      versions can still be changed; outside contributions without an
+      agreement would remove that option.
 - [ ] Export to DOCX and LaTeX through Pandoc. Hermes already builds toward
       Pandoc without collecting the payoff: `![caption](img)` was chosen
       because it is exactly Pandoc's figure convention, citations are `[@key]`,
@@ -277,9 +297,6 @@ Ideas noted along the way, not yet committed to a release:
     again or the document reopened. By design in v0.12.0.
   - Numeric styles (IEEE, Vancouver) show `[1]` in every hover tooltip,
     and number a citation inside a footnote by its position in the source.
-- Decide whether to ship MIT licence notices in the app. `bundle:licences`
-  copies the Apache NOTICE, citeproc-js and CSL licences only; no MIT
-  dependency's notice (CodeMirror, markdown-it and others) is included.
 - Re-record the citations demo (`docs/demos/citations.demo`) to show
   autocomplete, hover, the unknown-citation list and the style menu. Needs
   Screen Recording granted to the signed app (see the `demo-mode` skill).
