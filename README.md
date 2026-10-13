@@ -22,7 +22,11 @@ on screen is rendered from it.
   title, or an image alt text, and it is numbered automatically in document
   order, with alignment and width set document-wide.
 - **Citations** — `[@key]` against a BibTeX file, formatted through CSL with
-  five bundled styles and an automatic References section.
+  an automatic References section. Type `[@` to pick from the `.bib`; hover a
+  key to see the full reference; unknown keys are underlined and counted in
+  the status bar. Five bundled styles under Format → Citation Style, or any
+  journal's `.csl` file. Citations work inside footnotes. See
+  [docs/citations.md](docs/citations.md).
 - **Zotero** — insert citations straight from your library via Better BibTeX.
 - **Code** — fenced blocks are syntax highlighted in both panes from one shared
   table, so a block looks the same as you write it, after it renders, and in
@@ -251,10 +255,11 @@ csl: apa
 
 - `bibliography` is resolved **relative to the document**, so `refs.bib` means
   "next to this file". An absolute path also works.
-- `csl` selects the citation style. Omit it for APA.
+- `csl` selects the citation style. Omit it for APA. Format → Citation Style
+  writes this line for you.
 
 Bundled styles: `apa` (default), `chicago-author-date`, `ieee`, `vancouver`,
-`harvard`.
+`harvard`. A path to a `.csl` file also works, for a journal's own style.
 
 Do **not** write your own `## References` heading. Hermes appends the heading
 and the formatted bibliography itself, so writing one produces two.
@@ -286,6 +291,12 @@ pp. 20-22].
 
 An unresolvable key renders visibly in place rather than blanking the preview,
 so a typo never costs you the rest of the document.
+
+Type `[@` to pick a key from the `.bib` instead of typing it. Hover over a key
+in the editor to see the formatted reference. A key that is not in the `.bib`
+is underlined in red, and the status bar counts them; click the count to list
+them with line numbers. The full guide is
+**[docs/citations.md](docs/citations.md)**.
 
 ### 3. Editing the `.bib`
 

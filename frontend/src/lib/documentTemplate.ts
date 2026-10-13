@@ -22,8 +22,8 @@ import { STYLE_IDS } from './citations'
  * value of exactly `true` (issue #8).
  */
 export const NEW_DOCUMENT_TEMPLATE = `---
-# To cite: put a .bib file beside this document, name
-# it below, then write [@key] in your text. Styles:
+# To cite: name a .bib file below, then type [@ in
+# your text. Styles (or Format → Citation Style):
 # apa, chicago-author-date, ieee, vancouver, harvard.
 # bibliography: references.bib
 # csl: apa

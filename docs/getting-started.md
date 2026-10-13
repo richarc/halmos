@@ -75,8 +75,8 @@ Every new document starts with a block like this:
 
 ```markdown
 ---
-# To cite: put a .bib file beside this document, name
-# it below, then write [@key] in your text. Styles:
+# To cite: name a .bib file below, then type [@ in
+# your text. Styles (or Format → Citation Style):
 # apa, chicago-author-date, ieee, vancouver, harvard.
 # bibliography: references.bib
 # csl: apa
@@ -97,7 +97,7 @@ Hermes reads exactly four keys. Everything else is left alone.
 | Key | What it does |
 |---|---|
 | `bibliography` | The `.bib` file citations resolve against. Relative paths are relative to the document, so `references.bib` means the file beside it. |
-| `csl` | Citation style: one of the five bundled names above. Anything else falls back to APA with a warning. |
+| `csl` | Citation style: one of the five bundled names above, or the path to a journal's `.csl` file. Format → Citation Style writes it for you. A name Hermes does not know falls back to APA with a warning. |
 | `toc` | `true` renders a table of contents, at the first paragraph containing `[[toc]]` or, if there is none, at the top. |
 | `toc-depth` | How many heading levels the contents lists. Default 3. |
 
@@ -244,10 +244,20 @@ alone.
 
 With a bibliography set in the frontmatter, `[@smith2020]` cites the entry
 whose key is `smith2020` and a References section appears at the end of the
-document. **Insert → Citation…** (⌘⇧C) picks from Zotero. The details, and
-how to keep the `.bib` file current, are in
-[hermes-authoring.md](hermes-authoring.md) and
-[zotero-setup.md](zotero-setup.md).
+document.
+
+- Type `[@` to pick from the `.bib`: a list of keys, authors and titles
+  narrows as you type.
+- **Insert → Citation…** (⌘⇧C) picks from Zotero instead.
+- Hover over a key to see the full reference. A key that is not in the `.bib`
+  gets a red underline, and the status bar counts them; click the count for
+  the list.
+- **Format → Citation Style** changes the style, including a journal's own
+  `.csl` file.
+
+The whole process, from connecting a bibliography to checking every citation
+before you submit, is in [Citing in Hermes](citations.md). Keeping a `.bib`
+in step with Zotero is in [Setting up Zotero](zotero-setup.md).
 
 ---
 
@@ -310,6 +320,8 @@ and the preview is drawn at that size so what you see is what prints.
 
 ## Where next
 
+- [Citing in Hermes](citations.md): inserting, checking and styling
+  citations, start to finish.
 - [Writing documents for Hermes](hermes-authoring.md): citations, charts,
   diagrams, figures and the table of contents in full.
 - [Setting up Zotero](zotero-setup.md): the citation picker and keeping a

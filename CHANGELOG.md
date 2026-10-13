@@ -27,12 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Footnotes: `[^1]` with a `[^1]: text` definition, and inline `^[text]`.
   They are listed after the References, and citations inside a footnote are
   formatted.
+- A citations guide, `docs/citations.md`: connecting a bibliography,
+  inserting, checking and styling citations, and footnotes.
 
 ### Changed
 
 - When the Zotero picker cannot open, a dialog now says whether Zotero is
   not running or Better BibTeX is not installed, with a button to the Better
   BibTeX install page. It also says that typing `[@` works without Zotero.
+- The new-document template now says to type `[@` to cite and points to
+  Format → Citation Style.
 
 ## [0.11.4] - 2026-10-11
 
