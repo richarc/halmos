@@ -27,33 +27,6 @@ Agreed 2026-10-12. These rules decide what goes into each release below.
   payment with export and citation services as the first paid features,
   then AI for routine work, then AI limited to the user's own sources.
 
-## v0.12.0 — Seamless citations
-
-All local, no server. The everyday friction of citing, removed.
-
-- [x] **Citation autocomplete.** Typing `[@` in the editor lists the
-      entries in the document's `.bib`, filtered as you type, showing author,
-      year and title. Picking one inserts the key. CodeMirror's
-      `@codemirror/autocomplete`, fed from the bibliography Hermes already
-      reads through Go. Must not fire inside code, maths or frontmatter
-      (`isProtected`). Done 2026-10-12.
-- [x] **Reference preview on hover.** Hovering a citation key in the editor
-      shows the formatted reference in the document's style. Done 2026-10-12.
-- [x] **Unknown-key warnings.** A key not in the `.bib` is marked in the
-      editor and the preview, and listed somewhere the user can find all of
-      them before submitting. Done 2026-10-12.
-- [x] **Citation style picker.** Choose from the bundled styles without
-      editing frontmatter, and load any `.csl` file from disk. Five styles
-      are bundled today. Done 2026-10-12.
-- [x] **Zotero without Better BibTeX.** Insert citations from Zotero when the
-      Better BibTeX plugin is not installed, or, if that is not possible,
-      explain clearly what to install when the picker cannot connect.
-      Done 2026-10-12: the picker needs Better BibTeX, so a dialog now says
-      what is missing.
-- [x] **Footnotes.** The markdown-it footnote plugin. Must sit correctly
-      with citations and the bibliography at the end of the document, and
-      survive PDF export. Done 2026-10-12.
-
 ## v0.13.0 — Reading and sharing
 
 Smaller improvements for reading and sharing documents. Can move after
@@ -279,6 +252,37 @@ Ideas noted along the way, not yet committed to a release:
 - Layered charts in the chart builder (points over error bars, a regression
   line over a scatter). Needs `layer` and `transform` in the
   `buildSpec`/`readSpec` round trip; `PASSTHROUGH_KEYS` excludes them today.
+
+- Leftovers from the v0.12.0 reviews, judged minor:
+  - Opening a document that uses a different bibliography leaves the
+    previous one in effect for the editor's citation features (autocomplete,
+    hover, underlines, unknown count) until the new one loads, typically
+    under half a second.
+  - The unknown-citation list can show the previous document's keys for up
+    to 300 ms after opening another document with the same bibliography.
+  - Right after Zotero starts, while Better BibTeX is still loading, Hermes
+    says Better BibTeX is not installed. A "starting, try again" message
+    would be more accurate.
+  - The same inline footnote written twice (`^[see @a]` twice in one
+    paragraph) puts the second one's underline and line number on the
+    first. The preview is unaffected. Needs per-note offset tracking in
+    `lib/citationKeys.ts`.
+  - The unknown-citation count parses the whole document a second time on
+    each typing pause, alongside the preview render. Derive it from the
+    render's citations if large documents feel slow.
+  - Autocomplete's maths and frontmatter checks are bounded for speed:
+    display maths spanning a blank line, and frontmatter over 100 lines,
+    are not recognised.
+  - A `.csl` style file is not watched; edits on disk need the style chosen
+    again or the document reopened. By design in v0.12.0.
+  - Numeric styles (IEEE, Vancouver) show `[1]` in every hover tooltip,
+    and number a citation inside a footnote by its position in the source.
+- Decide whether to ship MIT licence notices in the app. `bundle:licences`
+  copies the Apache NOTICE, citeproc-js and CSL licences only; no MIT
+  dependency's notice (CodeMirror, markdown-it and others) is included.
+- Re-record the citations demo (`docs/demos/citations.demo`) to show
+  autocomplete, hover, the unknown-citation list and the style menu. Needs
+  Screen Recording granted to the signed app (see the `demo-mode` skill).
 
 ### Deferred review findings
 
