@@ -1,14 +1,14 @@
-# Writing documents for Hermes
+# Writing documents for Halmos
 
-Hermes reads ordinary Markdown. It has no format of its own — citations follow
+Halmos reads ordinary Markdown. It has no format of its own — citations follow
 Pandoc, maths follows KaTeX, charts are Vega-Lite and diagrams are Mermaid, so
-a document written for Hermes stays readable in other tools.
+a document written for Halmos stays readable in other tools.
 
-What follows is the part that is *not* guessable: which conventions Hermes
+What follows is the part that is *not* guessable: which conventions Halmos
 acts on, and the handful of things that silently do nothing.
 
 This file is written to be pasted whole into an AI assistant as instructions
-for producing a Hermes document.
+for producing a Halmos document.
 
 ---
 
@@ -23,14 +23,14 @@ toc-depth: 3
 ---
 ```
 
-`bibliography`, `csl`, `toc` and `toc-depth` are the **only** keys Hermes
+`bibliography`, `csl`, `toc` and `toc-depth` are the **only** keys Halmos
 reads. All are optional. The bibliography path is resolved relative to the
 document, so the `.bib` normally sits beside it; `toc` and `toc-depth` are
 described under [A table of contents](#a-table-of-contents) below.
 
 `csl` is one of five bundled styles — `apa`, `chicago-author-date`,
 `ieee`, `vancouver`, `harvard` — or the path to a `.csl` file, relative to the
-document or absolute. A name Hermes does not know, or a file it cannot load,
+document or absolute. A name Halmos does not know, or a file it cannot load,
 falls back to APA with a warning. You do not have to type this line: use
 Format → Citation Style (see [Citations](#citations)).
 
@@ -96,7 +96,7 @@ the frontmatter.
 Other Style File… opens a `.csl` file from disk. If the file is inside the
 document's folder, `csl:` holds a path relative to the document; otherwise it
 holds the absolute path. A document that has not been saved yet has no folder,
-so save it first. Hermes does not watch the style file: after editing it,
+so save it first. Halmos does not watch the style file: after editing it,
 reopen the document or choose the style again.
 
 ## Footnotes
@@ -160,7 +160,7 @@ and absolute paths work too. A remote URL works as well.
 A document that has never been saved has no folder to resolve against, so save
 it before referring to a local image.
 
-Do not also write "Figure 1 — …" in prose; Hermes numbers and renders the
+Do not also write "Figure 1 — …" in prose; Halmos numbers and renders the
 caption itself, and the number would be wrong as soon as a figure is inserted
 above it.
 

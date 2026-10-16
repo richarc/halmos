@@ -1,9 +1,9 @@
-# Hermes Editor
+# Halmos Editor
 
 A desktop editor for writing academic papers in markdown, with LaTeX maths,
 Vega-Lite charts, and Pandoc-style citations rendered live and exported to PDF.
 
-Hermes keeps markdown as the source of truth. There is no hidden document
+Halmos keeps markdown as the source of truth. There is no hidden document
 format: what you type is a plain `.md` file you can put in git, and everything
 on screen is rendered from it.
 
@@ -46,11 +46,17 @@ and [ROADMAP.md](ROADMAP.md) for what is planned.
 
 ## Download
 
-**[Download Hermes Editor for macOS](https://github.com/richarc/hermes/releases/latest)**
+**[Download Halmos Editor for macOS](https://github.com/richarc/halmos/releases/latest)**
 — a universal build, so it runs natively on both Apple silicon and Intel.
 
-Unzip it and drag **Hermes Editor** into your Applications folder. That is the
+Unzip it and drag **Halmos Editor** into your Applications folder. That is the
 whole installation; there is nothing to run and nothing to configure.
+
+**Upgrading from Hermes Editor?** It is the same app under a new name. Quit
+Hermes Editor, delete it from Applications, then install Halmos Editor. Your
+settings, recent files, recovery drafts and macOS permissions carry over.
+If you keep both, macOS can open the old one, and a Dock icon pinned to
+Hermes Editor stops working: pin Halmos Editor instead.
 
 The download is signed with a Developer ID and notarized by Apple, so it opens
 on first launch without a security warning. If macOS ever says the app is
@@ -63,11 +69,11 @@ for picking citations from your library.
 
 ### Updates
 
-Hermes can check for a newer version. It fetches one small file from GitHub
+Halmos can check for a newer version. It fetches one small file from GitHub
 (`updates/latest.json` in this repository) at most once a day and compares the
 version inside it with its own; nothing about you, your machine or your
 documents is sent, and nothing is downloaded or installed — if there is a
-newer version you get a button that opens the release page. Hermes asks
+newer version you get a button that opens the release page. Halmos asks
 whether to do this the first time it starts. **Help → Check for Updates
 Automatically** turns it on or off later, and **Help → Check for Updates…**
 checks right now.
@@ -76,11 +82,11 @@ checks right now.
 
 ## Building from source
 
-Everything below is for working on Hermes rather than using it.
+Everything below is for working on Halmos rather than using it.
 
 ### Requirements
 
-Hermes is currently macOS-focused. The paths, menus, and print behaviour assume
+Halmos is currently macOS-focused. The paths, menus, and print behaviour assume
 macOS; Windows and Linux support is on the backlog.
 
 | Requirement | Notes |
@@ -155,7 +161,7 @@ ordering is load-bearing and the task documents itself.
 
 ## Your first document
 
-1. Launch Hermes. The startup pane lists recent files and offers **New
+1. Launch Halmos. The startup pane lists recent files and offers **New
    document**. To open a file that is not listed, use **File → Open…** (⌘O).
 2. Type markdown on the left. The preview updates as you type. Misspelled
    words are underlined as you type them, using macOS's own checker, and a
@@ -165,9 +171,9 @@ ordering is load-bearing and the task documents itself.
 3. Save with ⌘S. Saving matters more than usual here — a bibliography is
    resolved relative to the document, so an unsaved document cannot load one.
 
-   Hermes keeps a recovery draft while you have unsaved changes, written
+   Halmos keeps a recovery draft while you have unsaved changes, written
    two seconds after you stop typing, so a crash loses at most that. The
-   draft lives beside Hermes' settings, not over your file; the next time
+   draft lives beside Halmos' settings, not over your file; the next time
    you open the document you are asked whether to restore it. **View →
    Autosave** turns this off.
 
@@ -233,7 +239,7 @@ empty alt text keeps the image decorative and unnumbered.
 
 For the full set of conventions — including the ones that silently do nothing,
 like raw HTML or a `title:` in the document's frontmatter — see
-[docs/hermes-authoring.md](docs/hermes-authoring.md). It is written to be
+[docs/authoring.md](docs/authoring.md). It is written to be
 pasted into an AI assistant as instructions.
 
 ---
@@ -261,12 +267,12 @@ csl: apa
 Bundled styles: `apa` (default), `chicago-author-date`, `ieee`, `vancouver`,
 `harvard`. A path to a `.csl` file also works, for a journal's own style.
 
-Do **not** write your own `## References` heading. Hermes appends the heading
+Do **not** write your own `## References` heading. Halmos appends the heading
 and the formatted bibliography itself, so writing one produces two.
 
 ### 2. Cite
 
-Hermes supports the practical Pandoc subset:
+Halmos supports the practical Pandoc subset:
 
 | You write | You get (APA) |
 |---|---|
@@ -300,7 +306,7 @@ them with line numbers. The full guide is
 
 ### 3. Editing the `.bib`
 
-Hermes watches the bibliography file. Edit and save it in any other editor and
+Halmos watches the bibliography file. Edit and save it in any other editor and
 the preview refreshes within about two seconds — no need to reopen the
 document.
 
@@ -412,7 +418,7 @@ frontend/src/
   lib/scrollSync.ts   Editor/preview anchoring
 docs/
   test-document.md    Manual verification document — markdown, then how it renders
-  hermes-authoring.md How to write a document Hermes reads, for humans or AI
+  authoring.md        How to write a document Halmos reads, for humans or AI
   zotero-setup.md     Better BibTeX setup, and the picker's failure modes
   zotero-export-text.bib  Bibliography for it, auto-synced from Zotero
   sample-data.csv     Table for exercising the chart builder's importer
@@ -434,7 +440,7 @@ wails3 task common:generate:bindings     # after changing a service API
 `docs/test-document.md` is the manual counterpart to the test suites, written
 to be read as an exported PDF: every section shows the markdown in a code
 block and then the same text rendered, so the page itself is the evidence.
-Open it in Hermes after any substantial change and press ⌘E. Section 9 is the
+Open it in Halmos after any substantial change and press ⌘E. Section 9 is the
 quickest way to see citations working — every supported form, plus the
 deliberate error cases — and section 11 is meant to look broken.
 
@@ -443,7 +449,7 @@ deliberate error cases — and section 11 is meant to look broken.
 - macOS only for now.
 - PDF export goes through the system print panel rather than rendering
   headlessly. The panel no longer shows a live preview: the preview is drawn by
-  the print operation, and Hermes has to settle the print settings *before*
+  the print operation, and Halmos has to settle the print settings *before*
   creating that operation, or a long document loses its last page. Use the
   panel's PDF menu → Open in Preview instead.
 - The chart builder can only reopen charts it could have written. One that sets
@@ -464,7 +470,7 @@ deliberate error cases — and section 11 is meant to look broken.
 
 ## Licence and credits
 
-Hermes is licensed under the [Apache License, Version 2.0](LICENSE).
+Halmos is licensed under the [Apache License, Version 2.0](LICENSE).
 Copyright 2026 Craig Richards.
 
 Two bundled components carry obligations of their own, both recorded in
@@ -473,7 +479,7 @@ Two bundled components carry obligations of their own, both recorded in
 - Citation formatting uses [citeproc-js](https://github.com/Juris-M/citeproc-js),
   copyright Frank Bennett, which is dual-licensed under **either** the Common
   Public Attribution License v1+ **or** the GNU Affero General Public License
-  v3+, at the licensee's option. **Hermes elects the CPAL option**, which is
+  v3+, at the licensee's option. **Halmos elects the CPAL option**, which is
   file-scoped copyleft and so does not extend to the rest of this codebase.
   Its licence text is at `licenses/citeproc-js.LICENSE`.
 - The bundled CSL styles and locale come from the

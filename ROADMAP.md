@@ -81,7 +81,7 @@ separate, much larger project and is deliberately not part of this.
       password it is not tied to a personal Apple ID, and it can be revoked
       on its own.
 - [ ] **A documentation site**, static, on GitHub Pages. Most of the content
-      exists — `README.md`, `docs/hermes-authoring.md`, `CHANGELOG.md` — so
+      exists — `README.md`, `docs/authoring.md`, `CHANGELOG.md` — so
       the work is a generator (Astro Starlight, MkDocs Material or similar), a
       landing page with a download link, and pointing the release at it.
       Sequencing note: the bundled in-app guides land in v0.9, and the

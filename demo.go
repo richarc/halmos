@@ -249,7 +249,7 @@ func (s *DemoService) StartRecording(path string) error {
 	// than at stop time with nothing on disk.
 	select {
 	case err := <-rec.done:
-		return fmt.Errorf("screencapture exited immediately (%v%s): grant Screen Recording to Hermes Editor "+
+		return fmt.Errorf("screencapture exited immediately (%v%s): grant Screen Recording to Halmos Editor "+
 			"— or to the terminal that launched it — in System Settings → Privacy & Security",
 			err, stderrNote(stderr))
 	case <-time.After(300 * time.Millisecond):

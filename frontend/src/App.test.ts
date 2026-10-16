@@ -54,7 +54,7 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       RecoverDraft: vi.fn(async (_docPath: string) => ({ found: false, content: '' })),
       CheckForUpdates: vi.fn(async (_force: boolean) => ({
         checked: true, available: false, current: '0.9.0', latest: '0.9.0',
-        url: 'https://github.com/richarc/hermes/releases/tag/v0.9.0',
+        url: 'https://github.com/richarc/halmos/releases/tag/v0.9.0',
       })),
     },
   }
@@ -174,14 +174,14 @@ describe('welcome pane', () => {
 
     const intro = target.querySelector<HTMLElement>('.welcome-intro')!
     expect(intro).not.toBeNull()
-    expect(intro.textContent).toContain('hermeseditor.com/guides')
+    expect(intro.textContent).toContain('halmoseditor.com/guides')
     expect(intro.textContent).toContain('Help → Report an Issue')
     // Above the list, not below it.
     const list = target.querySelector('.welcome ul')!
     expect(intro.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
-    buttonByText(intro, 'hermeseditor.com/guides')!.click()
-    expect(Browser.OpenURL).toHaveBeenCalledWith('https://www.hermeseditor.com/guides')
+    buttonByText(intro, 'halmoseditor.com/guides')!.click()
+    expect(Browser.OpenURL).toHaveBeenCalledWith('https://www.halmoseditor.com/guides')
     expect(intro.querySelector('a[href]')).toBeNull()
   })
 
@@ -193,15 +193,15 @@ describe('welcome pane', () => {
     const { target } = mountApp()
     await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
 
-    const link = buttonByText(target, 'github.com/richarc/hermes/discussions')!
+    const link = buttonByText(target, 'github.com/richarc/halmos/discussions')!
     expect(link).toBeDefined()
-    const guides = buttonByText(target, 'hermeseditor.com/guides')!
+    const guides = buttonByText(target, 'halmoseditor.com/guides')!
     const list = target.querySelector('.welcome ul')!
     expect(guides.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(link.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
     link.click()
-    expect(Browser.OpenURL).toHaveBeenCalledWith('https://github.com/richarc/hermes/discussions')
+    expect(Browser.OpenURL).toHaveBeenCalledWith('https://github.com/richarc/halmos/discussions')
     expect(target.querySelector('.welcome a[href]')).toBeNull()
   })
 
@@ -1511,7 +1511,7 @@ describe('recovery drafts', () => {
 describe('update check', () => {
   const AVAILABLE = {
     checked: true, available: true, current: '0.9.0', latest: '0.10.0',
-    url: 'https://github.com/richarc/hermes/releases/tag/v0.10.0',
+    url: 'https://github.com/richarc/halmos/releases/tag/v0.10.0',
   }
   function askDialog(target: HTMLElement) {
     return target.querySelector<HTMLDialogElement>('dialog[aria-label="Check for updates"]')!
@@ -1526,7 +1526,7 @@ describe('update check', () => {
   beforeEach(() => {
     DocumentService.CheckForUpdates.mockImplementation(async () => ({
       checked: true, available: false, current: '0.9.0', latest: '0.9.0',
-      url: 'https://github.com/richarc/hermes/releases/tag/v0.9.0',
+      url: 'https://github.com/richarc/halmos/releases/tag/v0.9.0',
     }))
     DocumentService.RecoverDraft.mockImplementation(async () => ({ found: false, content: '' }))
   })
@@ -1599,7 +1599,7 @@ describe('update check', () => {
     DocumentService.CheckForUpdates.mockResolvedValueOnce(AVAILABLE)
     const { target } = mountApp()
     await vi.waitFor(() => expect(noticeDialog(target).open).toBe(true))
-    expect(target.textContent).toContain('Hermes 0.10.0 is available. You have 0.9.0.')
+    expect(target.textContent).toContain('Halmos 0.10.0 is available. You have 0.9.0.')
 
     buttonByText(noticeDialog(target), 'View Release')!.click()
     flushSync()
@@ -1635,7 +1635,7 @@ describe('update check', () => {
     listeners['menu:check-updates']({ data: null })
 
     await vi.waitFor(() => expect(DocumentService.CheckForUpdates).toHaveBeenCalledWith(true))
-    await vi.waitFor(() => expect(target.textContent).toContain('Hermes 0.9.0 is up to date.'))
+    await vi.waitFor(() => expect(target.textContent).toContain('Halmos 0.9.0 is up to date.'))
   })
 
   it('a manual check reports a failure', async () => {
@@ -1996,7 +1996,7 @@ describe('Format → Citation Style', () => {
 describe('Zotero picker failure', () => {
   const NOT_RUNNING = "Zotero isn't running. Open Zotero, then try again."
   const NO_BBT =
-    "Zotero is running but the Better BibTeX plugin isn't installed. Hermes uses it to pick citations and to export your library as a .bib file."
+    "Zotero is running but the Better BibTeX plugin isn't installed. Halmos uses it to pick citations and to export your library as a .bib file."
   const INSTALL_URL = 'https://retorque.re/zotero-better-bibtex/installation/'
 
   function zoteroDialog(target: HTMLElement) {

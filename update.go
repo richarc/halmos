@@ -19,8 +19,8 @@ import (
 // carries nothing but a version. When the documentation site ships the feed
 // moves there; nothing else assumes where it is.
 const (
-	updateFeedURL       = "https://raw.githubusercontent.com/richarc/hermes/main/updates/latest.json"
-	releasesBaseURL     = "https://github.com/richarc/hermes/releases"
+	updateFeedURL       = "https://raw.githubusercontent.com/richarc/halmos/main/updates/latest.json"
+	releasesBaseURL     = "https://github.com/richarc/halmos/releases"
 	updateCheckInterval = 24 * time.Hour
 	updateFetchTimeout  = 10 * time.Second
 	// The feed is one short line. A body larger than this is not the feed.

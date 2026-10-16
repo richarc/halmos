@@ -722,7 +722,7 @@
         updateNotice = result
         return
       }
-      if (manual) toast(`Hermes ${result.current} is up to date.`)
+      if (manual) toast(`Halmos ${result.current} is up to date.`)
     } catch (err) {
       if (manual) toast(`Could not check for updates: ${err}`)
       else console.warn('CheckForUpdates:', err)
@@ -1253,14 +1253,14 @@
            links take. -->
       <p class="welcome-intro">
         The guides are at
-        <button class="link-button" onclick={() => void Browser.OpenURL('https://www.hermeseditor.com/guides')}
-          >hermeseditor.com/guides</button
+        <button class="link-button" onclick={() => void Browser.OpenURL('https://www.halmoseditor.com/guides')}
+          >halmoseditor.com/guides</button
         >. Found a bug? Help → Report an Issue… opens a report with the version already filled in.
       </p>
       <p class="welcome-intro">
         Questions and ideas go to
-        <button class="link-button" onclick={() => void Browser.OpenURL('https://github.com/richarc/hermes/discussions')}
-          >github.com/richarc/hermes/discussions</button
+        <button class="link-button" onclick={() => void Browser.OpenURL('https://github.com/richarc/halmos/discussions')}
+          >github.com/richarc/halmos/discussions</button
         >.
       </p>
       <h2>Recent files</h2>
@@ -1344,7 +1344,7 @@
 
   <Dialog open={zoteroHelp !== null} label="Zotero" onclose={() => (zoteroHelp = null)}>
     {#if zoteroHelp === 'no-better-bibtex'}
-      <p>Zotero is running but the Better BibTeX plugin isn't installed. Hermes uses it to pick citations and to export your library as a .bib file.</p>
+      <p>Zotero is running but the Better BibTeX plugin isn't installed. Halmos uses it to pick citations and to export your library as a .bib file.</p>
       <p>You can also type [@ to cite from your .bib without Zotero.</p>
     {:else}
       <p>Zotero isn't running. Open Zotero, then try again.</p>
@@ -1359,7 +1359,7 @@
 
   <Dialog open={askUpdates} label="Check for updates" onclose={() => void answerUpdateQuestion('off')}>
     <p>
-      Hermes can fetch a small file from GitHub once a day to see whether a newer version exists.
+      Halmos can fetch a small file from GitHub once a day to see whether a newer version exists.
       Nothing about you or your documents is sent. You can change this later in the Help menu.
     </p>
     {#snippet footer()}
@@ -1370,7 +1370,7 @@
 
   <Dialog open={updateNotice !== null} label="Update available" onclose={() => (updateNotice = null)}>
     {#if updateNotice}
-      <p>Hermes {updateNotice.latest} is available. You have {updateNotice.current}.</p>
+      <p>Halmos {updateNotice.latest} is available. You have {updateNotice.current}.</p>
     {/if}
     {#snippet footer()}
       <button onclick={() => (updateNotice = null)}>Later</button>

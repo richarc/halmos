@@ -1,11 +1,27 @@
 # Changelog
 
-All notable changes to Hermes are documented in this file.
+All notable changes to Halmos Editor (formerly Hermes Editor) are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Changed
+
+- Hermes Editor is now **Halmos Editor**, with a new HE app icon. The
+  website moves to halmoseditor.com and the repository to
+  github.com/richarc/halmos; the old addresses redirect.
+- The download is now `Halmos-Editor-<version>-macos-universal.zip`.
+
+### Upgrading
+
+- Quit Hermes Editor, delete it from Applications, then install Halmos
+  Editor. Settings, recent files, recovery drafts, the default app for
+  `.md` files and macOS permissions carry over, because the app's identity
+  has not changed. If both apps stay installed, macOS can open the old one,
+  and a Dock icon pinned to Hermes Editor stops working: pin Halmos Editor
+  instead.
 
 ## [0.12.0] - 2026-10-13
 

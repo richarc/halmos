@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  APP_NAME: "Hermes Editor"
+  APP_NAME: "Halmos Editor"
   BIN_DIR: "bin"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
@@ -138,7 +138,7 @@ tasks:
       VERSION:
         sh: awk '/^  version:/ {gsub(/"/, "", $2); print $2}' build/config.yml
       APP: '{{.BIN_DIR}}/{{.APP_NAME}}.app'
-      ZIP: '{{.BIN_DIR}}/Hermes-Editor-{{.VERSION}}-macos-universal.zip'
+      ZIP: '{{.BIN_DIR}}/Halmos-Editor-{{.VERSION}}-macos-universal.zip'
     preconditions:
       - sh: 'security find-identity -v -p codesigning | grep -q "{{.IDENTITY}}"'
         msg: |

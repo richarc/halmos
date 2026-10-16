@@ -20,7 +20,7 @@ import (
 // output should be pristine.
 var testApp = sync.OnceFunc(func() {
 	application.New(application.Options{
-		Name:   "Hermes Editor",
+		Name:   "Halmos Editor",
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
 })

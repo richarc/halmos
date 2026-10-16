@@ -6,7 +6,7 @@
     {
       "layers" : [
         {
-          "image-name" : "HermesIcon-Layer-2-Plates.svg",
+          "image-name" : "HalmosIcon-Layer-2-Plates.svg",
           "name" : "plates",
           "position" : {
             "scale" : 1.0,
@@ -17,7 +17,7 @@
           }
         },
         {
-          "image-name" : "HermesIcon-Layer-1-Background.svg",
+          "image-name" : "HalmosIcon-Layer-1-Background.svg",
           "name" : "paper",
           "position" : {
             "scale" : 1.0,

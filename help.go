@@ -21,11 +21,11 @@ import (
 // tracked, and the URL can prefill the body — so the cost of an account is
 // paid for by a report that can be acted on and replied to.
 const (
-	docsURL = "https://www.hermeseditor.com/guides"
+	docsURL = "https://www.halmoseditor.com/guides"
 
-	discussionsURL = "https://github.com/richarc/hermes/discussions"
+	discussionsURL = "https://github.com/richarc/halmos/discussions"
 
-	feedbackBaseURL  = "https://github.com/richarc/hermes/issues/new"
+	feedbackBaseURL  = "https://github.com/richarc/halmos/issues/new"
 	feedbackTemplate = "bug_report.yml"
 )
 

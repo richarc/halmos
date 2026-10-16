@@ -68,7 +68,7 @@ func TestParseUpdateFeed(t *testing.T) {
 // The release page is derived from the validated version, never read from
 // the feed: a tampered file can change a number, not a destination.
 func TestReleaseURL(t *testing.T) {
-	if got := releaseURL("0.10.0"); got != "https://github.com/richarc/hermes/releases/tag/v0.10.0" {
+	if got := releaseURL("0.10.0"); got != "https://github.com/richarc/halmos/releases/tag/v0.10.0" {
 		t.Errorf("got %q", got)
 	}
 }
@@ -105,7 +105,7 @@ func TestCheckForUpdatesFindsANewerVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := UpdateResult{Checked: true, Available: true, Current: "0.9.0", Latest: "0.10.0",
-		URL: "https://github.com/richarc/hermes/releases/tag/v0.10.0"}
+		URL: "https://github.com/richarc/halmos/releases/tag/v0.10.0"}
 	if got != want {
 		t.Errorf("got %+v, want %+v", got, want)
 	}

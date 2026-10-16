@@ -70,7 +70,7 @@ func main() {
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
 	// 'Mac' options tailor the application when running an macOS.
 	app := application.New(application.Options{
-		Name:        "Hermes Editor",
+		Name:        "Halmos Editor",
 		Description: "Academic markdown editor",
 		Services:    []application.Service{application.NewService(docs), application.NewService(demo)},
 		// A recording the script left running is stopped so the file on disk
@@ -100,7 +100,7 @@ func main() {
 	// 'BackgroundColour' is the background colour of the window.
 	// 'URL' is the URL that will be loaded into the webview.
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:  "Hermes",
+		Title:  "Halmos",
 		Width:  1200,
 		Height: 800,
 		Mac: application.MacWindow{

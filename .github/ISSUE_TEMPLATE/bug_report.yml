@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Hermes Editor did not behave as expected
+description: Something in Halmos Editor did not behave as expected
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -11,7 +11,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Hermes Editor version
+      label: Halmos Editor version
       description: From the About box, or the title of Help → Report an Issue…
       placeholder: "0.11.0"
     validations:

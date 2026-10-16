@@ -1,10 +1,10 @@
-Hermes
+Halmos
 Copyright 2026 Craig Richards
 
 Licensed under the Apache License, Version 2.0. See the LICENSE file.
 
 This product bundles third-party software. The components below carry
-obligations that travel with any distribution of Hermes; the remaining
+obligations that travel with any distribution of Halmos; the remaining
 dependencies are under permissive licences (MIT, BSD-3-Clause, ISC) and are
 credited in README.md.
 
@@ -18,7 +18,7 @@ citeproc-js is dual-licensed. It may be used under EITHER the Common Public
 Attribution License (CPAL) version 1 or later, OR the GNU Affero General
 Public License (AGPL) version 3 or later, at the licensee's option.
 
-Hermes elects the CPAL option.
+Halmos elects the CPAL option.
 
 citeproc-js is bundled unmodified. Its licence text is retained at
 licenses/citeproc-js.LICENSE.

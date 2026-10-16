@@ -454,7 +454,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	// replacing whatever is open, guarded by the unsaved-changes confirm, for
 	// something the reader only wants to read.
 	help := menu.AddSubmenu("Help")
-	help.Add("Hermes Documentation").OnClick(func(*application.Context) {
+	help.Add("Halmos Documentation").OnClick(func(*application.Context) {
 		if err := app.Browser.OpenURL(docsURL); err != nil {
 			log.Printf("could not open the documentation: %v", err)
 		}
@@ -473,7 +473,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 		// OpenFile, not OpenURL with a file:// URL. Both end at
 		// exec.Command("open", target), so a plain path is handed straight to
 		// `open` with no shell in between — where a hand-built file:// URL
-		// would carry a raw space from "Hermes Editor.app" and be malformed.
+		// would carry a raw space from "Halmos Editor.app" and be malformed.
 		// Worth knowing when debugging either: the implementation discards the
 		// result of `open` in a goroutine, so a bad target fails silently and
 		// only a failure to *start* `open` is ever returned.

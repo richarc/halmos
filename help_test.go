@@ -95,11 +95,11 @@ func TestOSDescription(t *testing.T) {
 // is packaged. Unbundled — `go run`, or the bare binary — there is nowhere to
 // look, and the caller falls back to the repository.
 func TestLicencesPath(t *testing.T) {
-	got, ok := licencesPath("/Applications/Hermes Editor.app/Contents/Resources")
+	got, ok := licencesPath("/Applications/Halmos Editor.app/Contents/Resources")
 	if !ok {
 		t.Fatal("expected a path from a real resources directory")
 	}
-	want := "/Applications/Hermes Editor.app/Contents/Resources/licences"
+	want := "/Applications/Halmos Editor.app/Contents/Resources/licences"
 	if got != want {
 		t.Errorf("path = %q, want %q", got, want)
 	}

@@ -1,16 +1,16 @@
-# Citing in Hermes
+# Citing in Halmos
 
-This guide covers citing in Hermes from start to finish: connecting a
+This guide covers citing in Halmos from start to finish: connecting a
 bibliography, inserting citations, checking them before you submit, and
 choosing a style. For the exact syntax rules, see
-[Writing documents for Hermes](hermes-authoring.md#citations). For Zotero, see
+[Writing documents for Halmos](authoring.md#citations). For Zotero, see
 [Setting up Zotero](zotero-setup.md).
 
 ---
 
 ## 1. Connect a bibliography
 
-Hermes resolves citations against a BibTeX file (`.bib`). Name it in the
+Halmos resolves citations against a BibTeX file (`.bib`). Name it in the
 frontmatter at the top of the document:
 
 ```markdown
@@ -33,7 +33,7 @@ There are three ways to get a `.bib`:
 - **Write it by hand** or paste entries copied from a publisher's "Cite" or
   "Export citation" link.
 
-Hermes watches the file. When it changes on disk, the preview, the
+Halmos watches the file. When it changes on disk, the preview, the
 autocomplete list and the warnings update on their own.
 
 ---
@@ -61,7 +61,7 @@ Zotero's own search window opens; pick one or more items and press Return. The
 keys arrive at the cursor.
 
 This needs Zotero and the Better BibTeX plugin. If the picker cannot open,
-Hermes tells you whether Zotero is not running or Better BibTeX is not
+Halmos tells you whether Zotero is not running or Better BibTeX is not
 installed, with a link to install it.
 
 ### Write it yourself
@@ -84,7 +84,7 @@ Citations are plain text, so you can always type them:
   sentence already names them.
 - A bare `@key` without brackets names the author in your own sentence.
 
-Hermes adds the References section at the end of the document. Do not write
+Halmos adds the References section at the end of the document. Do not write
 one yourself, or there will be two.
 
 ---
@@ -118,12 +118,12 @@ Common causes:
   key comes from the `.bib`.
 - **The source was never added to the `.bib`.** Add it, in Zotero or by hand.
 - **The `.bib` is not an export of the library you picked from.** The Zotero
-  picker supplies keys from your Zotero library; Hermes checks them against
+  picker supplies keys from your Zotero library; Halmos checks them against
   the `.bib` the document names. See
   [Setting up Zotero](zotero-setup.md#the-one-thing-to-understand-first).
 
 The count and the underlines only appear when the document names a
-bibliography and Hermes has loaded it.
+bibliography and Halmos has loaded it.
 
 ---
 
@@ -144,12 +144,12 @@ of them, searchable by journal name.
    folder inside it, keeps the document and its style together.
 2. Choose **Format → Citation Style → Other Style File…** and pick the file.
 
-Hermes writes the path into `csl:`, relative to the document when the file is
+Halmos writes the path into `csl:`, relative to the document when the file is
 in its folder and absolute otherwise. Save a new document first: an unsaved
 document has no folder to be relative to.
 
-If a style file cannot be read or is not valid CSL, Hermes says so and uses APA
-until it is fixed. Hermes does not watch the style file for changes; after
+If a style file cannot be read or is not valid CSL, Halmos says so and uses APA
+until it is fixed. Halmos does not watch the style file for changes; after
 editing one, choose it again from the menu or reopen the document.
 
 Two limits:
@@ -196,14 +196,14 @@ key prints as a red `[@key?]`.
 
 **No autocomplete list, no hover, no underlines.** The document has no
 `bibliography:` line, it has not been saved, or the `.bib` could not be found.
-Hermes shows a message when the file is missing. If the preview shows `[@key]`
+Halmos shows a message when the file is missing. If the preview shows `[@key]`
 as plain text with no References section, the bibliography has not loaded.
 
 **The list opens but my source is not in it.** It is not in the `.bib` the
 document names. If you use Zotero, check that the export has **Keep updated**
 ticked.
 
-**The Zotero picker does not open.** Read the message Hermes shows: it says
+**The Zotero picker does not open.** Read the message Halmos shows: it says
 whether Zotero is closed or Better BibTeX is missing. Typing `[@` works without
 Zotero in the meantime. More in
 [Setting up Zotero](zotero-setup.md#troubleshooting).

@@ -1,6 +1,6 @@
-# Getting started with Hermes
+# Getting started with Halmos
 
-Hermes is a Markdown editor for academic writing. You type Markdown on the
+Halmos is a Markdown editor for academic writing. You type Markdown on the
 left and see the finished document on the right, with maths, citations,
 charts and diagrams rendered as you go. The file you save is ordinary
 Markdown that any other tool can read.
@@ -10,7 +10,7 @@ end you will know how to create and save a document, what the block at the
 top of every document is for, how to apply the basic formatting, and what
 each item under the **View** menu does. Citations, charts, diagrams and
 tables have their own guide: [Writing documents for
-Hermes](hermes-authoring.md).
+Halmos](authoring.md).
 
 ---
 
@@ -18,12 +18,12 @@ Hermes](hermes-authoring.md).
 
 ### The first launch
 
-The first time Hermes opens it gives you an untitled document with a short
+The first time Halmos opens it gives you an untitled document with a short
 block of comments at the top. You can start typing straight away. Nothing
 is on disk until you save, so press **⌘S** early; the save panel asks where
 to put the file.
 
-On later launches Hermes shows the welcome pane instead: your recent files,
+On later launches Halmos shows the welcome pane instead: your recent files,
 a **New document** button, and **Open…**.
 
 ### File → New… (⌘N)
@@ -40,7 +40,7 @@ panel opens:
    file named* lets you choose the name; *An existing file* points at a
    library you already have.
 
-Then the save panel names the document. Hermes writes the document with its
+Then the save panel names the document. Halmos writes the document with its
 frontmatter already filled in and, if you asked for one, creates the `.bib`
 file beside it.
 
@@ -49,7 +49,7 @@ file beside it.
 - **⌘S** saves. The status bar at the bottom shows the file name, with a
   **•** after it while there are unsaved changes.
 - **⌘⇧S** is Save As….
-- Hermes also keeps a recovery draft while you have unsaved changes (see
+- Halmos also keeps a recovery draft while you have unsaved changes (see
   **Autosave** under the View menu below), so a crash loses at most a couple
   of seconds of typing. The draft is never written over your file; only ⌘S
   changes the document on disk.
@@ -85,19 +85,19 @@ Every new document starts with a block like this:
 ```
 
 The two lines of `---` fence off the **frontmatter**: settings for the
-document, written as `key: value` lines. Hermes reads it and then removes
+document, written as `key: value` lines. Halmos reads it and then removes
 the whole block before rendering, so nothing in it appears in the preview
 or the PDF. That is why the title goes in the document as a heading, not
 here: a `title:` line would be silently ignored. A `#` starts a comment,
 whether it begins a line or follows a value, so to switch the contents on
 delete just the `#` at the start of the `toc:` line and leave the rest.
 
-Hermes reads exactly four keys. Everything else is left alone.
+Halmos reads exactly four keys. Everything else is left alone.
 
 | Key | What it does |
 |---|---|
 | `bibliography` | The `.bib` file citations resolve against. Relative paths are relative to the document, so `references.bib` means the file beside it. |
-| `csl` | Citation style: one of the five bundled names above, or the path to a journal's `.csl` file. Format → Citation Style writes it for you. A name Hermes does not know falls back to APA with a warning. |
+| `csl` | Citation style: one of the five bundled names above, or the path to a journal's `.csl` file. Format → Citation Style writes it for you. A name Halmos does not know falls back to APA with a warning. |
 | `toc` | `true` renders a table of contents, at the first paragraph containing `[[toc]]` or, if there is none, at the top. |
 | `toc-depth` | How many heading levels the contents lists. Default 3. |
 
@@ -122,7 +122,7 @@ at the top is fine.
 
 ## 4. Writing and formatting
 
-Hermes documents are Markdown, so every format has a plain-text spelling you
+Halmos documents are Markdown, so every format has a plain-text spelling you
 can type by hand. The **Format** menu and its shortcuts write the same
 characters for you, and they *toggle*: apply a format to text that already
 has it and it is removed.
@@ -200,7 +200,7 @@ See [the project page](https://example.org) for details.
 ```
 
 An image sits beside the document (or at a path relative to it). Give it alt
-text and Hermes turns it into a numbered figure with that text as the
+text and Halmos turns it into a numbered figure with that text as the
 caption. Leave the alt text empty for a plain image with no number.
 
 ### Code
@@ -256,7 +256,7 @@ document.
   `.csl` file.
 
 The whole process, from connecting a bibliography to checking every citation
-before you submit, is in [Citing in Hermes](citations.md). Keeping a `.bib`
+before you submit, is in [Citing in Halmos](citations.md). Keeping a `.bib`
 in step with Zotero is in [Setting up Zotero](zotero-setup.md).
 
 ---
@@ -273,9 +273,9 @@ the outline moves both panes regardless, because you asked to go there.
 heading to put the cursor on it and scroll both panes to it. The ‹ arrow in
 the panel and the › tab at the window's edge do the same as the menu item.
 
-**Autosave.** On by default. While the document has unsaved changes, Hermes
+**Autosave.** On by default. While the document has unsaved changes, Halmos
 writes a recovery draft a couple of seconds after you stop typing. The
-draft lives beside Hermes's own settings, never over your file. If Hermes
+draft lives beside Halmos's own settings, never over your file. If Halmos
 quits without saving (a crash, a force-quit), the next time you open that
 document it asks whether to restore the draft. Saving, or choosing Don't
 Save, removes the draft. Turning this off stops the drafts; ⌘S still works
@@ -320,14 +320,14 @@ and the preview is drawn at that size so what you see is what prints.
 
 ## Where next
 
-- [Citing in Hermes](citations.md): inserting, checking and styling
+- [Citing in Halmos](citations.md): inserting, checking and styling
   citations, start to finish.
-- [Writing documents for Hermes](hermes-authoring.md): citations, charts,
+- [Writing documents for Halmos](authoring.md): citations, charts,
   diagrams, figures and the table of contents in full.
 - [Setting up Zotero](zotero-setup.md): the citation picker and keeping a
   `.bib` file in sync with your library.
 - [The test document](test-document.md): every feature, one section each.
-  Open it in Hermes and read it beside the preview.
+  Open it in Halmos and read it beside the preview.
 - **Help → Discussions** opens the project's discussions on GitHub: ask a
   question, suggest an improvement, or vote for one already proposed.
 - **Help → Report an Issue…** opens a bug report with the version already

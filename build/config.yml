@@ -6,7 +6,7 @@ version: '3'
 # This information is used to generate the build assets.
 info:
   companyName: "Craig Richards" # The name of the company
-  productName: "Hermes Editor" # The name of the application
+  productName: "Halmos Editor" # The name of the application
   productIdentifier: "com.qxquantum.hermes" # The unique product identifier
   description: "Academic markdown editor" # The application description
   copyright: "(c) 2026 Craig Richards" # Copyright text
@@ -62,7 +62,7 @@ dev_mode:
 # File Associations
 # More information at: https://v3.wails.io/noit/done/yet
 fileAssociations:
-  # Lists Hermes in Finder's Open With for Markdown (#19). Mirrored by hand in
+  # Lists Halmos in Finder's Open With for Markdown (#19). Mirrored by hand in
   # build/darwin/Info.plist and Info.dev.plist; iconName reuses the app's
   # icons.icns. Opening is handled by ApplicationOpenedWithFile in main.go.
   - ext: md
