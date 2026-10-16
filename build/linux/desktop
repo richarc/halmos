@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=Hermes Editor
+Name=Halmos Editor
 Comment=Academic markdown editor
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/Hermes Editor %u
+Exec=/usr/local/bin/Halmos Editor %u
 Terminal=false
 Type=Application
-Icon=Hermes Editor
+Icon=Halmos Editor
 Categories=Utility;
-StartupWMClass=Hermes Editor
+StartupWMClass=Halmos Editor
 
  

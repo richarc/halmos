@@ -1,6 +1,6 @@
-# Hermes Roadmap
+# Halmos Roadmap
 
-Hermes is a desktop editor for writing academic papers in markdown, with LaTeX
+Halmos is a desktop editor for writing academic papers in markdown, with LaTeX
 math and Vega-Lite charts rendered live and exported to PDF. Releases follow
 [Semantic Versioning](https://semver.org). This file lists planned and
 in-progress work only; [CHANGELOG.md](CHANGELOG.md) records what has shipped,
@@ -12,15 +12,15 @@ for each release.
 Agreed 2026-10-12. These rules decide what goes into each release below.
 
 - **The desktop editor stays free, and so do citations.** Citations are
-  Hermes's main strength and the reason to choose it, so making them
+  Halmos's main strength and the reason to choose it, so making them
   seamless comes first and is never behind a payment.
-- **Hermes earns money from a hosted back end.** Paid features are the ones
+- **Halmos earns money from a hosted back end.** Paid features are the ones
   that cost money to run: Pandoc conversion on a server, reference lookups
   and AI calls. A subscription matches that ongoing cost.
 - **AI removes routine work; it does not write the paper.** Acceptable:
   equations, charts, tables, formatting, conversion, reference clean-up and
   finding sources in the user's own library. Not offered: writing the
-  user's paragraphs, arguments or conclusions. Hermes keeps a record of what
+  user's paragraphs, arguments or conclusions. Halmos keeps a record of what
   the AI did in each document and can produce the AI-use disclosure
   statement journals ask for.
 - **Order:** citation improvements, then v1.0.0, then the back end and
@@ -33,7 +33,7 @@ Smaller improvements for reading and sharing documents. Can move after
 v1.0.0 if the release work needs the time.
 
 - [ ] **Quick Look preview for `.md` files.** Finder's space-bar preview shows
-      the rendered document, so a reader sees Hermes output without opening
+      the rendered document, so a reader sees Halmos output without opening
       the app. Builds on the `.md` association from v0.11.4. Needs a Quick
       Look preview extension inside the bundle; the renderer is JavaScript,
       so the extension has to host a web view or reuse the bundled
@@ -85,7 +85,7 @@ separate, much larger project and is deliberately not part of this.
       the work is a generator (Astro Starlight, MkDocs Material or similar), a
       landing page with a download link, and pointing the release at it.
       Sequencing note: the bundled in-app guides land in v0.9, and the
-      eventual ambition is that the site's pages ARE Hermes documents
+      eventual ambition is that the site's pages ARE Halmos documents
       published through the app. That argues for keeping the first site
       deliberately thin rather than investing in a structure the publishing
       work would then replace.
@@ -96,7 +96,7 @@ separate, much larger project and is deliberately not part of this.
       the same team, so if the Developer ID ever changes — an individual
       enrolment becoming an organization one, say — that needs a transitional
       release. Cheapest while there are few users.
-      *Status 2026-10-11*: since v0.10.0 Hermes checks a feed
+      *Status 2026-10-11*: since v0.10.0 Halmos checks a feed
       (`updates/latest.json`) and tells the user a newer version exists, but
       downloading and installing it is still manual.
 - [ ] **Third-party licence notices in the app.** The MIT, BSD and ISC
@@ -122,7 +122,7 @@ separate, much larger project and is deliberately not part of this.
 The hosted back end, decided 2026-08-28 and given its first paid features
 on 2026-10-12. Pandoc export moved here from v0.10.0: the dependency
 question it turns on below — shell out to a user-installed Pandoc, or bundle
-one — dissolves when the conversion runs on a server Hermes controls.
+one — dissolves when the conversion runs on a server Halmos controls.
 
 - [ ] **Accounts and sign-in from the desktop app.** The app learns which
       paid features the user has. Sign-in tokens kept in the macOS Keychain.
@@ -133,15 +133,18 @@ one — dissolves when the conversion runs on a server Hermes controls.
       are processed and not kept. Say so in the policy and design the server
       so it is true.
 - [ ] **Licence and name.** Decided 2026-10-13: the desktop app stays
-      Apache-2.0 and the server code stays private. Before charging: check
-      and register the product name as a trademark ("Hermes" alone is a
-      crowded name; Apache-2.0 grants no trademark rights), and have a
-      lawyer review the licence, trademark and terms together.
+      Apache-2.0 and the server code stays private. The product was renamed
+      from Halmos Editor to Halmos Editor in v0.13.0, because "Halmos" is a
+      crowded name in software. Before charging: run a clearance search for
+      "Halmos Editor" in classes 9 and 42 (note a16z's unrelated `halmos`
+      smart-contract testing tool) and register the name and the HE logo
+      (Apache-2.0 grants no trademark rights), and have a lawyer review the
+      licence, trademark and terms together.
 - [ ] **Contributor licence agreement** before accepting outside pull
       requests. Today every commit is the author's, so the licence of future
       versions can still be changed; outside contributions without an
       agreement would remove that option.
-- [ ] Export to DOCX and LaTeX through Pandoc. Hermes already builds toward
+- [ ] Export to DOCX and LaTeX through Pandoc. Halmos already builds toward
       Pandoc without collecting the payoff: `![caption](img)` was chosen
       because it is exactly Pandoc's figure convention, citations are `[@key]`,
       and the figures design argues captions live in each format's native home
@@ -150,7 +153,7 @@ one — dissolves when the conversion runs on a server Hermes controls.
       Pandoc runs on the server, so nothing is installed or bundled on the
       user's Mac. Bibliography handling needs
       thought — Pandoc can resolve citations itself from the same `.bib`,
-      which may mean handing it the raw markdown rather than anything Hermes
+      which may mean handing it the raw markdown rather than anything Halmos
       has already rendered.
 - [ ] **DOI lookup.** Paste a DOI or article URL and get a `.bib` entry added
       to the document's bibliography (Crossref).
@@ -174,7 +177,7 @@ accepting it.
 - [ ] **Table from pasted text** (a copied spreadsheet range, a PDF table),
       opened in the table builder.
 - [ ] **AI-use record and disclosure statement.** Each AI action is recorded
-      with the document (what was asked, what was inserted, when). Hermes
+      with the document (what was asked, what was inserted, when). Halmos
       can produce a disclosure statement from that record.
 - [ ] **Prompt-injection safety.** An opened document must not be able to
       instruct the AI. Prerequisite: the Content-Security-Policy item in the
@@ -200,7 +203,7 @@ Ideas noted along the way, not yet committed to a release:
 - Revisit Vite 8 once the upstream Rolldown lone-surrogate bug is fixed
   (v0.1 pinned Vite 7 to keep KaTeX's lexer intact).
 - File a Wails issue for the hardcoded landscape print orientation (their
-  code carries a TODO inviting a config option; Hermes ships its own print
+  code carries a TODO inviting a config option; Halmos ships its own print
   path meanwhile).
 - Windows/Linux support (paths, menus, and print behavior are currently
   macOS-focused).
@@ -225,13 +228,13 @@ Ideas noted along the way, not yet committed to a release:
   data and remote images, which some users legitimately want, so the useful
   version is probably a setting — off by default for safety, or on by default
   with a per-document prompt.
-  Audited 2026-08-06: this is the *only* way Hermes reaches the network beyond
+  Audited 2026-08-06: this is the *only* way Halmos reaches the network beyond
   the Zotero picker. No `fetch`, `XMLHttpRequest` or `WebSocket` anywhere in
   `frontend/src`; one `http.Client` in Go, pointed at localhost. The ~60 URLs
   in the bundle are identifiers (XML namespaces, CSL style IDs, ORCIDs), not
   endpoints, and are never fetched.
 - ~~Two document types: single-file, and a multi-part type living in a
-  directory.~~ **Dropped 2026-08-06.** Hermes stays single-file. The research
+  directory.~~ **Dropped 2026-08-06.** Halmos stays single-file. The research
   found the deciding question was not "one file or many" but what the preview
   shows while you edit one part, and that the honest cost was not the
   rendering: scroll sync's anchors are a flat integer line space that would
@@ -257,7 +260,7 @@ Ideas noted along the way, not yet committed to a release:
   beta.12 gives no hook for; only ⌘Q and the close button are guarded.
   Pre-dates v0.11.4.
 - The `.md` association is by extension only (`CFBundleTypeExtensions`). If
-  Open With turns out to miss Hermes on some macOS version, add
+  Open With turns out to miss Halmos on some macOS version, add
   `LSItemContentTypes` with `net.daringfireball.markdown`. Wails' Info.plist
   template has no field for it, so it would be a hand edit that
   `update:build-assets` drops.
@@ -280,7 +283,7 @@ Ideas noted along the way, not yet committed to a release:
     under half a second.
   - The unknown-citation list can show the previous document's keys for up
     to 300 ms after opening another document with the same bibliography.
-  - Right after Zotero starts, while Better BibTeX is still loading, Hermes
+  - Right after Zotero starts, while Better BibTeX is still loading, Halmos
     says Better BibTeX is not installed. A "starting, try again" message
     would be more accurate.
   - The same inline footnote written twice (`^[see @a]` twice in one

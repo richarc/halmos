@@ -3,11 +3,11 @@ bibliography: zotero-export-text.bib
 csl: apa
 ---
 
-# Hermes Test Document
+# Halmos Test Document
 
-A tour of everything Hermes renders, written to be read as a PDF. Every
+A tour of everything Halmos renders, written to be read as a PDF. Every
 section shows the markdown first, in a code block, and then the same text as
-Hermes renders it — so the page itself is the proof. Open this file in Hermes
+Halmos renders it — so the page itself is the proof. Open this file in Halmos
 and press ⌘E to export it.
 
 Swap `csl:` in the frontmatter to `ieee`, `vancouver`, `chicago-author-date`
@@ -104,7 +104,7 @@ The `:---:` marker centres a column, and maths works inside a cell.
 ## 4. Code blocks
 
 A fence naming a language is syntax-coloured; a fence naming a language
-Hermes does not know renders as plain text rather than erroring.
+Halmos does not know renders as plain text rather than erroring.
 
 ### Markdown
 
@@ -473,9 +473,9 @@ An untitled diagram of a different kind:
 ```mermaid
 sequenceDiagram
   participant Author
-  participant Hermes
-  Author->>Hermes: Type a mermaid fence
-  Hermes-->>Author: Render diagram
+  participant Halmos
+  Author->>Halmos: Type a mermaid fence
+  Halmos-->>Author: Render diagram
 ```
 ````
 
@@ -538,9 +538,9 @@ An untitled diagram of a different kind:
 ```mermaid
 sequenceDiagram
   participant Author
-  participant Hermes
-  Author->>Hermes: Type a mermaid fence
-  Hermes-->>Author: Render diagram
+  participant Halmos
+  Author->>Halmos: Type a mermaid fence
+  Halmos-->>Author: Render diagram
 ```
 
 View → Figure Alignment moves every figure and decorative image together,
@@ -693,7 +693,7 @@ If you can read this line with normal styling, error containment works. ✅
 
 ## 12. Beyond the page
 
-Some of Hermes lives in the editor rather than on the page, and a PDF cannot
+Some of Halmos lives in the editor rather than on the page, and a PDF cannot
 show it. Briefly, for completeness:
 
 - **Chart builder.** Insert → Chart… builds a `vega-lite` block from a pasted

@@ -8,7 +8,7 @@
         AllowPromptForPassword="false">
     </Settings>
     <Installer
-        Path="hermes"
+        Path="Halmos Editor.exe"
         Arguments=""
         InstallLocation="C:\Program Files\QxQuantum\My Product">
     </Installer>
@@ -18,7 +18,7 @@
         PublisherName="CN=QxQuantum"
         PublisherDisplayName="QxQuantum"
         Version="0.1.0.0"
-        PackageDescription="A hermes application">
+        PackageDescription="Halmos Editor">
         <Capabilities>
             <Capability Name="runFullTrust" />
             
@@ -26,9 +26,9 @@
         <Applications>
             <Application
                 Id="com.qxquantum.hermes"
-                Description="A hermes application"
+                Description="Halmos Editor"
                 DisplayName="My Product"
-                ExecutableName="hermes"
+                ExecutableName="Halmos Editor.exe"
                 EntryPoint="Windows.FullTrustApplication">
                 
             </Application>
@@ -43,11 +43,11 @@
             <Framework>false</Framework>
             <DisplayName>My Product</DisplayName>
             <PublisherDisplayName>QxQuantum</PublisherDisplayName>
-            <Description>A hermes application</Description>
+            <Description>Halmos Editor</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>
-    <SaveLocation PackagePath="hermes.msix" />
+    <SaveLocation PackagePath="Halmos Editor.msix" />
     <PackageIntegrity>
         <CertificatePath></CertificatePath>
     </PackageIntegrity>
