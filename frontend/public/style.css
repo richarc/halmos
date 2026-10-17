@@ -433,9 +433,13 @@ textarea:focus-visible,
 .sheet .task-list-item-checkbox { margin: 0 0.4em 0 0; vertical-align: middle; }
 .sheet li.task-list-item > ul.task-list-container { padding-left: 1.4em; }
 .sheet pre {
-  background: var(--doc-surface-code-block); padding: 12px; border-radius: 6px; overflow-x: auto;
+  background: var(--doc-surface-code-block); padding: 12px 4.5em 12px 12px; border-radius: 6px;
   position: relative;
 }
+/* The code scrolls, not the pre, so the copy button (absolute against the pre)
+   stays pinned to the visible top-right while wide code moves under it. The
+   right padding above keeps the first line clear of the button. */
+.sheet pre > code { display: block; overflow-x: auto; }
 /* Preview-only; hidden until the block is hovered or the button is focused. */
 .sheet .code-copy {
   position: absolute; top: 6px; right: 6px;
@@ -443,6 +447,7 @@ textarea:focus-visible,
   color: var(--doc-muted); background: var(--doc-bg);
   border: 1px solid var(--doc-border); border-radius: 4px;
   opacity: 0; cursor: pointer;
+  user-select: none; -webkit-user-select: none;
 }
 .sheet pre:hover .code-copy, .sheet .code-copy:focus-visible { opacity: 1; }
 .sheet code {

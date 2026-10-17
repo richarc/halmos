@@ -342,3 +342,18 @@ describe('task list styling', () => {
     expect(CSS).toContain(`.sheet .${cls} {`)
   })
 })
+
+describe('code copy button', () => {
+  const rule = /\.sheet \.code-copy \{([^}]*)\}/.exec(CSS)?.[1] ?? ''
+
+  it('is unselectable, so its hidden label never lands in a copied selection', () => {
+    expect(rule).toMatch(/(?<!-webkit-)user-select:\s*none/)
+    expect(rule).toMatch(/-webkit-user-select:\s*none/)
+  })
+
+  it('is pinned to the pre while the code, not the pre, scrolls', () => {
+    expect(/\.sheet pre \{[^}]*position:\s*relative/.test(CSS)).toBe(true)
+    expect(/\.sheet pre \{[^}]*overflow/.test(CSS)).toBe(false)
+    expect(/\.sheet pre > code \{[^}]*overflow-x:\s*auto/.test(CSS)).toBe(true)
+  })
+})
