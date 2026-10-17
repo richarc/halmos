@@ -259,6 +259,10 @@ export function WatchBibliography(path: string, docPath: string): $CancellablePr
     return $Call.ByID(3958672815, path, docPath);
 }
 
+export function WelcomeInfo(): $CancellablePromise<$models.WelcomeInfo> {
+    return $Call.ByID(3654229580);
+}
+
 /**
  * WriteDraft, DiscardDraft and RecoverDraft are the recovery-draft bindings.
  * The frontend decides *when* (lib/recoveryDraft.ts: debounced while dirty,

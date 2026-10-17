@@ -112,6 +112,22 @@ func (s *DocumentService) RecentFiles() []string {
 	return s.readRecents()
 }
 
+// WelcomeInfo is what the start screen shows besides the recent files.
+type WelcomeInfo struct {
+	// Version is the bundle's version, "" for an unbundled build.
+	Version string `json:"version"`
+	// Home lets the screen shorten folders under it to ~. "" if unknown.
+	Home string `json:"home"`
+}
+
+func (s *DocumentService) WelcomeInfo() WelcomeInfo {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = ""
+	}
+	return WelcomeInfo{Version: s.version(), Home: home}
+}
+
 func (s *DocumentService) readRecents() []string {
 	data, err := os.ReadFile(s.recentsPath)
 	if err != nil {

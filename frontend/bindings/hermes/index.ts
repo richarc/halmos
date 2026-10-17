@@ -13,5 +13,6 @@ export type {
     Document,
     Draft,
     Settings,
-    UpdateResult
+    UpdateResult,
+    WelcomeInfo
 } from "./models.js";

@@ -424,3 +424,19 @@ func TestSetCitationStyleNotifiesOnChangeOnly(t *testing.T) {
 		t.Fatalf("fired %d, style %q", fired, s.currentCitationStyle())
 	}
 }
+
+// The start screen shows the version and shortens recent folders under the
+// home folder to ~, so it needs both from Go.
+func TestWelcomeInfoReportsVersionAndHome(t *testing.T) {
+	s := newTestService(t)
+	s.version = func() string { return "1.2.3" }
+	home, _ := os.UserHomeDir()
+
+	got := s.WelcomeInfo()
+	if got.Version != "1.2.3" {
+		t.Errorf("Version = %q, want 1.2.3", got.Version)
+	}
+	if got.Home != home {
+		t.Errorf("Home = %q, want %q", got.Home, home)
+	}
+}

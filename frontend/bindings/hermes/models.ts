@@ -80,3 +80,18 @@ export interface UpdateResult {
     "latest": string;
     "url": string;
 }
+
+/**
+ * WelcomeInfo is what the start screen shows besides the recent files.
+ */
+export interface WelcomeInfo {
+    /**
+     * Version is the bundle's version, "" for an unbundled build.
+     */
+    "version": string;
+
+    /**
+     * Home lets the screen shorten folders under it to ~. "" if unknown.
+     */
+    "home": string;
+}
