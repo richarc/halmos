@@ -30,6 +30,9 @@ function makeAlerts(state: StateCore): void {
     const para = tokens[i + 1]
     const inline = tokens[i + 2]
     if (para?.type !== 'paragraph_open' || inline?.type !== 'inline' || !inline.children) continue
+    // text_join has already merged an escape into the text token, so `\\[!NOTE]`
+    // looks like a marker there; the raw source still starts with the backslash.
+    if (!inline.content.startsWith('[')) continue
 
     // The marker is the first line of the first paragraph: text up to a
     // softbreak (or the end of the paragraph).
@@ -67,6 +70,8 @@ function makeTasks(state: StateCore): void {
     if (tokens[i].type !== 'list_item_open') continue
     const inline = tokens[i + 2]
     if (tokens[i + 1]?.type !== 'paragraph_open' || inline?.type !== 'inline' || !inline.children?.length) continue
+    // Same escape check as makeAlerts: `\\[ ]` is not a task.
+    if (!inline.content.startsWith('[')) continue
     const first = inline.children[0]
     const m = first.type === 'text' ? TASK_MARK.exec(first.content) : null
     if (!m) continue

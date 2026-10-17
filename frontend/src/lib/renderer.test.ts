@@ -423,6 +423,20 @@ describe('render: footnotes', () => {
 })
 
 describe('render: task lists and alerts', () => {
+  it('leaves an escaped task marker as plain text', () => {
+    const html = render('- \\[ ] a')
+    expect(html).not.toContain('checkbox')
+    expect(html).not.toContain('task-list-item')
+    expect(html).toContain('[ ] a')
+  })
+
+  it('leaves an escaped alert marker as a plain blockquote', () => {
+    const html = render('> \\[!NOTE]\n> b')
+    expect(html).not.toContain('markdown-alert')
+    expect(html).toContain('<blockquote')
+    expect(html).toContain('[!NOTE]')
+  })
+
   it('renders task list items as disabled checkboxes', () => {
     const html = render('- [ ] a\n- [x] b')
     expect(html.match(/<input type="checkbox"[^>]*disabled/g)).toHaveLength(2)
