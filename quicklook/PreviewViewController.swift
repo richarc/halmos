@@ -66,7 +66,37 @@ final class PreviewViewController: NSViewController, QLPreviewingController, WKN
         }
         self.backstop = backstop
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.backstopSeconds, execute: backstop)
-        webView.loadFileURL(page, allowingReadAccessTo: dir)
+        installOfflineRules { [weak self] error in
+            guard let self = self, self.handler != nil else { return }
+            // Fail closed: without the rules nothing stops the page reaching
+            // the network, so it is not loaded at all.
+            if let error = error {
+                self.complete(error)
+                return
+            }
+            self.webView.loadFileURL(page, allowingReadAccessTo: dir)
+        }
+    }
+
+    private var offlineRulesInstalled = false
+
+    /// Adds PreviewText.offlineRules to the web view once. WebKit caches the
+    /// compiled list in the extension's container, so later compiles are cheap.
+    private func installOfflineRules(_ done: @escaping (Error?) -> Void) {
+        if offlineRulesInstalled { return done(nil) }
+        guard let store = WKContentRuleListStore.default() else {
+            return done(CocoaError(.featureUnsupported))
+        }
+        store.compileContentRuleList(
+            forIdentifier: "halmos-quicklook-offline",
+            encodedContentRuleList: PreviewText.offlineRules
+        ) { [weak self] list, error in
+            guard let self = self else { return }
+            guard let list = list else { return done(error ?? CocoaError(.featureUnsupported)) }
+            self.webView.configuration.userContentController.add(list)
+            self.offlineRulesInstalled = true
+            done(nil)
+        }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

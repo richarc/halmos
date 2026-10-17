@@ -109,6 +109,25 @@ check(!allows(URL(string: "https://example.com/quick%20look.html")!), "a web URL
 check(!allows(nil), "no URL is cancelled")
 check(!PreviewText.allowsNavigation(to: page, page: nil, isLinkClick: false), "no page allows nothing")
 
+// MARK: the offline content rules
+
+do {
+    let rules = try JSONSerialization.jsonObject(with: Data(PreviewText.offlineRules.utf8)) as? [[String: [String: String]]] ?? []
+    check(!rules.isEmpty, "the offline rules are a JSON array of rules")
+    check(rules.first?["trigger"]?["url-filter"] == ".*" && rules.first?["action"]?["type"] == "block",
+          "the first rule blocks every URL")
+    let allowed = Set(rules.dropFirst().compactMap { rule -> String? in
+        guard rule["action"]?["type"] == "ignore-previous-rules" else { return nil }
+        return rule["trigger"]?["url-filter"]
+    })
+    check(allowed == ["^file:", "^data:", "^about:", "^blob:"], "only local schemes are let through, got \(allowed)")
+    check(rules.count == 1 + allowed.count, "every later rule lets a scheme through; nothing else")
+    // WebKit's content-rule regex has no alternation; a filter using it fails to compile.
+    check(!PreviewText.offlineRules.contains("|"), "no alternation in a url-filter")
+} catch {
+    check(false, "the offline rules parse as JSON: \(error)")
+}
+
 if failures > 0 {
     print("\(failures) failure(s)")
     exit(1)

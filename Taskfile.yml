@@ -193,11 +193,12 @@ tasks:
       # its own sandbox entitlements, which --deep would not apply.
       - task: quicklook:embed
         vars: { IDENTITY: '{{.IDENTITY}}', TIMESTAMP: '--timestamp' }
-      # The docs promise Quick Look fetches nothing, and that rests on the
-      # extension having no network entitlement. Fail rather than ship one.
+      # The extension needs network.client for WKWebView to start at all; the
+      # docs' "fetches nothing" rests on the offline content rules instead.
+      # Fail if it was signed with anything that would let it listen.
       - |
-        if codesign -d --entitlements - "{{.APP}}/Contents/PlugIns/HalmosQuickLook.appex" 2>/dev/null | grep -q network.client; then
-          echo "HalmosQuickLook.appex is signed with com.apple.security.network.client; Quick Look must not reach the network."
+        if codesign -d --entitlements - "{{.APP}}/Contents/PlugIns/HalmosQuickLook.appex" 2>/dev/null | grep -q network.server; then
+          echo "HalmosQuickLook.appex is signed with com.apple.security.network.server; Quick Look must not accept connections."
           exit 1
         fi
       # --options runtime (hardened runtime) and --timestamp are both required

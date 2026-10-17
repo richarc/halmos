@@ -69,6 +69,23 @@ enum PreviewText {
         return !isLinkClick || url.fragment != nil
     }
 
+    /// A WebKit content rule list that blocks every load except local ones.
+    /// The extension needs com.apple.security.network.client — without it the
+    /// sandbox kills WKWebView's web content process before the page loads —
+    /// so this, not the sandbox, is what keeps Quick Look off the network:
+    /// a Vega spec naming a data URL, or anything else the page might ask
+    /// for, is refused before a request is made. Separate rules per scheme
+    /// because WebKit's url-filter regex has no alternation.
+    static let offlineRules = """
+    [
+      {"trigger": {"url-filter": ".*"}, "action": {"type": "block"}},
+      {"trigger": {"url-filter": "^file:"}, "action": {"type": "ignore-previous-rules"}},
+      {"trigger": {"url-filter": "^data:"}, "action": {"type": "ignore-previous-rules"}},
+      {"trigger": {"url-filter": "^about:"}, "action": {"type": "ignore-previous-rules"}},
+      {"trigger": {"url-filter": "^blob:"}, "action": {"type": "ignore-previous-rules"}}
+    ]
+    """
+
     private static func resolvedPath(_ url: URL) -> String {
         // .path drops the fragment and query and percent-decodes;
         // resolvingSymlinksInPath also strips a leading /private.

@@ -371,7 +371,8 @@ it differs from the preview in a few ways:
   the `.bib` file is not read.
 - Images show as their file name in brackets rather than the picture,
   except images embedded in the file itself as `data:image/` links, and
-  nothing is fetched from the internet.
+  nothing is fetched from the internet. A chart whose data comes from a web
+  address is drawn empty.
 - It is always light, on an A4 page.
 - A file over 5 MB shows its first 5 MB, with a note at the top.
 

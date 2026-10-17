@@ -5,11 +5,15 @@
 	<!-- An app extension must be sandboxed or pluginkit will not load it.
 	     No file entitlement: Quick Look extends the sandbox to the file
 	     being previewed.
-	     No com.apple.security.network.client either, on purpose: the user
-	     docs say Quick Look fetches nothing, and the page strips images, but
-	     a Vega spec can still name a data URL; without this entitlement the
-	     sandbox refuses it. The root Taskfile's release fails if it appears. -->
+	     com.apple.security.network.client is required, not optional: without
+	     it the sandbox kills WKWebView's web content process before the page
+	     loads, and Quick Look gives up after its backstop. Quick Look still
+	     fetches nothing: PreviewViewController installs PreviewText's
+	     offlineRules, which block every non-local URL, before the page loads,
+	     and refuses to load it if they cannot be installed. -->
 	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
 	<true/>
 </dict>
 </plist>
