@@ -196,11 +196,14 @@ tasks:
       # The extension needs network.client for WKWebView to start at all; the
       # docs' "fetches nothing" rests on the offline content rules instead.
       # Fail if it was signed with anything that would let it listen.
+      # A case, not an if: Task's shell exits 1 from an if whose condition is
+      # false and which has no else, which would fail every clean release.
       - |
-        if codesign -d --entitlements - "{{.APP}}/Contents/PlugIns/HalmosQuickLook.appex" 2>/dev/null | grep -q network.server; then
-          echo "HalmosQuickLook.appex is signed with com.apple.security.network.server; Quick Look must not accept connections."
-          exit 1
-        fi
+        case "$(codesign -d --entitlements - "{{.APP}}/Contents/PlugIns/HalmosQuickLook.appex" 2>/dev/null)" in
+          *network.server*)
+            echo "HalmosQuickLook.appex is signed with com.apple.security.network.server; Quick Look must not accept connections."
+            exit 1;;
+        esac
       # --options runtime (hardened runtime) and --timestamp are both required
       # for notarization; without either, submission is rejected rather than
       # the app being. No --deep: Apple deprecated it for signing, and the
