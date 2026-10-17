@@ -5,6 +5,7 @@
   import type { Settings, Draft, UpdateResult } from '../bindings/hermes/models'
   import Editor from './Editor.svelte'
   import Preview from './Preview.svelte'
+  import { bodyFontStack } from './lib/bodyFont'
   import { renderDocument, type RenderOptions } from './lib/renderer'
   import { timed } from './lib/perf'
   import { type OutlineEntry } from './lib/outline'
@@ -577,6 +578,32 @@
     // cannot intercept an event arriving through Go's bus.
     if (showWelcome || chartOpen || tableOpen) return
     editor.insertCodeBlockAtCursor(language)
+  }
+
+  // File → Export HTML…. The page is built from the rendered preview, which
+  // only exists here, so Go only asks where and writes. htmlExport and the
+  // KaTeX assets it loads are imported on first use: they are not part of
+  // the startup bundle.
+  async function exportHTML() {
+    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    const docPath = path ?? ''
+    try {
+      const target = await DocumentService.ChooseHTMLExportPath(docPath)
+      if (!target) return
+      const { buildStandaloneHTML, loadExportStyles } = await import('./lib/htmlExport')
+      const { css, katexCss } = await loadExportStyles()
+      const page = await buildStandaloneHTML(preview.exportRoot(), {
+        title: (filename ?? 'Untitled').replace(/\.[^.]+$/, ''),
+        bodyFont: bodyFontStack(bodyFont),
+        css,
+        katexCss,
+        inlineImage: (src) => DocumentService.ReadImageDataURI(docPath, src).catch(() => null),
+      })
+      await DocumentService.WriteHTMLExport(target, page)
+      toast(`Exported ${target.split('/').pop()}`)
+    } catch (e) {
+      toast(`Could not export HTML: ${e}`)
+    }
   }
 
   // Format → Citation Style. Writes `csl:` through the editor so it is one
@@ -1162,6 +1189,7 @@
     Events.On('menu:export-pdf', () => {
       void DocumentService.ExportPDF(path ?? '').catch((e) => toast(String(e)))
     })
+    Events.On('menu:export-html', () => void exportHTML())
     Events.On('menu:insert-chart', () => openChartBuilder())
     Events.On('menu:insert-table', () => openTableBuilder())
     Events.On('menu:insert-code', (ev: { data: unknown }) => {

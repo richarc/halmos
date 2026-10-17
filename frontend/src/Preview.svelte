@@ -61,6 +61,11 @@
     sync.sync(line, docLines)
   }
 
+  /** The rendered sheet, for HTML export to clone. Never modify it. */
+  export function exportRoot(): HTMLElement {
+    return sheet
+  }
+
   const COPIED_MS = 1500
 
   /**

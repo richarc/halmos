@@ -121,7 +121,7 @@ function decodePath(src: string): string {
 }
 
 /** Kept in step with `localImageRoute` in localimages.go. */
-const LOCAL_IMAGE_ROUTE = '/_hermes/image'
+export const LOCAL_IMAGE_ROUTE = '/_hermes/image'
 
 /**
  * Whether a source names a file on disk rather than somewhere else entirely.

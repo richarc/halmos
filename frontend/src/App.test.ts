@@ -41,6 +41,9 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       PickCitations: vi.fn(async () => ''),
       ZoteroStatus: vi.fn(async () => 'ready'),
       ExportPDF: vi.fn(async () => {}),
+      ChooseHTMLExportPath: vi.fn(async (_docPath: string) => ''),
+      WriteHTMLExport: vi.fn(async (_path: string, _html: string) => {}),
+      ReadImageDataURI: vi.fn(async (_docPath: string, _src: string) => 'data:image/png;base64,AA=='),
       Settings: vi.fn(async () => settings.current),
       UpdateSettings: vi.fn(async (_next: typeof DEFAULT_SETTINGS) => {}),
       ImportData: vi.fn(async () => ''),
@@ -86,6 +89,22 @@ import { Browser } from '@wailsio/runtime'
 // The real debounce is two seconds; every test here would wait it out.
 // App.svelte passes DRAFT_DEBOUNCE_MS to the keeper explicitly so this
 // mock is what it sees.
+const htmlExport = vi.hoisted(() => ({
+  buildStandaloneHTML: vi.fn(
+    async (
+      _root: HTMLElement,
+      _opts: {
+        title: string
+        bodyFont: string
+        css: string
+        katexCss: string
+        inlineImage: (src: string) => Promise<string | null>
+      },
+    ) => 'PAGE',
+  ),
+  loadExportStyles: vi.fn(async () => ({ css: 'DOC CSS', katexCss: 'KATEX CSS' })),
+}))
+vi.mock('./lib/htmlExport', () => htmlExport)
 vi.mock('./lib/recoveryDraft', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./lib/recoveryDraft')>()),
   DRAFT_DEBOUNCE_MS: 20,
@@ -1265,6 +1284,69 @@ describe('export PDF', () => {
     flushSync()
 
     expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md')
+  })
+})
+
+describe('export HTML', () => {
+  async function openPaper() {
+    recents.current = ['/tmp/paper.md']
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/tmp/paper.md', content: '# Results\n' })
+    const mounted = mountApp()
+    await vi.waitFor(() => expect(mounted.target.querySelector('.welcome')).not.toBeNull())
+    listeners['menu:open-recent']({ data: '/tmp/paper.md' })
+    await vi.waitFor(() => expect(mounted.target.textContent).toContain('Results'))
+    return mounted
+  }
+
+  it('builds the page from the sheet and writes it where the panel chose', async () => {
+    const { target } = await openPaper()
+    DocumentService.ChooseHTMLExportPath.mockResolvedValueOnce('/tmp/out/paper.html')
+
+    listeners['menu:export-html']({ data: null })
+
+    await vi.waitFor(() =>
+      expect(DocumentService.WriteHTMLExport).toHaveBeenCalledWith('/tmp/out/paper.html', 'PAGE'),
+    )
+    expect(DocumentService.ChooseHTMLExportPath).toHaveBeenCalledWith('/tmp/paper.md')
+    const [root, opts] = htmlExport.buildStandaloneHTML.mock.calls[0]
+    expect(root).toBe(target.querySelector('.sheet'))
+    expect(opts.bodyFont).toContain('New York')
+    expect(opts.css).toBe('DOC CSS')
+    expect(opts.katexCss).toBe('KATEX CSS')
+    // Local images are read relative to the open document.
+    await expect(opts.inlineImage('images/fig.png')).resolves.toBe('data:image/png;base64,AA==')
+    expect(DocumentService.ReadImageDataURI).toHaveBeenCalledWith('/tmp/paper.md', 'images/fig.png')
+    DocumentService.ReadImageDataURI.mockRejectedValueOnce(new Error('missing'))
+    await expect(opts.inlineImage('gone.png')).resolves.toBeNull()
+    await vi.waitFor(() => expect(target.querySelector('.toast')?.textContent).toBe('Exported paper.html'))
+  })
+
+  it('does nothing more when the panel is cancelled', async () => {
+    await openPaper()
+    listeners['menu:export-html']({ data: null })
+    await vi.waitFor(() => expect(DocumentService.ChooseHTMLExportPath).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 0))
+    expect(htmlExport.buildStandaloneHTML).not.toHaveBeenCalled()
+    expect(DocumentService.WriteHTMLExport).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed write', async () => {
+    const { target } = await openPaper()
+    DocumentService.ChooseHTMLExportPath.mockResolvedValueOnce('/tmp/out/paper.html')
+    DocumentService.WriteHTMLExport.mockRejectedValueOnce(new Error('disk full'))
+    listeners['menu:export-html']({ data: null })
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe('Could not export HTML: Error: disk full'),
+    )
+  })
+
+  it('is ignored on the welcome screen', async () => {
+    recents.current = ['/papers/thesis.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    listeners['menu:export-html']({ data: null })
+    flushSync()
+    expect(DocumentService.ChooseHTMLExportPath).not.toHaveBeenCalled()
   })
 })
 

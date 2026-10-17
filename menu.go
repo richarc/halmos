@@ -147,6 +147,11 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	file.Add("Export PDF…").SetAccelerator("cmdorctrl+e").OnClick(func(*application.Context) {
 		docEmit("menu:export-pdf")
 	})
+	// Same reason as Export PDF, and more: the page is built from the
+	// rendered preview, which only the frontend has.
+	file.Add("Export HTML…").OnClick(func(*application.Context) {
+		docEmit("menu:export-html")
+	})
 	file.Add("Print…").SetAccelerator("cmdorctrl+p").OnClick(func(*application.Context) {
 		whenVisible(win.IsVisible(), docs.PrintDocument)
 	})

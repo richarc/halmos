@@ -40,6 +40,15 @@ export function ChooseCitationStyle(): $CancellablePromise<string> {
 }
 
 /**
+ * ChooseHTMLExportPath asks where File → Export HTML… should write. It returns
+ * "" when the author cancels. The page itself is built by the frontend, which
+ * holds the rendered preview, and written with WriteHTMLExport.
+ */
+export function ChooseHTMLExportPath(docPath: string): $CancellablePromise<string> {
+    return $Call.ByID(3823930829, docPath);
+}
+
+/**
  * ChooseNewDocumentPath asks where a new document should live. It is the
  * first half of File → New…: the frontend needs the chosen name before it can
  * compose the document, because the live `bibliography:` key names a `.bib`
@@ -155,6 +164,16 @@ export function ReadCitationStyle(path: string, docPath: string): $CancellablePr
 }
 
 /**
+ * ReadImageDataURI returns an image beside the document as a data: URI, so an
+ * exported page carries its images with it. The source resolves exactly as
+ * the /_hermes/image route resolves it (localImagePath), and only image
+ * extensions are read.
+ */
+export function ReadImageDataURI(docPath: string, src: string): $CancellablePromise<string> {
+    return $Call.ByID(3258348813, docPath, src);
+}
+
+/**
  * RecentFiles takes no lock: the list is written atomically, so a concurrent
  * update is either fully visible or not visible at all — there is no partial
  * state on disk to read. Only the read-modify-write in addRecent needs
@@ -243,6 +262,13 @@ export function WatchBibliography(path: string, docPath: string): $CancellablePr
  */
 export function WriteDraft(docPath: string, content: string): $CancellablePromise<void> {
     return $Call.ByID(1661680238, docPath, content);
+}
+
+/**
+ * WriteHTMLExport writes the exported page atomically, like a save.
+ */
+export function WriteHTMLExport(path: string, html: string): $CancellablePromise<void> {
+    return $Call.ByID(3810125268, path, html);
 }
 
 /**
