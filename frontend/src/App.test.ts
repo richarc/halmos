@@ -2153,6 +2153,17 @@ describe('pasting an image', () => {
     expect(DocumentService.SavePastedImage).not.toHaveBeenCalled()
   })
 
+  it('shows the failure message for an empty image and writes nothing', async () => {
+    const target = await openDoc('# Results\n\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const empty = new Blob([], { type: 'image/png' })
+    view.contentDOM.dispatchEvent(pasteEvent([{ kind: 'file', type: 'image/png', file: empty }], ['Files']))
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toContain('Could not paste the image'),
+    )
+    expect(DocumentService.SavePastedImage).not.toHaveBeenCalled()
+  })
+
   it('leaves a paste with text and an image to the normal text paste', async () => {
     const target = await openDoc('# Results\n\n')
     const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!

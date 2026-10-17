@@ -644,6 +644,7 @@
     }
     const docPath = path
     try {
+      if (file.size === 0) throw new Error('the pasted image is empty')
       const rel = await DocumentService.SavePastedImage(docPath, await blobToBase64(file), ext)
       // The write is async: do not drop a link into a different document.
       if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen) return
