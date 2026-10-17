@@ -146,6 +146,11 @@ export function PrintDocument(): $CancellablePromise<void> {
     return $Call.ByID(2407220630);
 }
 
+/**
+ * Quit is what runs after the user resolves the unsaved-changes dialog, and
+ * for a demo's quit step. Wails' Quit goes through applicationShouldTerminate
+ * and so through shouldQuit; approving first keeps it from asking again.
+ */
 export function Quit(): $CancellablePromise<void> {
     return $Call.ByID(2527160883);
 }
