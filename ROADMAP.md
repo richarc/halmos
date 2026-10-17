@@ -87,9 +87,10 @@ separate, much larger project and is deliberately not part of this.
       corners, spacing and dialog text sizes were each chosen one rule at a
       time. *Status 2026-10-17*: step 1 done, the Halmos Design System in
       Claude Design, built from `style.css`, which stays the master copy.
-      Step 2 audits each screen against it (dialogs first), showing the
-      current screen beside a version that follows the system; step 3
-      redesigns them one at a time, as the start screen was done.
+      The dialogs were audited against it and redesigned the same day
+      (titles, 13px text, macOS button order, New document's style names
+      and grey hints). Next: the chart and table builders, then the
+      toolbar, status bar and outline.
 - [ ] Windows and Linux stay in the backlog. Decide before v1.1.0 whether
       Windows comes before the first paid release: many academics use it,
       and a Mac-only product limits who can pay.

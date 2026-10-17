@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Dialogs follow the new design system: each shows its title, text is the
+  same size as the rest of the app, paragraphs are spaced, and the
+  alternative button (Don't Save, Discard Draft) sits on the left as in
+  other Mac apps. New document lists citation styles by name, and its
+  hints are grey as intended.
 - A new start screen. New document and Open… sit in a side panel with the
   app version and the help links; recent files list each file's name with
   its folder underneath, and Clear empties the list.
