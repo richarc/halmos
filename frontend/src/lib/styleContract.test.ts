@@ -229,6 +229,14 @@ describe('figure alignment', () => {
     }
   })
 
+  it('forces alert tints to print', () => {
+    // WebKit drops background colours when printing unless asked not to; the
+    // alert's tint is a background, so without this the PDF loses it.
+    const print = CSS.slice(CSS.indexOf('@media print'))
+    expect(print).toMatch(/\.markdown-alert[^{]*\{[^}]*-webkit-print-color-adjust:\s*exact/)
+    expect(print).toMatch(/\.markdown-alert[^{]*\{[^}]*[^-]print-color-adjust:\s*exact/)
+  })
+
   it('keeps a caption on the same page as its figure when printing', () => {
     // Without this a caption orphans onto the next page — a failure the
     // in-SVG title did not have.

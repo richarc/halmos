@@ -84,6 +84,16 @@ const DOC_PAIRS: Array<[label: string, fg: string, bg: string, target: number]> 
   ['document chart error on paper', '--doc-chart-error-fg', '--doc-bg', 4.5],
   ['document cite error', '--doc-cite-error-fg', '--doc-cite-error-bg', 4.5],
   ['document cite error on paper', '--doc-cite-error-fg', '--doc-bg', 4.5],
+  ['alert note title', '--doc-alert-note', '--doc-alert-note-bg', 4.5],
+  ['alert note title on paper', '--doc-alert-note', '--doc-bg', 4.5],
+  ['alert tip title', '--doc-alert-tip', '--doc-alert-tip-bg', 4.5],
+  ['alert tip title on paper', '--doc-alert-tip', '--doc-bg', 4.5],
+  ['alert important title', '--doc-alert-important', '--doc-alert-important-bg', 4.5],
+  ['alert important title on paper', '--doc-alert-important', '--doc-bg', 4.5],
+  ['alert warning title', '--doc-alert-warning', '--doc-alert-warning-bg', 4.5],
+  ['alert warning title on paper', '--doc-alert-warning', '--doc-bg', 4.5],
+  ['alert caution title', '--doc-alert-caution', '--doc-alert-caution-bg', 4.5],
+  ['alert caution title on paper', '--doc-alert-caution', '--doc-bg', 4.5],
 ]
 
 function check(selector: string) {
@@ -115,6 +125,24 @@ describe('palette contrast', () => {
 
   it.each(THEMES)('meets every target in the %s palette', (theme) => {
     expect(check(`:root[data-theme="${theme}"]`)).toEqual([])
+  })
+
+  it.each(['', ...THEMES])('keeps document text readable on the sheet paper of the "%s" theme', (theme) => {
+    // The sheet is tinted on screen through --sheet-paper (sepia is warmer
+    // than white), while the document tokens are invariant, so the pair is
+    // only visible by crossing the two blocks.
+    const paper = palette(theme ? `:root[data-theme="${theme}"]` : ':root')['--sheet-paper']
+    const doc = palette('.sheet')
+    const failures: string[] = []
+    for (const [label, fgVar, target] of [
+      ['document text', '--doc-fg', 7],
+      ['document muted', '--doc-muted', 4.5],
+      ['document link', '--doc-link', 4.5],
+    ] as const) {
+      const ratio = contrast(doc[fgVar], paper)
+      if (ratio < target) failures.push(`${label}: ${ratio.toFixed(2)}:1 (needs ${target}:1)`)
+    }
+    expect(failures).toEqual([])
   })
 
   it('meets every target in the document palette', () => {

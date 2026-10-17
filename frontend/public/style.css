@@ -843,6 +843,8 @@ dialog::backdrop { background: var(--backdrop); }
      gone. One pixel of margin keeps the border inside the clip; a narrower
      table is unaffected. */
   .sheet table { margin-right: 1px; }
+  /* Printing drops background colours by default; the alert tint is one. */
+  .sheet .markdown-alert { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   h1, h2, h3 { break-after: avoid; }
   @page { margin: 25mm; }
 }
