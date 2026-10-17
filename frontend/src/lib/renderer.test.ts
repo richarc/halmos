@@ -428,7 +428,13 @@ describe('render: task lists and alerts', () => {
     expect(html.match(/<input type="checkbox"[^>]*disabled/g)).toHaveLength(2)
     expect(html.match(/<li class="task-list-item">/g)).toHaveLength(2)
     expect(html.match(/checked="checked"/g)).toHaveLength(1)
-    expect(html).toMatch(/<input type="checkbox"[^>]*checked[^>]*>[^]*> b</)
+    expect(html).toMatch(/<input type="checkbox"[^>]*checked[^>]*> b<\/label>/)
+    expect(html).not.toContain(' id=')
+  })
+
+  it('renders the same markup for a task however many precede it', () => {
+    const item = (html: string) => html.match(/<li[^]*?<\/li>/g)!.at(-1)
+    expect(item(render('- [ ] a\n- [ ] b'))).toBe(item(render('- [ ] z\n- [ ] y\n- [ ] b')))
   })
 
   it.each(['note', 'tip', 'important', 'warning', 'caution'])('renders a %s alert', (type) => {

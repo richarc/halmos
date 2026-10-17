@@ -1,8 +1,7 @@
 import MarkdownIt from 'markdown-it'
 import katexPluginModule from '@vscode/markdown-it-katex'
 import footnotePlugin from 'markdown-it-footnote'
-import { alert } from '@mdit/plugin-alert'
-import { tasklist } from '@mdit/plugin-tasklist'
+import { taskAlertsPlugin } from './taskAlerts'
 import { citationPlugin } from './citations'
 
 // The plugin ships CJS; Vite's browser interop and Vitest's node interop
@@ -25,16 +24,6 @@ export function createMarkdownParser(katexOptions: Record<string, unknown> = {})
   return new MarkdownIt({ html: false, linkify: true })
     .use(katexPlugin, katexOptions)
     .use(footnotePlugin as unknown as Parameters<MarkdownIt['use']>[0])
-    .use(tasklist)
-    .use(alert, {
-      // deep: an alert inside a list item or another container, as GitHub does.
-      deep: true,
-      // The plugin prints the marker as typed ("NOTE" or "note"); GitHub
-      // prints "Note" either way.
-      titleRenderer: (tokens, idx) => {
-        const word = tokens[idx].content.toLowerCase()
-        return `<p class="markdown-alert-title">${word[0].toUpperCase()}${word.slice(1)}</p>\n`
-      },
-    })
+    .use(taskAlertsPlugin)
     .use(citationPlugin)
 }
