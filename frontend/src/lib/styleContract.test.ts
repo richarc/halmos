@@ -94,6 +94,15 @@ describe('style.css palette contract', () => {
 
   // One-line truncation needs white-space: nowrap on the macOS 12 and 13
   // WebKit this app still supports; text-wrap: nowrap is only from 17.4.
+  // A file name with no spaces ("report_2026_final_v3.md") gave WebKit no
+  // break point, so the 400px dialog grew a sideways scrollbar instead.
+  it('lets dialog text break inside long unbroken words', () => {
+    const css = stripComments(CSS)
+    const start = css.indexOf('.dialog-body {')
+    expect(start).toBeGreaterThan(-1)
+    expect(css.slice(start, css.indexOf('}', start))).toContain('overflow-wrap: anywhere')
+  })
+
   it('keeps truncated lines on one line in older WebKit', () => {
     const css = stripComments(CSS)
     for (const selector of ['.outline-entry {', '.welcome-recent-name, .welcome-recent-folder {']) {
