@@ -417,6 +417,15 @@ describe('new documents', () => {
     expect(bibName).toBe('/Users/me/Library/refs.bib')
   })
 
+  // Names as the Citation Style menu shows them; the values stay the ids
+  // that go into the frontmatter.
+  it('lists citation styles by name', async () => {
+    const target = await openNewDialog()
+    const options = [...(dialog(target)!.querySelector('select') as HTMLSelectElement).options]
+    expect(options.map((o) => o.textContent)).toEqual(['APA', 'Chicago (author-date)', 'Harvard', 'IEEE', 'Vancouver'])
+    expect(options.map((o) => o.value)).toEqual(['apa', 'chicago-author-date', 'harvard', 'ieee', 'vancouver'])
+  })
+
   it('goes back to the first step without losing the style', async () => {
     const target = await openNewDialog()
     const select = dialog(target)!.querySelector('select') as HTMLSelectElement

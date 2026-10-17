@@ -1,6 +1,6 @@
 <script lang="ts">
   import Dialog from './Dialog.svelte'
-  import { STYLE_IDS } from './lib/citations'
+  import { STYLE_CHOICES } from './lib/citations'
   import { withBibExtension } from './lib/documentTemplate'
   import { DocumentService } from '../bindings/hermes'
 
@@ -94,7 +94,7 @@
 
 <Dialog {open} label="New document" {onclose}>
   {#if step === 'document'}
-    <h2>New document</h2>
+    <h2 class="dialog-title">New document</h2>
     <label class="check-row">
       <input type="checkbox" bind:checked={withBibliography} />
       Include a bibliography
@@ -107,14 +107,14 @@
       <label class="style-row"
         >Citation style
         <select bind:value={csl}>
-          {#each STYLE_IDS as id (id)}
-            <option value={id}>{id}</option>
+          {#each STYLE_CHOICES as c (c.id)}
+            <option value={c.id}>{c.label}</option>
           {/each}
         </select>
       </label>
     {/if}
   {:else}
-    <h2>Bibliography</h2>
+    <h2 class="dialog-title">Bibliography</h2>
     <label class="check-row">
       <input type="radio" name="bib-kind" value="same" bind:group={kind} />
       Same name as the document
@@ -157,22 +157,18 @@
 </Dialog>
 
 <style>
-  h2 {
-    margin: 0 0 0.75em;
-    font-size: 1.1em;
-  }
   .check-row {
     display: flex;
     align-items: center;
-    gap: 0.5em;
+    gap: 8px;
   }
   .hint {
-    margin: 0.35em 0 0.9em 1.75em;
-    font-size: 0.9em;
-    color: var(--text-muted);
+    margin: 4px 0 16px 24px;
+    font-size: 12px;
+    color: var(--muted);
   }
   .indent {
-    margin: 0.35em 0 0.9em 1.75em;
+    margin: 6px 0 16px 24px;
   }
   .indent input[type='text'] {
     width: 100%;
@@ -187,6 +183,6 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1em;
+    gap: 16px;
   }
 </style>

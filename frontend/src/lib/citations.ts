@@ -34,6 +34,17 @@ const STYLE_LOADERS: Record<string, () => Promise<{ default: string }>> = {
 // anything at all.
 export const STYLE_IDS = Object.keys(STYLE_LOADERS) as readonly string[]
 
+// The bundled styles as people see them, in the Citation Style menu's order.
+// The other half is citationStyles in menu.go: keep the two in step (the
+// test checks the ids against STYLE_LOADERS, not against Go).
+export const STYLE_CHOICES: readonly { id: string; label: string }[] = [
+  { id: 'apa', label: 'APA' },
+  { id: 'chicago-author-date', label: 'Chicago (author-date)' },
+  { id: 'harvard', label: 'Harvard' },
+  { id: 'ieee', label: 'IEEE' },
+  { id: 'vancouver', label: 'Vancouver' },
+]
+
 export interface CitationItem {
   key: string
   prefix?: string

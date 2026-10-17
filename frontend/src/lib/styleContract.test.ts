@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CODE_TOKENS } from './syntaxTags'
@@ -128,6 +128,25 @@ describe('style.css palette contract', () => {
       [...paletteBlocks(CSS).matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm)].map((m) => m[1]),
     )
     const missing = [...used].filter((v) => !defined.has(v) && !RUNTIME_VARIABLES.has(v))
+    expect(missing).toEqual([])
+  })
+
+  // A component's own <style> block is outside the stylesheet checks above.
+  // NewDocument.svelte shipped reading --text-muted, a name style.css never
+  // defined, so its hints showed in full-strength text instead of grey.
+  it('Svelte components reference only defined variables', () => {
+    const SRC = join(fileURLToPath(import.meta.url), '../..')
+    const files = readdirSync(SRC, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.svelte'))
+    const defined = new Set(
+      [...CSS.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm)].map((m) => m[1]),
+    )
+    const RUNTIME_VARIABLES = new Set(['--sheet-width', '--sheet-margin', '--sheet-margin-max'])
+    const missing = files.flatMap((f) =>
+      [...readFileSync(join(SRC, f), 'utf8').matchAll(/var\((--[a-z0-9-]+)/g)]
+        .map((m) => m[1])
+        .filter((v) => !defined.has(v) && !RUNTIME_VARIABLES.has(v))
+        .map((v) => `${f}: ${v}`),
+    )
     expect(missing).toEqual([])
   })
 

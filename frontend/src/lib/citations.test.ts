@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { createCitationFormatter, STYLE_IDS, isStyleFile } from './citations'
+import { createCitationFormatter, STYLE_IDS, STYLE_CHOICES, isStyleFile } from './citations'
 import minimalCsl from './fixtures/minimal.csl?raw'
 import type { CSLEntry } from './bibliography'
 import MarkdownIt from 'markdown-it'
@@ -360,5 +360,14 @@ describe('style files', () => {
     const f = await createCitationFormatter(ENTRIES, 'nobib.csl', noBib)
     expect(f.format([{ items: [{ key: 'smith2020' }] }]).texts[0]).toBe('{Smith}')
     expect(f.reference('smith2020')).toBeNull()
+  })
+})
+
+// The New document dialog lists styles by these names, in this order: the
+// same as the Citation Style menu (citationStyles in menu.go).
+describe('STYLE_CHOICES', () => {
+  it('covers every bundled style once, in menu order', () => {
+    expect(STYLE_CHOICES.map((c) => c.id).sort()).toEqual([...STYLE_IDS].sort())
+    expect(STYLE_CHOICES.map((c) => c.label)).toEqual(['APA', 'Chicago (author-date)', 'Harvard', 'IEEE', 'Vancouver'])
   })
 })
