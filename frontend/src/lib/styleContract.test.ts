@@ -351,6 +351,12 @@ describe('code copy button', () => {
     expect(rule).toMatch(/-webkit-user-select:\s*none/)
   })
 
+  it('resets the pre padding in @media print, so the gutter does not narrow PDF code', () => {
+    const start = CSS.indexOf('@media print {')
+    expect(start).toBeGreaterThan(-1)
+    expect(/\.sheet pre \{\s*padding:\s*12px;\s*\}/.test(CSS.slice(start))).toBe(true)
+  })
+
   it('is pinned to the pre while the code, not the pre, scrolls', () => {
     expect(/\.sheet pre \{[^}]*position:\s*relative/.test(CSS)).toBe(true)
     expect(/\.sheet pre \{[^}]*overflow/.test(CSS)).toBe(false)

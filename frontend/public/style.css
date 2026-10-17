@@ -767,6 +767,8 @@ dialog::backdrop { background: var(--backdrop); }
   .toolbar, .status-bar, .editor-pane, .divider, .welcome, .toast, dialog, .outline, .outline-reveal, .code-copy {
     display: none !important;
   }
+  /* The copy button's gutter is screen-only; print keeps the original padding. */
+  .sheet pre { padding: 12px; }
   .panes { display: block; }
   .preview-pane {
     overflow: visible; padding: 0; background: none;
