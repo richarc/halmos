@@ -222,13 +222,6 @@ Ideas noted along the way, not yet committed to a release:
   - A file opened from Finder while the unsaved-changes dialog is up for a
     close or quit replaces that pending action, so Don't Save opens the
     file instead of closing or quitting.
-- Quitting from the Dock menu or at logout with unsaved changes loses them.
-  Those paths go straight to `applicationShouldTerminate`; only ⌘Q and the
-  close button are guarded. Wails' `Options.ShouldQuit` is called from
-  `applicationShouldTerminate` and can cancel it (present in beta.12 and
-  beta.30), so this is fixable. `app.Quit()` takes the same path, so the ⌘Q
-  flow needs a "confirmed" flag to get through the gate.
-  Pre-dates v0.11.4.
 - The `.md` association is by extension only (`CFBundleTypeExtensions`). If
   Open With turns out to miss Halmos on some macOS version, add
   `LSItemContentTypes` with `net.daringfireball.markdown`. Wails' Info.plist

@@ -31,7 +31,10 @@ type DocumentService struct {
 	settings    *settingsStore
 	drafts      *draftStore
 	dirty       atomic.Bool
-	window      *application.WebviewWindow
+	// Set by Quit: the user has already answered the unsaved-changes dialog
+	// (or a demo is quitting), so shouldQuit lets the quit through.
+	approved atomic.Bool
+	window   *application.WebviewWindow
 	// Notified whenever the recents list changes (add or clear), so the
 	// native Open Recent menu can be rebuilt. Set once during startup.
 	onRecentsChanged func()
@@ -384,9 +387,16 @@ func (s *DocumentService) PrintDocument() {
 	}
 }
 
+// Quit is what runs after the user resolves the unsaved-changes dialog, and
+// for a demo's quit step. Wails' Quit goes through applicationShouldTerminate
+// and so through shouldQuit; approving first keeps it from asking again.
 func (s *DocumentService) Quit() {
+	s.approveQuit()
 	application.Get().Quit()
 }
+
+func (s *DocumentService) approveQuit()       { s.approved.Store(true) }
+func (s *DocumentService) quitApproved() bool { return s.approved.Load() }
 
 // TakeLaunchFile returns the file Hermes was launched to open ("" if none) and
 // marks the frontend ready, so later requests arrive as file:open events. The

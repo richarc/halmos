@@ -94,6 +94,53 @@ func TestQuitRequestQuitsWhenClean(t *testing.T) {
 	}
 }
 
+// Every other quit — the Dock menu, logout, restart — reaches Go only as
+// applicationShouldTerminate, through Options.ShouldQuit. Returning true there
+// with a dirty document discards it.
+func TestShouldQuitConfirmsAndRefusesWhenDirty(t *testing.T) {
+	confirmed := 0
+	if shouldQuit(true, false, func() { confirmed++ }) {
+		t.Error("a dirty document must not quit before the user chooses")
+	}
+	if confirmed != 1 {
+		t.Errorf("a dirty document must raise the confirm, raised %d", confirmed)
+	}
+}
+
+func TestShouldQuitAllowsCleanDocument(t *testing.T) {
+	confirmed := 0
+	if !shouldQuit(false, false, func() { confirmed++ }) {
+		t.Error("a clean document must quit")
+	}
+	if confirmed != 0 {
+		t.Errorf("a clean document must not prompt, raised %d", confirmed)
+	}
+}
+
+// DocumentService.Quit runs after Save or Don't Save, and for a demo's quit
+// step, and goes through applicationShouldTerminate again. It must not loop
+// back into the confirm.
+func TestShouldQuitAllowsApprovedQuitWhenDirty(t *testing.T) {
+	confirmed := 0
+	if !shouldQuit(true, true, func() { confirmed++ }) {
+		t.Error("an approved quit must go through")
+	}
+	if confirmed != 0 {
+		t.Errorf("an approved quit must not prompt, raised %d", confirmed)
+	}
+}
+
+func TestApproveQuitIsRemembered(t *testing.T) {
+	s := newTestService(t)
+	if s.quitApproved() {
+		t.Fatal("a new service must not start approved")
+	}
+	s.approveQuit()
+	if !s.quitApproved() {
+		t.Error("approveQuit must be remembered")
+	}
+}
+
 // The red button's branch. Same shape as quitRequest, but the clean path
 // hides the window instead of quitting, so the app stays in the Dock (#17).
 func TestCloseRequestConfirmsWhenDirty(t *testing.T) {

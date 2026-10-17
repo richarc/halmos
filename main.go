@@ -73,6 +73,10 @@ func main() {
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
 	// 'Mac' options tailor the application when running an macOS.
+	//
+	// win is declared here so ShouldQuit can show it; it is assigned below,
+	// before the app runs, so no quit can reach ShouldQuit while it is nil.
+	var win *application.WebviewWindow
 	app := application.New(application.Options{
 		Name:        "Halmos Editor",
 		Description: "Academic markdown editor",
@@ -80,6 +84,16 @@ func main() {
 		// A recording the script left running is stopped so the file on disk
 		// is closed, whichever way the app ends.
 		OnShutdown: demo.shutdown,
+		// The Dock's Quit, logout and restart go straight to
+		// applicationShouldTerminate, never through the ⌘Q handler in
+		// menu.go. A dirty document gets the same confirm, shown first
+		// because the window may be hidden (#17); see shouldQuit.
+		ShouldQuit: func() bool {
+			return shouldQuit(docs.IsDirty(), docs.quitApproved(), func() {
+				showWindow(win)
+				application.Get().Event.Emit("close:confirm", "quit")
+			})
+		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 			// Serves images living beside the user's document. Without it a
@@ -103,7 +117,7 @@ func main() {
 	// 'Mac' options tailor the window when running on macOS.
 	// 'BackgroundColour' is the background colour of the window.
 	// 'URL' is the URL that will be loaded into the webview.
-	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
+	win = app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "Halmos",
 		Width:  1200,
 		Height: 800,

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Quitting from the Dock menu, or logging out or restarting, with unsaved
+  changes now asks whether to save, as ⌘Q does. Before, the changes were
+  lost. Logging out stops while the question is open; log out again after
+  answering.
+
 ### Changed
 
 - Updated Wails to v3.0.0-beta.30. On macOS this stops the app running

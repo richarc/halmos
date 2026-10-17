@@ -583,6 +583,19 @@ func quitRequest(dirty bool, confirm func(), quit func()) {
 	quit()
 }
 
+// shouldQuit is Options.ShouldQuit's decision, run from AppKit's
+// applicationShouldTerminate. ⌘Q is caught earlier by quitRequest, but the
+// Dock's Quit, logout and restart arrive only here. A dirty document raises
+// the same confirm and refuses the quit; the user's Save or Don't Save then
+// calls DocumentService.Quit, which approves first so this lets it through.
+func shouldQuit(dirty, approved bool, confirm func()) bool {
+	if dirty && !approved {
+		confirm()
+		return false
+	}
+	return true
+}
+
 // findItems is the Edit → Find submenu. command is the menu:find payload,
 // which App.svelte hands to Editor.find.
 var findItems = []struct{ label, key, command string }{
