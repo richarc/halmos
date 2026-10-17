@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A new start screen. New document and Open… sit in a side panel with the
+  app version and the help links; recent files list each file's name with
+  its folder underneath, and Clear empties the list.
 - Updated Wails to v3.0.0-beta.30. On macOS this stops the app running
   about 120 empty script calls a second while the window is open, fixes a
   memory leak, and keeps the app responsive while print and file panels

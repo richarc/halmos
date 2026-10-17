@@ -78,10 +78,10 @@ separate, much larger project and is deliberately not part of this.
       states what is free (the editor and citations) and what the
       subscription adds. *Status 2026-10-17*: being completed in the
       `hermesportal` repository and ready to go live.
-- [ ] **A better start screen.** Redesign the screen with the recent files
+- [x] **A better start screen.** Redesign the screen with the recent files
       list and the New and Open buttons so it looks more professional and
       is easier to read. Produce three alternative designs to assess
-      before choosing one.
+      before choosing one. *Done 2026-10-17*: option A, the split launcher.
 - [ ] Windows and Linux stay in the backlog. Decide before v1.1.0 whether
       Windows comes before the first paid release: many academics use it,
       and a Mac-only product limits who can pay.
