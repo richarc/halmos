@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// linkFile is os.Link, replaceable so a test can stand in for a volume
+// (FAT, exFAT, some network shares) that has no hard links.
+var linkFile = os.Link
+
 var pastedImageExts = map[string]bool{"png": true, "jpg": true, "jpeg": true, "gif": true, "webp": true}
 
 // pastedImageName names a pasted image after the moment it was pasted, adding
@@ -83,7 +87,15 @@ func savePastedImage(now time.Time, docPath string, data []byte, ext string) (st
 			_, err := os.Lstat(filepath.Join(dir, n))
 			return err == nil
 		})
-		err := os.Link(tmp, filepath.Join(dir, name))
+		dest := filepath.Join(dir, name)
+		err := linkFile(tmp, dest)
+		if err != nil && !errors.Is(err, os.ErrExist) {
+			// No hard links on this volume: create the name exclusively
+			// and write the bytes into it. O_EXCL keeps the never-overwrite
+			// guarantee; a reader may briefly see a partial file, which is
+			// the cost of a volume that cannot link.
+			err = writeExclusive(dest, data)
+		}
 		if err == nil {
 			return "images/" + name, nil
 		}
@@ -92,4 +104,22 @@ func savePastedImage(now time.Time, docPath string, data []byte, ext string) (st
 		}
 		tried[name] = true
 	}
+}
+
+func writeExclusive(dest string, data []byte) error {
+	f, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(dest)
+	}
+	return err
 }

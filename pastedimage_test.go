@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -119,5 +121,44 @@ func TestSavePastedImageNeverOverwritesUnderConcurrency(t *testing.T) {
 	entries, _ := os.ReadDir(filepath.Join(dir, "images"))
 	if len(entries) != n {
 		t.Errorf("images/ has %d entries, want %d (temp files left behind?)", len(entries), n)
+	}
+}
+
+func TestSavePastedImageFallsBackWithoutHardLinks(t *testing.T) {
+	orig := linkFile
+	linkFile = func(string, string) error { return &os.LinkError{Op: "link", Err: syscall.EPERM} }
+	t.Cleanup(func() { linkFile = orig })
+
+	dir := t.TempDir()
+	doc := filepath.Join(dir, "paper.md")
+	now := time.Date(2026, 10, 17, 14, 3, 5, 0, time.UTC)
+	// Occupy the first name: the fallback must move on, never overwrite.
+	if err := os.MkdirAll(filepath.Join(dir, "images"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	first := filepath.Join(dir, "images", "pasted-20261017-140305.png")
+	if err := os.WriteFile(first, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	data := []byte{0x89, 'P', 'N', 'G', 9}
+	rel, err := savePastedImage(now, doc, data, "png")
+	if err != nil {
+		t.Fatalf("savePastedImage: %v", err)
+	}
+	if rel != "images/pasted-20261017-140305-2.png" {
+		t.Errorf("rel = %q", rel)
+	}
+	got, _ := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
+	if !bytes.Equal(got, data) {
+		t.Errorf("bytes differ")
+	}
+	if old, _ := os.ReadFile(first); string(old) != "old" {
+		t.Errorf("existing file was overwritten")
+	}
+	entries, _ := os.ReadDir(filepath.Join(dir, "images"))
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".pasted.tmp") {
+			t.Errorf("temp file left behind: %s", e.Name())
+		}
 	}
 }
