@@ -19,12 +19,14 @@
     onchange,
     onformat,
     onscroll,
+    onpasteimage,
     spellcheck = true,
     citations,
   }: {
     onchange: (text: string) => void
     onformat?: (name: string) => void
     onscroll?: () => void
+    onpasteimage?: (file: Blob, type: string) => void
     spellcheck?: boolean
     citations?: () => CitationContext | null
   } = $props()
@@ -185,6 +187,19 @@
 
   export function insertAtCursor(text: string): void {
     view.dispatch(view.state.replaceSelection(text))
+    view.focus()
+  }
+
+  /**
+   * Inserts an image link for a file already written beside the document and
+   * leaves the cursor between the brackets, ready for the alt text.
+   */
+  export function insertImageLink(relPath: string): void {
+    const from = view.state.selection.main.from
+    view.dispatch({
+      ...view.state.replaceSelection(`![](${relPath})`),
+      selection: { anchor: from + 2 },
+    })
     view.focus()
   }
 
@@ -482,6 +497,24 @@
       EditorState.languageData.of(() => [{ autocomplete: citationSource }]),
       citationHover(() => citations?.() ?? null),
       unknownKeyMarks(() => citations?.() ?? null),
+      // A clipboard holding an image and no text is a screenshot or a copied
+      // picture. With text alongside (a copy from a web page or Word) the
+      // normal text paste is what the user wants, so it is left alone.
+      EditorView.domEventHandlers({
+        paste(event) {
+          const data = event.clipboardData
+          if (!onpasteimage || !data || data.types.includes('text/plain')) return false
+          for (const item of Array.from(data.items)) {
+            if (item.kind !== 'file' || !item.type.startsWith('image/')) continue
+            const file = item.getAsFile()
+            if (!file) continue
+            event.preventDefault()
+            onpasteimage(file, item.type)
+            return true
+          }
+          return false
+        },
+      }),
       EditorView.updateListener.of((u) => {
         if (u.docChanged) onchange(u.state.doc.toString())
       }),

@@ -52,6 +52,7 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       WriteDraft: vi.fn(async (_docPath: string, _content: string) => {}),
       DiscardDraft: vi.fn(async (_docPath: string) => {}),
       RecoverDraft: vi.fn(async (_docPath: string) => ({ found: false, content: '' })),
+      SavePastedImage: vi.fn(async (_doc: string, _data: string | null, _ext: string) => 'images/pasted-20261017-140305.png'),
       CheckForUpdates: vi.fn(async (_force: boolean) => ({
         checked: true, available: false, current: '0.9.0', latest: '0.9.0',
         url: 'https://github.com/richarc/halmos/releases/tag/v0.9.0',
@@ -2097,5 +2098,75 @@ describe('citation completion and hover in the mounted app', () => {
     await vi.waitFor(() => expect(target.querySelector('.cm-citation-tooltip')?.textContent).toContain('Smith'), {
       timeout: 2000,
     })
+  })
+})
+
+describe('pasting an image', () => {
+  function pasteEvent(items: { type: string; kind: string; file?: Blob }[], types: string[], text = '') {
+    const ev = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(ev, 'clipboardData', {
+      value: {
+        items: items.map((i) => ({ kind: i.kind, type: i.type, getAsFile: () => i.file ?? null })),
+        types,
+        getData: (t: string) => (t === 'text/plain' ? text : ''),
+        files: [],
+      },
+    })
+    return ev
+  }
+  const png = () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' })
+
+  it('saves it and inserts a link with the cursor in the alt text', async () => {
+    const target = await openDoc('# Results\n\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ selection: { anchor: view.state.doc.length } })
+    const ev = pasteEvent([{ kind: 'file', type: 'image/png', file: png() }], ['Files'])
+    view.contentDOM.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(true)
+
+    await vi.waitFor(() => expect(view.state.doc.toString()).toContain('![](images/pasted-20261017-140305.png)'))
+    expect(DocumentService.SavePastedImage).toHaveBeenCalledWith('/tmp/paper.md', 'AQID', 'png')
+    const at = view.state.doc.toString().indexOf('![](') + 2
+    expect(view.state.selection.main.head).toBe(at)
+  })
+
+  it('shows a message in an untitled document', async () => {
+    recents.current = []
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.cm-editor')).not.toBeNull())
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.contentDOM.dispatchEvent(pasteEvent([{ kind: 'file', type: 'image/png', file: png() }], ['Files']))
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe('Save the document before pasting images'),
+    )
+    expect(DocumentService.SavePastedImage).not.toHaveBeenCalled()
+  })
+
+  it('refuses an image type it cannot save', async () => {
+    const target = await openDoc('# Results\n\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const bmp = new Blob([new Uint8Array([1])], { type: 'image/bmp' })
+    view.contentDOM.dispatchEvent(pasteEvent([{ kind: 'file', type: 'image/bmp', file: bmp }], ['Files']))
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe('This image type cannot be pasted'),
+    )
+    expect(DocumentService.SavePastedImage).not.toHaveBeenCalled()
+  })
+
+  it('leaves a paste with text and an image to the normal text paste', async () => {
+    const target = await openDoc('# Results\n\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const ev = pasteEvent(
+      [
+        { kind: 'string', type: 'text/plain' },
+        { kind: 'file', type: 'image/png', file: png() },
+      ],
+      ['text/plain', 'Files'],
+      'hello',
+    )
+    view.contentDOM.dispatchEvent(ev)
+    await new Promise((r) => setTimeout(r, 20))
+    expect(DocumentService.SavePastedImage).not.toHaveBeenCalled()
+    expect(view.state.doc.toString()).toContain('hello')
   })
 })

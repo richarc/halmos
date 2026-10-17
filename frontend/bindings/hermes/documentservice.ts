@@ -177,6 +177,16 @@ export function SaveAs(content: string): $CancellablePromise<string> {
 }
 
 /**
+ * SavePastedImage writes clipboard image bytes into an images/ folder beside
+ * the document and returns the path relative to the document, with forward
+ * slashes, ready to put in a markdown image link. An unsaved document has no
+ * folder to write beside, so it is refused.
+ */
+export function SavePastedImage(docPath: string, data: string | null, ext: string): $CancellablePromise<string> {
+    return $Call.ByID(2500029237, docPath, data, ext);
+}
+
+/**
  * SetCitationStyle records the open document's `csl:` value (the frontend
  * sends "apa" when there is none) so the menu can tick it. The menu is only
  * rebuilt on a real change.

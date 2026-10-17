@@ -611,6 +611,48 @@
     editor.applyChange(change.from, change.to, change.insert)
   }
 
+  const PASTE_EXTENSIONS: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+  }
+
+  // The binding takes []byte, which Wails sends as a base64 string.
+  function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onerror = () => reject(reader.error)
+      reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ''))
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  // Editor paste handler for a clipboard that holds an image and no text. The
+  // image file is written at once and is not part of undo; the link goes in
+  // through the editor, so it dirties the document and undoes like any text.
+  async function pasteImage(file: Blob, type: string) {
+    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    if (path === null) {
+      toast('Save the document before pasting images')
+      return
+    }
+    const ext = PASTE_EXTENSIONS[type]
+    if (!ext) {
+      toast('This image type cannot be pasted')
+      return
+    }
+    const docPath = path
+    try {
+      const rel = await DocumentService.SavePastedImage(docPath, await blobToBase64(file), ext)
+      // The write is async: do not drop a link into a different document.
+      if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen) return
+      editor.insertImageLink(rel)
+    } catch (e) {
+      toast(`Could not paste the image: ${e}`)
+    }
+  }
+
   function onEditorChange(text: string) {
     content = text
     welcomeDismissed = true
@@ -1219,7 +1261,7 @@
       >
     {/if}
     <section class="editor-pane" style="width: {editorWidth}%">
-      <Editor bind:this={editor} citations={() => citationContext} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} spellcheck={spellCheck} />
+      <Editor bind:this={editor} citations={() => citationContext} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} onpasteimage={pasteImage} spellcheck={spellCheck} />
     </section>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -- WAI-ARIA "window splitter" pattern: a focusable separator with arrow-key resizing is the recommended markup -->
     <div
