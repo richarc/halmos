@@ -52,6 +52,10 @@ tasks:
       prompting for an application.
     cmds:
       - task: bundle:licences:copy
+      # Nested code is signed before the bundle around it: the outer
+      # signature records the extension's, and is signed without --deep.
+      - task: quicklook:embed
+        vars: { IDENTITY: '{{.IDENTITY}}' }
       # Signing must come last: codesign seals Contents/Resources, so files
       # added afterwards invalidate the signature.
       #
@@ -174,10 +178,14 @@ tasks:
       - rm -rf "{{.APP}}"
       - task: darwin:package:universal
       - task: bundle:licences:copy
+      # The Quick Look extension is nested code, so it is signed first — with
+      # its own sandbox entitlements, which --deep would not apply.
+      - task: quicklook:embed
+        vars: { IDENTITY: '{{.IDENTITY}}', TIMESTAMP: '--timestamp' }
       # --options runtime (hardened runtime) and --timestamp are both required
       # for notarization; without either, submission is rejected rather than
-      # the app being. No --deep: Apple deprecated it for signing, and this
-      # bundle has no nested code for it to reach anyway.
+      # the app being. No --deep: Apple deprecated it for signing, and the
+      # one piece of nested code, the Quick Look extension, is signed above.
       - codesign --force --options runtime --timestamp --sign "{{.IDENTITY}}" "{{.APP}}"
       - codesign --verify --strict --verbose=2 "{{.APP}}"
       - ditto -c -k --keepParent "{{.APP}}" "{{.ZIP}}"
@@ -213,6 +221,87 @@ tasks:
       - spctl -a -vvv -t exec "{{.APP}}"
       # Proves the licences survived signing rather than being sealed out.
       - test -f "{{.APP}}/Contents/Resources/licences/NOTICE.txt"
+
+  quicklook:build:
+    summary: Builds the Quick Look preview extension into bin/HalmosQuickLook.appex
+    platforms: [darwin]
+    desc: |
+      A view-based Quick Look extension (quicklook/) that previews .md files
+      in Finder with the app's own renderer. Its page is frontend/quicklook.html,
+      built separately by `vite build --mode quicklook` so the app's bundle is
+      untouched, and carried in the extension's Resources/quicklook.
+
+      Compiled with swiftc rather than an Xcode project: one source file, and
+      the rest of the build is Task. Universal, like the release app. The
+      entry point is NSExtensionMain, which is what makes the binary an
+      extension rather than a program; -application-extension restricts it to
+      extension-safe API.
+
+      Not signed here — see quicklook:embed, which signs it in place inside
+      the app.
+    vars:
+      APPEX: '{{.BIN_DIR}}/HalmosQuickLook.appex'
+      VERSION:
+        sh: /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" build/darwin/Info.plist
+    sources:
+      - quicklook/**/*
+      - frontend/quicklook.html
+      - frontend/src/**/*
+      - frontend/public/style.css
+      - frontend/vite.config.ts
+      - frontend/package.json
+      - build/darwin/Info.plist
+    generates:
+      - '{{.APPEX}}/Contents/MacOS/HalmosQuickLook'
+    cmds:
+      - '{{.PACKAGE_MANAGER}} --prefix frontend run build:quicklook'
+      - rm -rf "{{.APPEX}}"
+      - mkdir -p "{{.APPEX}}/Contents/MacOS" "{{.APPEX}}/Contents/Resources"
+      - |
+        for arch in arm64 x86_64; do
+          xcrun swiftc -swift-version 5 -O -parse-as-library -application-extension \
+            -target "$arch-apple-macos12.0" -module-name HalmosQuickLook \
+            -framework Cocoa -framework Quartz -framework WebKit \
+            -Xlinker -e -Xlinker _NSExtensionMain \
+            quicklook/PreviewViewController.swift \
+            -o "{{.BIN_DIR}}/HalmosQuickLook-$arch"
+        done
+      - lipo -create -output "{{.APPEX}}/Contents/MacOS/HalmosQuickLook" "{{.BIN_DIR}}/HalmosQuickLook-arm64" "{{.BIN_DIR}}/HalmosQuickLook-x86_64"
+      - rm -f "{{.BIN_DIR}}/HalmosQuickLook-arm64" "{{.BIN_DIR}}/HalmosQuickLook-x86_64"
+      - cp quicklook/Info.plist "{{.APPEX}}/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{.VERSION}}" -c "Set :CFBundleVersion {{.VERSION}}" "{{.APPEX}}/Contents/Info.plist"
+      - cp -R frontend/dist-quicklook "{{.APPEX}}/Contents/Resources/quicklook"
+
+  quicklook:embed:
+    summary: Copies the Quick Look extension into the packaged .app and signs it
+    platforms: [darwin]
+    internal: true
+    desc: |
+      Must run before the outer app is signed: the app's signature covers its
+      nested code, so the extension is signed first and the app after it.
+      Called by bundle:licences and release, which then sign the app.
+
+      Its own entitlements (quicklook/HalmosQuickLook.entitlements): an app
+      extension that is not sandboxed is refused by pluginkit. Hardened
+      runtime always, so the package build is signed the way the release is.
+    vars:
+      IDENTITY: '{{.IDENTITY | default "Developer ID Application"}}'
+      TIMESTAMP: '{{.TIMESTAMP | default ""}}'
+      PLUGINS: '{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/PlugIns'
+    cmds:
+      - task: quicklook:build
+      - rm -rf "{{.PLUGINS}}/HalmosQuickLook.appex"
+      - mkdir -p "{{.PLUGINS}}"
+      - ditto "{{.BIN_DIR}}/HalmosQuickLook.appex" "{{.PLUGINS}}/HalmosQuickLook.appex"
+      - |
+        if security find-identity -v -p codesigning | grep -q "{{.IDENTITY}}"; then
+          signer="{{.IDENTITY}}"
+        else
+          signer=-
+        fi
+        codesign --force --options runtime {{.TIMESTAMP}} \
+          --entitlements quicklook/HalmosQuickLook.entitlements \
+          --sign "$signer" "{{.PLUGINS}}/HalmosQuickLook.appex"
 
   run:
     summary: Runs the application
