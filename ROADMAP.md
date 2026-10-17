@@ -27,43 +27,6 @@ Agreed 2026-10-12. These rules decide what goes into each release below.
   payment with export and citation services as the first paid features,
   then AI for routine work, then AI limited to the user's own sources.
 
-## v0.14.0 — Reading and sharing
-
-Smaller improvements for reading and sharing documents. Can move after
-v1.0.0 if the release work needs the time.
-
-- [x] **Quick Look preview for `.md` files.** Finder's space-bar preview shows
-      the rendered document, so a reader sees Halmos output without opening
-      the app. Builds on the `.md` association from v0.11.4. Needs a Quick
-      Look preview extension inside the bundle; the renderer is JavaScript,
-      so the extension has to host a web view or reuse the bundled
-      `frontend/dist`. Check what this does to signing and notarization in
-      `wails3 task release` before starting.
-      Done 2026-10-17. Quick Look extension in `quicklook/`; no citations or document-relative images.
-- [x] **Rendering additions.** markdown-it plugins for task lists and
-      GitHub-style alerts (`> [!NOTE]`). Each needs preview styles in
-      `style.css` under the colour contract, PDF export checked, and
-      spell-check scoping checked.
-      Done 2026-10-17. Local task-list and alert rule in `lib/taskAlerts.ts`.
-- [x] **Copy button on code blocks** in the preview. Hidden in PDF export. Done 2026-10-17.
-- [x] **Paste an image into the editor.** Save the pasted image beside the
-      document (an `images/` folder or similar, to decide) and insert
-      `![](path)`. `localimages.go` already serves images from beside the
-      document; this is the missing write side. An untitled document has no
-      folder yet, so it needs a rule: refuse with a message, or ask to save
-      first.
-      Done 2026-10-17. Images go to `images/`; untitled documents are refused with a message.
-- [x] **Export to self-contained HTML.** One file with styles, maths, charts
-      and local images inlined, for sharing a draft without a PDF. Charts as
-      inline SVG, images as data URIs. Remote images stay remote.
-      Done 2026-10-17.
-- [x] **Reading comfort.** A third theme (sepia or similar) and a choice of
-      body font for the preview. Both are settings in `settings.go`. A third
-      theme means a third palette block in `style.css`, and
-      `styleContract.test.ts` currently checks exactly two blocks, so the
-      test changes with it.
-      Done 2026-10-17. Sepia theme and six body fonts.
-
 ## v1.0.0 — Production
 
 Distribution is step 1 of the website work: GitHub Releases for the binary and
@@ -193,8 +156,10 @@ accepting it.
 Paid. The AI only ever cites what is in the user's `.bib` file or Zotero
 library, so it cannot invent a reference.
 
-- [ ] **Suggest references for a paragraph** from the user's library, with
-      the reason each one fits. The user chooses what to insert.
+- [ ] **Suggest references for the text at the cursor** from the user's
+      library: the highlighted text if there is a selection, otherwise the
+      sentence or paragraph around the cursor. Each suggestion comes with the
+      reason it fits. The user chooses what to insert.
 - [ ] **Search the PDFs in the user's Zotero library** to find where a
       source supports a claim. Decide whether the index is built locally or
       on the server; unpublished work and licensed PDFs argue for local.
@@ -298,6 +263,28 @@ Ideas noted along the way, not yet committed to a release:
   - The unknown-citation count parses the whole document a second time on
     each typing pause, alongside the preview render. Derive it from the
     render's citations if large documents feel slow.
+
+- Leftovers from the v0.14.0 reviews, judged minor:
+  - Task lists and alerts: an empty `- [ ]` shows a lone checkbox; nested
+    task-list spacing is unchecked; an alert marker line ending in two
+    trailing spaces (a hard break) stays a plain blockquote.
+  - Copy button: no message if the clipboard write fails; it can overlap a
+    long first line; it is a white chip on the sepia sheet; it shows on every
+    fenced block, while the docs say highlighted blocks.
+  - Pasted images: if the document changes mid-paste the saved file is left
+    unused with no message; a paste refused by the editor's guards gives no
+    feedback; no size limit; a crash mid-write can leave a `.pasted.tmp*`
+    file.
+  - HTML export: an untitled document exports as `Untitled.html` while the PDF
+    is `untitled.pdf`; `lang="en"` is fixed; no size limit on embedded images
+    (the docs say so). The PDF save panel, unlike the HTML one, does not open
+    beside the document.
+  - Quick Look: a chart whose data comes from a web address is drawn empty
+    (by design: the content rules block it); the release's `network.server`
+    guard passes if `codesign -d` itself errors.
+  - Tests: the chart-exclusion test for the copy button is weak; the contrast
+    test's theme discovery would miss a theme name with digits or hyphens;
+    the post-export abort path has no test of its own.
   - Autocomplete's maths and frontmatter checks are bounded for speed:
     display maths spanning a blank line, and frontmatter over 100 lines,
     are not recognised.
