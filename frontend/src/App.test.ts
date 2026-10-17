@@ -1340,6 +1340,24 @@ describe('export HTML', () => {
     )
   })
 
+  it('abandons the export when another document is opened while the panel is up', async () => {
+    const { target } = await openPaper()
+    let choose!: (v: string) => void
+    DocumentService.ChooseHTMLExportPath.mockReturnValueOnce(new Promise<string>((r) => (choose = r)))
+    listeners['menu:export-html']({ data: null })
+    await vi.waitFor(() => expect(DocumentService.ChooseHTMLExportPath).toHaveBeenCalled())
+
+    // The panel is not modal to the webview: open another document behind it.
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/tmp/other.md', content: '# Other\n' })
+    listeners['menu:open-recent']({ data: '/tmp/other.md' })
+    await vi.waitFor(() => expect(target.textContent).toContain('Other'))
+
+    choose('/tmp/out/paper.html')
+    await vi.waitFor(() => expect(target.querySelector('.toast')).not.toBeNull())
+    expect(target.querySelector('.toast')?.textContent).toMatch(/changed/)
+    expect(DocumentService.WriteHTMLExport).not.toHaveBeenCalled()
+  })
+
   it('is ignored on the welcome screen', async () => {
     recents.current = ['/papers/thesis.md']
     const { target } = mountApp()

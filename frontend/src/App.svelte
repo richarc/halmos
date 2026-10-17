@@ -590,9 +590,23 @@
     try {
       const target = await DocumentService.ChooseHTMLExportPath(docPath)
       if (!target) return
+      // The panel is not modal to the webview: the document may have
+      // changed, and a page built from the new one would be saved under the
+      // old one's name with its images resolved against the wrong folder.
+      const moved = () => (path ?? '') !== docPath || showWelcome || chartOpen || tableOpen || newOpen
+      if (moved()) {
+        toast('Export cancelled: the document changed')
+        return
+      }
       const { buildStandaloneHTML, loadExportStyles } = await import('./lib/htmlExport')
       const { css, katexCss } = await loadExportStyles()
-      const page = await buildStandaloneHTML(await preview.exportRoot(), {
+      const root = await preview.exportRoot()
+      // exportRoot waits up to 10 s for charts and diagrams to hydrate.
+      if (moved()) {
+        toast('Export cancelled: the document changed')
+        return
+      }
+      const page = await buildStandaloneHTML(root, {
         title: (filename ?? 'Untitled').replace(/\.[^.]+$/, ''),
         bodyFont: bodyFontStack(bodyFont),
         css,

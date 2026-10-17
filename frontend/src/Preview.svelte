@@ -161,7 +161,8 @@
     hydrated = Promise.allSettled([charts, diagrams, code])
   })
 
-  // Paper size and orientation change the sheet's width AND its padding, so
+  // Paper size and orientation change the sheet's width AND its padding, and
+  // the body font changes every line's metrics, so
   // every block in the document reflows and every cached anchor `top` is
   // stale — but the pane's own box is unchanged, so the ResizeObserver below
   // never fires and createScrollSync goes on scrolling to the old offsets.
@@ -174,9 +175,10 @@
   // this file a test cannot reach.
   $effect(() => {
     // Referenced rather than used: an $effect tracks exactly what it reads,
-    // and this one is here for the reflow these two cause, not their values.
+    // and this one is here for the reflow these three cause, not their values.
     void paperSize
     void orientation
+    void bodyFont
     fitDisplayMath(sheet)
     sync.invalidate()
   })
