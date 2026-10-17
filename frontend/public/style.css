@@ -430,7 +430,7 @@ textarea:focus-visible,
 .sheet .markdown-alert-caution > .markdown-alert-title { color: var(--doc-alert-caution); }
 /* Task lists: the checkbox takes the bullet's place. */
 .sheet ul.task-list-container { list-style: none; padding-left: 0.4em; }
-.sheet li.task-list-item > input[type="checkbox"] { margin: 0 0.4em 0 0; vertical-align: middle; }
+.sheet .task-list-item-checkbox { margin: 0 0.4em 0 0; vertical-align: middle; }
 .sheet li.task-list-item > ul.task-list-container { padding-left: 1.4em; }
 .sheet pre {
   background: var(--doc-surface-code-block); padding: 12px; border-radius: 6px; overflow-x: auto;

@@ -332,3 +332,13 @@ describe('control styling', () => {
     expect(css).not.toMatch(/\bwelcome-action\b/)
   })
 })
+
+describe('task list styling', () => {
+  it('styles the checkbox class the renderer emits', async () => {
+    const { render } = await import('./renderer')
+    const html = render('- [ ] a')
+    const cls = html.match(/<input type="checkbox" class="([^"]+)"/)?.[1]
+    expect(cls).toBeTruthy()
+    expect(CSS).toContain(`.sheet .${cls} {`)
+  })
+})
