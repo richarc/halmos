@@ -47,11 +47,12 @@ import (
 
 // enableInspector lets Safari's Develop menu see the window's webview.
 //
-// Wails' dev build sets WebKit's `developerExtrasEnabled` preference, which
-// is what the in-app inspector and the context menu's Inspect Element read.
 // Since macOS 13.3 Safari lists a WKWebView only if its `inspectable`
-// property is also on, and Wails never sets it, so without this the app is
-// absent from Develop → <Mac name> however it was built. Dev builds only:
+// property is on. Wails up to beta.12 never set it on macOS; beta.30's dev
+// build does, so this is now a second guarantee rather than the only one.
+// Attaching also needs WebKit's `developerExtrasEnabled`, which Wails sets
+// only when built with the `private_mac_apis` tag (see the web-inspector
+// skill). Dev builds only:
 // this file is compiled out under the `production` tag, the same tag that
 // removes Wails' own devtools code.
 //
