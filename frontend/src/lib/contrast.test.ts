@@ -105,8 +105,16 @@ describe('palette contrast', () => {
     expect(check(':root')).toEqual([])
   })
 
-  it('meets every target in the dark palette', () => {
-    expect(check(':root[data-theme="dark"]')).toEqual([])
+  // Every theme block in the stylesheet, so a new theme is measured the day
+  // it is added rather than the day someone notices.
+  const THEMES = [...CSS.matchAll(/^:root\[data-theme="([a-z]+)"\] \{/gm)].map((m) => m[1])
+
+  it('finds the dark and sepia palettes', () => {
+    expect(THEMES).toEqual(expect.arrayContaining(['dark', 'sepia']))
+  })
+
+  it.each(THEMES)('meets every target in the %s palette', (theme) => {
+    expect(check(`:root[data-theme="${theme}"]`)).toEqual([])
   })
 
   it('meets every target in the document palette', () => {
