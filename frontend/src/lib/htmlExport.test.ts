@@ -57,6 +57,32 @@ describe('buildStandaloneHTML', () => {
     expect(doc.querySelector('.preview-pane')?.getAttribute('data-figure-align')).toBe('center')
   })
 
+  it('takes the title from the first real heading, not the contents list', async () => {
+    const root = previewSheet(
+      '<nav class="toc"><h2>Contents</h2><ul><li><a href="#r">Results</a></li></ul></nav><h1 id="r">Results</h1>',
+    )
+    expect(parse(await buildStandaloneHTML(root, opts())).title).toBe('Results')
+  })
+
+  it('titles a heading with inline maths by its TeX, once', async () => {
+    const root = previewSheet(
+      '<h1>Energy <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>E</mi></mrow>' +
+        '<annotation encoding="application/x-tex">E=mc^2</annotation></semantics></math></span>' +
+        '<span class="katex-html" aria-hidden="true"><span class="base">E=mc2</span></span></span> bound</h1>',
+    )
+    expect(parse(await buildStandaloneHTML(root, opts())).title).toBe('Energy E=mc^2 bound')
+  })
+
+  it('leaves footnote markers out of the title', async () => {
+    const root = previewSheet(
+      '<h1>Method<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup></h1>',
+    )
+    const doc = parse(await buildStandaloneHTML(root, opts()))
+    expect(doc.title).toBe('Method')
+    // Only the title is cleaned; the heading itself keeps its marker.
+    expect(doc.querySelector('.sheet h1 .footnote-ref')).not.toBeNull()
+  })
+
   it('falls back to the given title when there is no heading', async () => {
     const root = previewSheet('<p>just prose</p>')
     const doc = parse(await buildStandaloneHTML(root, opts({ title: 'notes <draft>' })))

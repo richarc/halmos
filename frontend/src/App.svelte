@@ -592,7 +592,7 @@
       if (!target) return
       const { buildStandaloneHTML, loadExportStyles } = await import('./lib/htmlExport')
       const { css, katexCss } = await loadExportStyles()
-      const page = await buildStandaloneHTML(preview.exportRoot(), {
+      const page = await buildStandaloneHTML(await preview.exportRoot(), {
         title: (filename ?? 'Untitled').replace(/\.[^.]+$/, ''),
         bodyFont: bodyFontStack(bodyFont),
         css,

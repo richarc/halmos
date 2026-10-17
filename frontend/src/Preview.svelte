@@ -10,6 +10,7 @@
   import { timed, timedAsync } from './lib/perf'
   import { reconcileChildren } from './lib/reconcile'
   import { fitDisplayMath } from './lib/fitMath'
+  import { waitForLatest } from './lib/settle'
   import {
     sheetStyle,
     DEFAULT_PAPER_SIZE,
@@ -61,8 +62,18 @@
     sync.sync(line, docLines)
   }
 
-  /** The rendered sheet, for HTML export to clone. Never modify it. */
-  export function exportRoot(): HTMLElement {
+  // Settles when the latest render's hydrators have all finished. Replaced on
+  // every render, so exportRoot can tell whether a newer one has started.
+  let hydrated: Promise<unknown> = Promise.resolve()
+  const EXPORT_WAIT_MS = 10_000
+
+  /**
+   * The rendered sheet, for HTML export to clone, once charts, diagrams and
+   * code have finished hydrating — otherwise they would export as empty
+   * placeholders. Gives up waiting after EXPORT_WAIT_MS. Never modify it.
+   */
+  export async function exportRoot(): Promise<HTMLElement> {
+    await waitForLatest(() => hydrated, EXPORT_WAIT_MS)
     return sheet
   }
 
@@ -138,15 +149,16 @@
     // The hydrators are measured to settlement, so `hermes:hydrate-*` spans
     // the async work (dynamic imports, Vega embeds) and not just the pass
     // that queued it.
-    void timedAsync('hydrate-charts', hydrator.hydrate(sheet)).then(() => sync.invalidate())
+    const charts = timedAsync('hydrate-charts', hydrator.hydrate(sheet)).then(() => sync.invalidate())
     // Same reason the chart hydrator invalidates: a diagram changes its own
     // height after the pass that placed it, so anchors measured before it
     // rendered are wrong.
-    void timedAsync('hydrate-mermaid', mermaidHydrator.hydrate(sheet)).then(() => sync.invalidate())
+    const diagrams = timedAsync('hydrate-mermaid', mermaidHydrator.hydrate(sheet)).then(() => sync.invalidate())
     // Every failure inside the hydrator already degrades to plain text; this
     // is a backstop against an unhandled rejection reaching the webview, not
     // the primary defence.
-    void timedAsync('hydrate-code', codeHydrator.hydrate(sheet)).catch(() => {})
+    const code = timedAsync('hydrate-code', codeHydrator.hydrate(sheet)).catch(() => {})
+    hydrated = Promise.allSettled([charts, diagrams, code])
   })
 
   // Paper size and orientation change the sheet's width AND its padding, so

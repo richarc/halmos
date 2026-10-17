@@ -36,15 +36,29 @@ func htmlExportFilename(docPath string) string {
 	return strings.TrimSuffix(base, filepath.Ext(base)) + ".html"
 }
 
+// htmlExportDialogTarget is where the export panel opens and the name it
+// offers: beside the document, named after it. An unsaved document has no
+// folder, so dir is "" and the panel keeps its own default.
+func htmlExportDialogTarget(docPath string) (dir, name string) {
+	if docPath != "" {
+		dir = filepath.Dir(docPath)
+	}
+	return dir, htmlExportFilename(docPath)
+}
+
 // ChooseHTMLExportPath asks where File → Export HTML… should write. It returns
 // "" when the author cancels. The page itself is built by the frontend, which
 // holds the rendered preview, and written with WriteHTMLExport.
 func (s *DocumentService) ChooseHTMLExportPath(docPath string) (string, error) {
-	return application.Get().Dialog.SaveFile().
+	dir, name := htmlExportDialogTarget(docPath)
+	dialog := application.Get().Dialog.SaveFile().
 		SetMessage("Export HTML").
-		SetFilename(htmlExportFilename(docPath)).
-		AddFilter("HTML files", "*.html").
-		PromptForSingleSelection()
+		SetFilename(name).
+		AddFilter("HTML files", "*.html")
+	if dir != "" {
+		dialog = dialog.SetDirectory(dir)
+	}
+	return dialog.PromptForSingleSelection()
 }
 
 // WriteHTMLExport writes the exported page atomically, like a save.

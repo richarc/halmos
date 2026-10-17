@@ -94,3 +94,15 @@ func TestWriteHTMLExportWritesFile(t *testing.T) {
 		t.Fatalf("got %q, %v", b, err)
 	}
 }
+
+func TestHTMLExportDialogOpensBesideDocument(t *testing.T) {
+	dir, name := htmlExportDialogTarget("/papers/thesis/paper.md")
+	if dir != "/papers/thesis" || name != "paper.html" {
+		t.Fatalf("got %q, %q", dir, name)
+	}
+	// An unsaved document has no folder; the panel keeps its own default.
+	dir, name = htmlExportDialogTarget("")
+	if dir != "" || name != "Untitled.html" {
+		t.Fatalf("unsaved: got %q, %q", dir, name)
+	}
+}

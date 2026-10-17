@@ -66,8 +66,7 @@ export async function buildStandaloneHTML(
     `${style}${style && !style.trimEnd().endsWith(';') ? '; ' : ''}--doc-font-body: ${opts.bodyFont}`,
   )
 
-  const heading = sheet.querySelector('h1, h2, h3, h4, h5, h6')?.textContent?.trim()
-  const title = heading || opts.title
+  const title = headingTitle(sheet) || opts.title
   const align = root.closest('[data-figure-align]')?.getAttribute('data-figure-align') ?? 'center'
 
   return `<!doctype html>
@@ -92,6 +91,26 @@ ${sheet.outerHTML}
 }
 
 const URL_ATTRIBUTES = new Set(['href', 'src', 'xlink:href', 'action', 'formaction'])
+
+/**
+ * The first real heading's text, as a title: not the contents list's own
+ * "Contents" heading, maths as its TeX source (KaTeX renders it twice, once as
+ * MathML and once as HTML, so plain textContent repeats it), and no footnote
+ * markers.
+ */
+function headingTitle(sheet: HTMLElement): string {
+  const heading = [...sheet.querySelectorAll('h1, h2, h3, h4, h5, h6')].find(
+    (h) => !h.closest('nav.toc'),
+  )
+  if (!heading) return ''
+  const copy = heading.cloneNode(true) as Element
+  copy.querySelectorAll('.footnote-ref').forEach((el) => el.remove())
+  copy.querySelectorAll('.katex').forEach((el) => {
+    const tex = el.querySelector('annotation[encoding="application/x-tex"]')?.textContent
+    el.replaceWith(tex ?? el.querySelector('.katex-html')?.textContent ?? '')
+  })
+  return (copy.textContent ?? '').replace(/\s+/g, ' ').trim()
+}
 
 /** Removes inline event handlers and javascript: URLs. */
 function stripActiveAttributes(el: Element): void {
