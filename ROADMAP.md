@@ -82,6 +82,14 @@ separate, much larger project and is deliberately not part of this.
       list and the New and Open buttons so it looks more professional and
       is easier to read. Produce three alternative designs to assess
       before choosing one. *Done 2026-10-17*: option A, the split launcher.
+- [ ] **A design system, and the rest of the app brought up to it.** The
+      new start screen makes the other screens look rough: button sizes,
+      corners, spacing and dialog text sizes were each chosen one rule at a
+      time. *Status 2026-10-17*: step 1 done, the Halmos Design System in
+      Claude Design, built from `style.css`, which stays the master copy.
+      Step 2 audits each screen against it (dialogs first), showing the
+      current screen beside a version that follows the system; step 3
+      redesigns them one at a time, as the start screen was done.
 - [ ] Windows and Linux stay in the backlog. Decide before v1.1.0 whether
       Windows comes before the first paid release: many academics use it,
       and a Mac-only product limits who can pay.
