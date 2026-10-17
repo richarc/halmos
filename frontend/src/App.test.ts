@@ -28,6 +28,10 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
     DEFAULT_SETTINGS,
     DocumentService: {
       RecentFiles: vi.fn(async () => recents.current),
+      ClearRecents: vi.fn(async () => {
+        recents.current = []
+      }),
+      WelcomeInfo: vi.fn(async () => ({ version: '0.14.0', home: '/Users/ann' })),
       SetDirty: vi.fn(async () => {}),
       WatchBibliography: vi.fn(async () => {}),
       ReadBibliography: vi.fn(async () => ''),
@@ -183,46 +187,89 @@ afterEach(() => {
 })
 
 describe('welcome pane', () => {
-  // The pane is the first thing a returning user sees, so it carries the
-  // two pointers a newcomer needs: where the guides are, and how to report a
-  // bug. The guides link must open in the system browser — a plain <a href>
-  // would navigate the webview away and destroy the app state.
-  it('points at the guides and at Help → Report an Issue, above the recent files', async () => {
+  // The pane is the first thing a returning user sees: what the app is and
+  // which version, how to start, and the files they were last working on.
+  it('shows the app name and version', async () => {
     recents.current = ['/papers/thesis.md']
     const { target } = mountApp()
-    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    await vi.waitFor(() => expect(target.querySelector('.welcome-version')).not.toBeNull())
 
-    const intro = target.querySelector<HTMLElement>('.welcome-intro')!
-    expect(intro).not.toBeNull()
-    expect(intro.textContent).toContain('halmoseditor.com/guides')
-    expect(intro.textContent).toContain('Help → Report an Issue')
-    // Above the list, not below it.
-    const list = target.querySelector('.welcome ul')!
-    expect(intro.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-
-    buttonByText(intro, 'halmoseditor.com/guides')!.click()
-    expect(Browser.OpenURL).toHaveBeenCalledWith('https://www.halmoseditor.com/guides')
-    expect(intro.querySelector('a[href]')).toBeNull()
+    expect(target.querySelector('.welcome h1')?.textContent).toBe('Halmos Editor')
+    expect(target.querySelector('.welcome-version')?.textContent).toBe('Version 0.14.0')
   })
 
-  // Questions and ideas go to GitHub Discussions. The link sits between the
-  // guides and the recent files, and opens in the system browser like the
-  // guides link does.
-  it('points at Discussions, below the guides and above the recent files', async () => {
+  // An unbundled build has no Info.plist to read a version from.
+  it('hides the version line when there is none', async () => {
+    recents.current = ['/papers/thesis.md']
+    DocumentService.WelcomeInfo.mockResolvedValueOnce({ version: '', home: '/Users/ann' })
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    await Promise.resolve()
+    flushSync()
+
+    expect(target.querySelector('.welcome-version')).toBeNull()
+  })
+
+  it('lists recent files by name with the folder under it', async () => {
+    recents.current = ['/Users/ann/Papers/qec.md']
+    const { target } = mountApp()
+    await vi.waitFor(() =>
+      expect(target.querySelector('.welcome-recent-folder')?.textContent).toBe('~/Papers'),
+    )
+
+    expect(target.querySelector('.welcome-recent-name')?.textContent).toBe('qec.md')
+    target.querySelector<HTMLButtonElement>('.welcome-recent')!.click()
+    await vi.waitFor(() => expect(DocumentService.OpenPath).toHaveBeenCalledWith('/Users/ann/Papers/qec.md'))
+  })
+
+  // The ellipsis itself is CSS and checked by eye; this pins the element the
+  // rule targets, one per row.
+  it('truncates long folders', async () => {
+    recents.current = ['/Users/ann/a/very/deep/folder/that/goes/on/and/on/qec.md', '/Users/ann/b.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelectorAll('.welcome-recent-folder')).toHaveLength(2))
+  })
+
+  // Both links open in the system browser — a plain <a href> would navigate
+  // the webview away and destroy the app state.
+  it('opens the guides and discussions in the browser', async () => {
     recents.current = ['/papers/thesis.md']
     const { target } = mountApp()
     await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
 
-    const link = buttonByText(target, 'github.com/richarc/halmos/discussions')!
-    expect(link).toBeDefined()
-    const guides = buttonByText(target, 'halmoseditor.com/guides')!
-    const list = target.querySelector('.welcome ul')!
-    expect(guides.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(link.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-
-    link.click()
+    buttonByText(target, 'Guides at halmoseditor.com')!.click()
+    expect(Browser.OpenURL).toHaveBeenCalledWith('https://www.halmoseditor.com/guides')
+    buttonByText(target, 'Questions and ideas')!.click()
     expect(Browser.OpenURL).toHaveBeenCalledWith('https://github.com/richarc/halmos/discussions')
     expect(target.querySelector('.welcome a[href]')).toBeNull()
+    expect(target.querySelector('.welcome-help')?.textContent).toContain('Help → Report an Issue')
+  })
+
+  // The hint is drawn by CSS from data-shortcut, so a button's text stays
+  // its label.
+  it('shows the shortcut hints without changing the labels', async () => {
+    recents.current = ['/papers/thesis.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(buttonByText(target, 'New document')).toBeDefined())
+
+    expect(buttonByText(target, 'New document')!.dataset.shortcut).toBe('⌘N')
+    expect(buttonByText(target, 'Open…')!.dataset.shortcut).toBe('⌘O')
+  })
+
+  // With nothing left to list, the pane goes the way a first launch does:
+  // straight into a new templated document.
+  it('Clear empties the list and starts a new document', async () => {
+    recents.current = ['/papers/thesis.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(buttonByText(target, 'Clear')).toBeDefined())
+
+    buttonByText(target, 'Clear')!.click()
+
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).toBeNull())
+    expect(DocumentService.ClearRecents).toHaveBeenCalled()
+    await vi.waitFor(() =>
+      expect(target.querySelector('.editor-pane')?.textContent).toContain('bibliography: references.bib'),
+    )
   })
 
   it('offers both New document and Open… when recents exist', async () => {

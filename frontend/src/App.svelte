@@ -2,7 +2,7 @@
   import { onMount, untrack, flushSync } from 'svelte'
   import { Events, Browser } from '@wailsio/runtime'
   import { DocumentService, DemoService } from '../bindings/hermes'
-  import type { Settings, Draft, UpdateResult } from '../bindings/hermes/models'
+  import type { Settings, Draft, UpdateResult, WelcomeInfo } from '../bindings/hermes/models'
   import Editor from './Editor.svelte'
   import Preview from './Preview.svelte'
   import { bodyFontStack } from './lib/bodyFont'
@@ -11,6 +11,7 @@
   import { type OutlineEntry } from './lib/outline'
   import Outline from './Outline.svelte'
   import { debounce } from './lib/debounce'
+  import { splitRecent } from './lib/recentPath'
   import { createAdaptiveWait } from './lib/adaptiveWait'
   import { runDemo, type DemoActions } from './lib/demo'
   import { createDraftKeeper, DRAFT_DEBOUNCE_MS } from './lib/recoveryDraft'
@@ -64,6 +65,10 @@
   let savedContent = $state('')
   let html = $state('')
   let recents = $state<string[]>([])
+  // The start screen's version line and the home folder its recent files
+  // shorten to ~. Empty until Go answers, and for an unbundled build.
+  let welcomeInfo = $state<WelcomeInfo>({ version: '', home: '' })
+  const welcomeRecents = $derived(recents.map((r) => ({ path: r, ...splitRecent(r, welcomeInfo.home) })))
   let pendingAction = $state<'quit' | 'close' | 'open' | 'new' | null>(null)
   let pendingRecentPath = $state<string | null>(null)
   let welcomeDismissed = $state(false)
@@ -824,6 +829,14 @@
     recents = (await DocumentService.RecentFiles()) ?? []
   }
 
+  // The start screen's Clear. With no recents the pane has nothing to show,
+  // so this ends the way a first launch does: in a new templated document.
+  async function clearRecents() {
+    await DocumentService.ClearRecents()
+    await refreshRecents()
+    doNew()
+  }
+
   async function refreshSettings() {
     const s: Settings = await DocumentService.Settings()
     syncScrolling = s.syncScrolling
@@ -1233,6 +1246,13 @@
     }
     media.addEventListener('change', onSchemeChange)
 
+    // Independent of the reads below and only cosmetic, so it neither waits
+    // for them nor holds them up.
+    DocumentService.WelcomeInfo().then(
+      (info) => (welcomeInfo = info),
+      (err) => console.warn('WelcomeInfo:', err),
+    )
+
     void (async () => {
       // allSettled, not all: these two reads are independent, and a rejection
       // from either must not stop the other's effect from applying, nor skip
@@ -1335,31 +1355,53 @@
 
   {#if showWelcome}
     <div class="welcome">
-      <!-- A button, not an <a href>: a real link would navigate the webview
-           away and take the app state with it. Same route the preview's
-           links take. -->
-      <p class="welcome-intro">
-        The guides are at
-        <button class="link-button" onclick={() => void Browser.OpenURL('https://www.halmoseditor.com/guides')}
-          >halmoseditor.com/guides</button
-        >. Found a bug? Help → Report an Issue… opens a report with the version already filled in.
-      </p>
-      <p class="welcome-intro">
-        Questions and ideas go to
-        <button class="link-button" onclick={() => void Browser.OpenURL('https://github.com/richarc/halmos/discussions')}
-          >github.com/richarc/halmos/discussions</button
-        >.
-      </p>
-      <h2>Recent files</h2>
-      <ul>
-        {#each recents as r (r)}
-          <li><button class="link-button" onclick={() => requestOpenRecent(r)}>{r}</button></li>
-        {/each}
-      </ul>
-      <div class="welcome-actions">
-        <button onclick={requestNew}>New document</button>
-        <button onclick={requestOpen}>Open…</button>
-      </div>
+      <aside class="welcome-side">
+        <div class="welcome-title">
+          <h1>Halmos Editor</h1>
+          {#if welcomeInfo.version}
+            <p class="welcome-version">Version {welcomeInfo.version}</p>
+          {/if}
+        </div>
+        <div class="welcome-actions">
+          <button class="primary" data-shortcut="⌘N" onclick={requestNew}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>New document</button
+          >
+          <button data-shortcut="⌘O" onclick={requestOpen}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>Open…</button
+          >
+        </div>
+        <!-- Buttons, not <a href>: a real link would navigate the webview
+             away and take the app state with it. Same route the preview's
+             links take. -->
+        <div class="welcome-help">
+          <button class="welcome-link" onclick={() => void Browser.OpenURL('https://www.halmoseditor.com/guides')}
+            >Guides at halmoseditor.com</button
+          >
+          <button class="welcome-link" onclick={() => void Browser.OpenURL('https://github.com/richarc/halmos/discussions')}
+            >Questions and ideas</button
+          >
+          <p>Found a bug? Help → Report an Issue… fills in the version for you.</p>
+        </div>
+      </aside>
+      <section class="welcome-main" aria-label="Recent files">
+        <div class="welcome-recents-head">
+          <h2>Recent files</h2>
+          <button class="welcome-link welcome-clear" onclick={() => void clearRecents()}>Clear</button>
+        </div>
+        <ul class="welcome-recents">
+          {#each welcomeRecents as r (r.path)}
+            <li>
+              <button class="welcome-recent" title={r.path} onclick={() => requestOpenRecent(r.path)}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></svg>
+                <span class="welcome-recent-text">
+                  <span class="welcome-recent-name">{r.name}</span>
+                  <span class="welcome-recent-folder">{r.folder}</span>
+                </span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+      </section>
     </div>
   {/if}
 

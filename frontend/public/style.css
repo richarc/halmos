@@ -28,6 +28,8 @@
   --accent: #0b57c2;
   --on-accent: #ffffff;
   --overlay-bg: #fcfcfc;
+  /* The start screen's side panel: one step off the page it sits beside. */
+  --welcome-panel: #f5f5f5;
   --backdrop: rgba(0, 0, 0, 0.4);
   --toast-bg: #2a2a2a;
   --toast-fg: #fafafa;
@@ -91,6 +93,7 @@
   --accent: #7cb0ff;
   --on-accent: #12233d;
   --overlay-bg: #1f1f1f;
+  --welcome-panel: #242424;
   --backdrop: rgba(0, 0, 0, 0.6);
 
   /* Inverted deliberately: a dark toast on a dark app does not read as an
@@ -142,6 +145,7 @@
   --accent: #8a4b0f;
   --on-accent: #fff8e8;
   --overlay-bg: #f1e7d0;
+  --welcome-panel: #ebe0c6;
   --backdrop: rgba(40, 28, 10, 0.4);
   --toast-bg: #3a2d1b;
   --toast-fg: #f6eedb;
@@ -327,9 +331,9 @@ button.primary:not(:disabled):hover { filter: brightness(0.92); border-color: va
 button:not(:disabled):active,
 button.primary:not(:disabled):active { filter: brightness(0.85); }
 
-/* A button that is really a link — the welcome pane's recent files are a
-   column of paths, and bordered boxes would read worse than what is there
-   today. */
+/* A button that is really a link — the outline's headings, the unknown
+   citations list and similar columns of entries, where bordered boxes would
+   read worse than plain text. */
 button.link-button {
   display: block;
   padding: 6px 0;
@@ -600,15 +604,77 @@ textarea:focus-visible,
 .unknown-list button { display: flex; gap: 12px; width: 100%; text-align: left; }
 .unknown-line { color: var(--muted); }
 
+/* The start screen: a side panel (name, version, New and Open, help) and
+   the recent files beside it. The 72px top padding clears the hidden-inset
+   title bar and its traffic lights. */
 .welcome {
   position: absolute; inset: 0; background: var(--overlay-bg);
-  padding: 48px; overflow: auto;
+  display: flex;
 }
-.welcome-intro { color: var(--muted); max-width: 60ch; line-height: 1.5; margin-bottom: 12px; }
-.welcome-intro:last-of-type { margin-bottom: 24px; }
-.welcome-intro .link-button { display: inline; padding: 0; font: inherit; }
-.welcome ul { list-style: none; margin-top: 12px; }
-.welcome-actions { display: flex; gap: 12px; margin-top: 24px; }
+.welcome-side {
+  width: 340px; flex-shrink: 0; box-sizing: border-box;
+  padding: 72px 32px 32px;
+  display: flex; flex-direction: column; gap: 32px;
+  background: var(--welcome-panel); border-right: 1px solid var(--border);
+}
+.welcome-title { display: flex; flex-direction: column; gap: 6px; }
+.welcome-title h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+.welcome-version { margin: 0; font-size: 13px; color: var(--muted); }
+.welcome-actions { display: flex; flex-direction: column; gap: 10px; }
+.welcome-actions button {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; height: 44px; padding: 0 14px; border-radius: 8px;
+  font-size: 14px; text-align: left;
+}
+.welcome-actions button:not(.primary) { background: var(--bg); border-color: var(--border); }
+/* The shortcut is drawn from data-shortcut so the button's text stays its
+   label. */
+.welcome-actions button::after {
+  content: attr(data-shortcut);
+  margin-left: auto; font-size: 12px; color: var(--muted);
+}
+.welcome-actions button.primary::after { color: currentColor; opacity: 0.8; }
+.welcome-help { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+.welcome-help p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.welcome button.welcome-link {
+  padding: 0; border: 0; border-radius: 0; background: none;
+  font-size: 13px; color: var(--accent); text-align: left;
+}
+.welcome button.welcome-link:not(:disabled):hover { text-decoration: underline; }
+.welcome button.welcome-clear { color: var(--muted); }
+.welcome-main {
+  flex-grow: 1; min-width: 0; box-sizing: border-box;
+  padding: 72px 56px 32px; overflow: auto;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.welcome-recents-head {
+  display: flex; align-items: baseline; justify-content: space-between; padding: 0 14px;
+}
+.welcome-recents-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.welcome-recents { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.welcome button.welcome-recent {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; padding: 10px 14px;
+  border: 0; border-radius: 8px; background: none; text-align: left;
+}
+.welcome button.welcome-recent:not(:disabled):hover { background: var(--surface); }
+.welcome-recent svg { flex-shrink: 0; color: var(--muted); }
+.welcome-recent-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.welcome-recent-name { font-size: 14px; font-weight: 500; }
+.welcome-recent-name, .welcome-recent-folder {
+  text-wrap: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.welcome-recent-folder { font-size: 12px; color: var(--muted); }
+/* A narrow window: the panel goes above the list instead of squeezing it. */
+@media (max-width: 760px) {
+  .welcome { flex-direction: column; overflow: auto; }
+  .welcome-side {
+    width: auto; padding-bottom: 24px; gap: 20px;
+    border-right: 0; border-bottom: 1px solid var(--border);
+  }
+  .welcome-help { margin-top: 0; }
+  .welcome-main { padding-top: 24px; overflow: visible; }
+}
 
 /* An unknown element (a <dialog> on WebKit older than 15.4, where showModal
    is absent — Info.plist's LSMinimumSystemVersion is 12.0, and 15.4 is the
