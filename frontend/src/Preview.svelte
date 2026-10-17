@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
-  import { Browser } from '@wailsio/runtime'
+  import { Browser, Clipboard } from '@wailsio/runtime'
   import { createChartHydrator } from './lib/charts'
   import { createMermaidHydrator } from './lib/mermaid'
   import { createCodeHydrator } from './lib/codeHighlight'
@@ -57,6 +57,46 @@
     sync.sync(line, docLines)
   }
 
+  const COPIED_MS = 1500
+
+  /**
+   * Gives every `pre > code` block a Copy button. Live preview only: this is
+   * a DOM pass, not part of render(), so HTML export and PDF never see it.
+   *
+   * The button is a child of the `pre`, beside the `code`, which keeps it out
+   * of both things that rewrite blocks. The reconciler keys a node by the
+   * markup it was inserted with and never re-reads the live DOM, so an
+   * injected button cannot make a kept block look changed. The code hydrator
+   * only replaces the `code` element's children, so it never touches the
+   * button, and the copied text is `code.textContent`, which the button is
+   * not part of. A block the reconciler replaced arrives without a button and
+   * gets one on the next pass; one that already has a button is skipped.
+   * Charts and diagrams are divs, not `pre > code`, so they are not matched.
+   */
+  function addCopyButtons(root: HTMLElement): void {
+    for (const code of root.querySelectorAll<HTMLElement>('pre > code')) {
+      const pre = code.parentElement!
+      if (pre.querySelector(':scope > button.code-copy')) continue
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'code-copy'
+      button.textContent = 'Copy'
+      button.setAttribute('aria-label', 'Copy code')
+      let timer: ReturnType<typeof setTimeout> | undefined
+      button.addEventListener('click', () => {
+        void Clipboard.SetText(code.textContent ?? '').then(
+          () => {
+            button.textContent = 'Copied'
+            clearTimeout(timer)
+            timer = setTimeout(() => (button.textContent = 'Copy'), COPIED_MS)
+          },
+          () => {}, // a failed write leaves the label alone; nothing to report
+        )
+      })
+      pre.append(button)
+    }
+  }
+
   $effect(() => {
     // `hermes:preview-dom` covers parsing the new HTML and reconciling the
     // sheet's blocks against it (lib/reconcile.ts): unchanged blocks — and
@@ -65,6 +105,7 @@
     // defers style and layout, so in Web Inspector the cost of laying out
     // those is the Layout record that follows this measure, not part of it.
     timed('preview-dom', () => reconcileChildren(sheet, html))
+    addCopyButtons(sheet)
     // Before invalidating: a shrunk formula is shorter, so anchors below it move.
     timed('fit-math', () => fitDisplayMath(sheet))
     // KaTeX's web fonts load on first use, so the pass above can measure a new

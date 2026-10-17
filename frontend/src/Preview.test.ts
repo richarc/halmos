@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { mount, unmount, flushSync, type ComponentProps } from 'svelte'
 import Preview from './Preview.svelte'
 import type { Anchor } from './lib/scrollSync'
 
-vi.mock('@wailsio/runtime', () => ({ Browser: { OpenURL: vi.fn() } }))
+vi.mock('@wailsio/runtime', () => ({
+  Browser: { OpenURL: vi.fn() },
+  Clipboard: { SetText: vi.fn(() => Promise.resolve()) },
+}))
 
 const ANCHORS: Anchor[] = [
   { line: 10, top: 500 },
@@ -164,6 +167,52 @@ describe('in-document links', () => {
     )
     expect(Browser.OpenURL).not.toHaveBeenCalled()
     expect(pane.scrollTop).toBe(40)
+    cleanup()
+  })
+})
+
+describe('code block copy button', () => {
+  const PY = '<pre><code class="language-python" data-source-line="1">print(1)</code></pre>'
+
+  afterEach(() => vi.useRealTimers())
+
+  it('adds a Copy button to highlighted code blocks only', () => {
+    const { target, cleanup } = mountPreview(
+      PY +
+        '<div class="vega-lite-chart" data-spec="{}"></div>' +
+        '<div class="mermaid-diagram" data-source="graph TD"></div>',
+    )
+    const buttons = target.querySelectorAll('button.code-copy')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0].textContent).toBe('Copy')
+    expect(buttons[0].closest('pre')).not.toBeNull()
+    cleanup()
+  })
+
+  it('copies the source text, not highlighted HTML', async () => {
+    const { Clipboard } = await import('@wailsio/runtime')
+    const { target, cleanup } = mountPreview(
+      '<pre><code class="language-html">&lt;script&gt;a &amp;&amp; b&lt;/script&gt;</code></pre>',
+    )
+    // Simulate the hydrator's output: spans around the same text.
+    const code = target.querySelector('code')!
+    code.innerHTML = '<span class="tok-keyword">&lt;script&gt;</span>a &amp;&amp; b&lt;/script&gt;'
+    target.querySelector<HTMLButtonElement>('button.code-copy')!.click()
+    expect(Clipboard.SetText).toHaveBeenLastCalledWith('<script>a && b</script>')
+    cleanup()
+  })
+
+  it('shows Copied then reverts after 1500 ms', async () => {
+    vi.useFakeTimers()
+    const { target, cleanup } = mountPreview(PY)
+    const btn = target.querySelector<HTMLButtonElement>('button.code-copy')!
+    btn.click()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(btn.textContent).toBe('Copied')
+    await vi.advanceTimersByTimeAsync(1499)
+    expect(btn.textContent).toBe('Copied')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(btn.textContent).toBe('Copy')
     cleanup()
   })
 })

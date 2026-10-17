@@ -29,4 +29,25 @@ describe('Preview reconciles the sheet instead of replacing it', () => {
     unmount(cmp)
     target.remove()
   })
+
+  it('keeps one copy button per code block across an html update', () => {
+    const target = document.createElement('div')
+    document.body.appendChild(target)
+    const pre = (src: string) => `<pre><code class="language-js">${src}</code></pre>`
+    const props = $state({ html: pre('a') + pre('b'), collectAnchorsFn: () => [] })
+    const cmp = mount(Preview, { target, props })
+    flushSync()
+    const [first] = Array.from(target.querySelectorAll('pre'))
+
+    props.html = pre('a') + pre('c')
+    flushSync()
+    const pres = Array.from(target.querySelectorAll('pre'))
+    expect(pres).toHaveLength(2)
+    expect(pres[0]).toBe(first) // the button did not make the kept block look changed
+    for (const p of pres) expect(p.querySelectorAll('button.code-copy')).toHaveLength(1)
+    expect(pres[1].querySelector('code')!.textContent).toBe('c')
+
+    unmount(cmp)
+    target.remove()
+  })
 })

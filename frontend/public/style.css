@@ -434,7 +434,17 @@ textarea:focus-visible,
 .sheet li.task-list-item > ul.task-list-container { padding-left: 1.4em; }
 .sheet pre {
   background: var(--doc-surface-code-block); padding: 12px; border-radius: 6px; overflow-x: auto;
+  position: relative;
 }
+/* Preview-only; hidden until the block is hovered or the button is focused. */
+.sheet .code-copy {
+  position: absolute; top: 6px; right: 6px;
+  padding: 2px 8px; font-size: 12px; line-height: 1.4;
+  color: var(--doc-muted); background: var(--doc-bg);
+  border: 1px solid var(--doc-border); border-radius: 4px;
+  opacity: 0; cursor: pointer;
+}
+.sheet pre:hover .code-copy, .sheet .code-copy:focus-visible { opacity: 1; }
 .sheet code {
   font-family: var(--doc-font-mono); font-size: 0.9em;
 }
@@ -749,7 +759,7 @@ dialog::backdrop { background: var(--backdrop); }
      palette does not appear: the sheet is invariant light on screen already,
      so there is nothing to re-light — which is the whole reason this block
      used to be fifty lines longer. */
-  .toolbar, .status-bar, .editor-pane, .divider, .welcome, .toast, dialog, .outline, .outline-reveal {
+  .toolbar, .status-bar, .editor-pane, .divider, .welcome, .toast, dialog, .outline, .outline-reveal, .code-copy {
     display: none !important;
   }
   .panes { display: block; }
