@@ -601,9 +601,20 @@ textarea:focus-visible,
   display: flex; gap: 16px;
 }
 .status-bar .unknown-count { font-size: 12px; padding: 0; }
-.unknown-list { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; }
-.unknown-list button { display: flex; gap: 12px; width: 100%; text-align: left; }
-.unknown-line { color: var(--muted); }
+.unknown-list {
+  list-style: none; margin: 8px -10px 0; padding: 0; max-height: 50vh; overflow: auto;
+  display: flex; flex-direction: column; gap: 2px;
+}
+/* Rows in the style of the start screen's recent files: no border, a
+   surface fill on hover. The key is source text, so it is monospace. */
+.unknown-list button.unknown-entry {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  width: 100%; padding: 6px 10px; border: 0; border-radius: 6px;
+  background: none; text-align: left;
+}
+.unknown-list button.unknown-entry:not(:disabled):hover { background: var(--surface); }
+.unknown-key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.unknown-line { font-size: 12px; color: var(--muted); }
 
 /* The start screen: a side panel (name, version, New and Open, help) and
    the recent files beside it. The 72px top padding clears the hidden-inset

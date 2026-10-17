@@ -1433,6 +1433,7 @@
   <Dialog
     open={pendingAction !== null}
     label="Unsaved changes"
+    title="Unsaved changes"
     role="alertdialog"
     onclose={() => {
       pendingAction = null
@@ -1441,7 +1442,7 @@
   >
     <p>"{filename}" has unsaved changes.</p>
     {#snippet footer()}
-      <button onclick={() => void confirmDiscard()}>Don't Save</button>
+      <button class="dialog-alt" onclick={() => void confirmDiscard()}>Don't Save</button>
       <button
         onclick={() => {
           pendingAction = null
@@ -1455,6 +1456,7 @@
   <Dialog
     open={recovery !== null}
     label="Recover draft"
+    title="Recover draft"
     role="alertdialog"
     onclose={dismissRecovery}
   >
@@ -1464,14 +1466,14 @@
       <p>A draft of "{filename}" newer than the file on disk was found. Restore it?</p>
     {/if}
     {#snippet footer()}
-      <button onclick={discardRecoveredDraft}>Discard Draft</button>
+      <button class="dialog-alt" onclick={discardRecoveredDraft}>Discard Draft</button>
       <button class="primary" onclick={restoreDraft}>Restore</button>
     {/snippet}
   </Dialog>
 
   <UnknownCitations open={unknownOpen} items={unknown} onclose={() => (unknownOpen = false)} onjump={jumpToUnknown} />
 
-  <Dialog open={zoteroHelp !== null} label="Zotero" onclose={() => (zoteroHelp = null)}>
+  <Dialog open={zoteroHelp !== null} label="Zotero" title="Zotero" onclose={() => (zoteroHelp = null)}>
     {#if zoteroHelp === 'no-better-bibtex'}
       <p>Zotero is running but the Better BibTeX plugin isn't installed. Halmos uses it to pick citations and to export your library as a .bib file.</p>
       <p>You can also type [@ to cite from your .bib without Zotero.</p>
@@ -1480,24 +1482,25 @@
     {/if}
     {#snippet footer()}
       {#if zoteroHelp === 'no-better-bibtex'}
-        <button onclick={() => void Browser.OpenURL('https://retorque.re/zotero-better-bibtex/installation/')}>Open Install Page</button>
+        <button class="dialog-alt" onclick={() => void Browser.OpenURL('https://retorque.re/zotero-better-bibtex/installation/')}>Open Install Page</button>
       {/if}
       <button class="primary" onclick={() => (zoteroHelp = null)}>OK</button>
     {/snippet}
   </Dialog>
 
-  <Dialog open={askUpdates} label="Check for updates" onclose={() => void answerUpdateQuestion('off')}>
+  <Dialog open={askUpdates} label="Check for updates" title="Check for updates" onclose={() => void answerUpdateQuestion('off')}>
     <p>
       Halmos can fetch a small file from GitHub once a day to see whether a newer version exists.
-      Nothing about you or your documents is sent. You can change this later in the Help menu.
+      Nothing about you or your documents is sent.
     </p>
+    <p class="dialog-hint">You can change this later in the Help menu.</p>
     {#snippet footer()}
-      <button onclick={() => void answerUpdateQuestion('off')}>Don't Check</button>
+      <button class="dialog-alt" onclick={() => void answerUpdateQuestion('off')}>Don't Check</button>
       <button class="primary" onclick={() => void answerUpdateQuestion('on')}>Check Automatically</button>
     {/snippet}
   </Dialog>
 
-  <Dialog open={updateNotice !== null} label="Update available" onclose={() => (updateNotice = null)}>
+  <Dialog open={updateNotice !== null} label="Update available" title="Update available" onclose={() => (updateNotice = null)}>
     {#if updateNotice}
       <p>Halmos {updateNotice.latest} is available. You have {updateNotice.current}.</p>
     {/if}

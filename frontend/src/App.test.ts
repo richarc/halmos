@@ -1985,6 +1985,37 @@ describe('opening a file from Finder', () => {
   })
 })
 
+describe('dialog titles and button order', () => {
+  // Every dialog is mounted while closed (Dialog owns visibility), so its
+  // title and footer are in the DOM from the start.
+  it('titles each app dialog with its accessible name', async () => {
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('dialog[aria-label="Unsaved changes"]')).not.toBeNull())
+    for (const label of ['Unsaved changes', 'Recover draft', 'Zotero', 'Check for updates', 'Update available', 'Unknown citations']) {
+      const dlg = target.querySelector(`dialog[aria-label="${label}"]`)!
+      expect(dlg.querySelector('h2.dialog-title')?.textContent, label).toBe(label)
+    }
+  })
+
+  // The alternative action stands apart on the left, as in other Mac apps.
+  it("puts Don't Save, Discard Draft and Don't Check on the left", async () => {
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('dialog[aria-label="Unsaved changes"]')).not.toBeNull())
+    const alt = (label: string, text: string) =>
+      buttonByText(target.querySelector<HTMLElement>(`dialog[aria-label="${label}"]`)!, text)!
+    expect(alt('Unsaved changes', "Don't Save").classList).toContain('dialog-alt')
+    expect(alt('Recover draft', 'Discard Draft').classList).toContain('dialog-alt')
+    expect(alt('Check for updates', "Don't Check").classList).toContain('dialog-alt')
+  })
+
+  it('splits the update question into its text and a hint', async () => {
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('dialog[aria-label="Check for updates"]')).not.toBeNull())
+    const dlg = target.querySelector('dialog[aria-label="Check for updates"]')!
+    expect(dlg.querySelector('.dialog-hint')?.textContent?.trim()).toBe('You can change this later in the Help menu.')
+  })
+})
+
 describe('unknown citations in the status bar', () => {
   const bib = '@article{a, title={A}, author={Doe, Jane}, year={2020}}'
   const fm = '---\nbibliography: refs.bib\n---\n'
@@ -2030,7 +2061,10 @@ describe('unknown citations in the status bar', () => {
     const dlg = target.querySelector<HTMLDialogElement>('dialog[aria-label="Unknown citations"]')!
     expect(dlg.open).toBe(true)
     expect(dlg.textContent).toContain('[@b]')
-    expect(dlg.textContent).toContain('line 8')
+    expect(dlg.textContent).toContain('Line 8')
+    expect(dlg.textContent).toContain('Not found in the bibliography. Click one to go to it.')
+    // Return closes it: Close is the dialog's primary.
+    expect(buttonByText(dlg, 'Close')!.classList).toContain('primary')
     const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
     const entry = dlg.querySelector<HTMLButtonElement>('.unknown-list button')!
     entry.click()

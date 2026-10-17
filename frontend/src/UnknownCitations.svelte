@@ -11,18 +11,19 @@
   const { open, items, onclose, onjump }: Props = $props()
 </script>
 
-<Dialog {open} label="Unknown citations" {onclose} class="unknown-citations">
+<Dialog {open} label="Unknown citations" title="Unknown citations" {onclose} class="unknown-citations">
+  <p class="dialog-hint">Not found in the bibliography. Click one to go to it.</p>
   <ul class="unknown-list">
     {#each items as item, i (i)}
       <li>
-        <button class="link-button" onclick={() => onjump(item.line)}>
+        <button class="unknown-entry" onclick={() => onjump(item.line)}>
           <span class="unknown-key">[@{item.key}]</span>
-          <span class="unknown-line">line {item.line}</span>
+          <span class="unknown-line">Line {item.line}</span>
         </button>
       </li>
     {/each}
   </ul>
   {#snippet footer()}
-    <button onclick={onclose}>Close</button>
+    <button class="primary" onclick={onclose}>Close</button>
   {/snippet}
 </Dialog>
