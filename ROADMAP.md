@@ -32,32 +32,37 @@ Agreed 2026-10-12. These rules decide what goes into each release below.
 Smaller improvements for reading and sharing documents. Can move after
 v1.0.0 if the release work needs the time.
 
-- [ ] **Quick Look preview for `.md` files.** Finder's space-bar preview shows
+- [x] **Quick Look preview for `.md` files.** Finder's space-bar preview shows
       the rendered document, so a reader sees Halmos output without opening
       the app. Builds on the `.md` association from v0.11.4. Needs a Quick
       Look preview extension inside the bundle; the renderer is JavaScript,
       so the extension has to host a web view or reuse the bundled
       `frontend/dist`. Check what this does to signing and notarization in
       `wails3 task release` before starting.
-- [ ] **Rendering additions.** markdown-it plugins for task lists and
+      Done 2026-10-17. Quick Look extension in `quicklook/`; no citations or document-relative images.
+- [x] **Rendering additions.** markdown-it plugins for task lists and
       GitHub-style alerts (`> [!NOTE]`). Each needs preview styles in
       `style.css` under the colour contract, PDF export checked, and
       spell-check scoping checked.
-- [ ] **Copy button on code blocks** in the preview. Hidden in PDF export.
-- [ ] **Paste an image into the editor.** Save the pasted image beside the
+      Done 2026-10-17. Local task-list and alert rule in `lib/taskAlerts.ts`.
+- [x] **Copy button on code blocks** in the preview. Hidden in PDF export. Done 2026-10-17.
+- [x] **Paste an image into the editor.** Save the pasted image beside the
       document (an `images/` folder or similar, to decide) and insert
       `![](path)`. `localimages.go` already serves images from beside the
       document; this is the missing write side. An untitled document has no
       folder yet, so it needs a rule: refuse with a message, or ask to save
       first.
-- [ ] **Export to self-contained HTML.** One file with styles, maths, charts
+      Done 2026-10-17. Images go to `images/`; untitled documents are refused with a message.
+- [x] **Export to self-contained HTML.** One file with styles, maths, charts
       and local images inlined, for sharing a draft without a PDF. Charts as
       inline SVG, images as data URIs. Remote images stay remote.
-- [ ] **Reading comfort.** A third theme (sepia or similar) and a choice of
+      Done 2026-10-17.
+- [x] **Reading comfort.** A third theme (sepia or similar) and a choice of
       body font for the preview. Both are settings in `settings.go`. A third
       theme means a third palette block in `style.css`, and
       `styleContract.test.ts` currently checks exactly two blocks, so the
       test changes with it.
+      Done 2026-10-17. Sepia theme and six body fonts.
 
 ## v1.0.0 — Production
 

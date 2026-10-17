@@ -259,6 +259,27 @@ def concurrence(rho):
 ```
 ````
 
+## Task lists
+
+A list item that starts with `[ ]` or `[x]` is a task. The preview and the PDF
+show a read-only checkbox, ticked for `[x]`.
+
+```markdown
+- [x] Write the introduction
+- [ ] Add the second figure
+```
+
+## Alerts
+
+A blockquote whose first line is only `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`,
+`[!WARNING]` or `[!CAUTION]` becomes a coloured box with that title. The marker
+is not case-sensitive, and nothing else may share its line.
+
+```markdown
+> [!WARNING]
+> The measurement window is only valid for the first 10 ms.
+```
+
 ## What does not work
 
 - **Raw HTML.** It is escaped and appears as literal text. No `<br>`, no

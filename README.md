@@ -38,6 +38,16 @@ on screen is rendered from it.
 - **Dark theme** — System, Light or Dark, remembered between sessions. Exported
   PDFs stay light regardless.
 - **PDF export** — the preview, including charts, diagrams and references.
+- **HTML export** — one self-contained file with styles, maths, charts and
+  local images, no scripts.
+- **Task lists and alerts** — `- [ ]` checkboxes and `> [!NOTE]` boxes.
+- **Code copy button** — one click copies a code block from the preview.
+- **Paste images** — a pasted image is saved in `images/` beside the document
+  and linked.
+- **Sepia and body font** — a cream page on screen and a choice of six body
+  fonts, applied to the preview, PDF and HTML.
+- **Quick Look** — press the space bar on a `.md` file in Finder to see it
+  rendered.
 
 Latest release: **v0.13.0**. See [CHANGELOG.md](CHANGELOG.md) for what shipped
 and [ROADMAP.md](ROADMAP.md) for what is planned.

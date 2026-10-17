@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Task lists. `- [ ]` and `- [x]` show as read-only checkboxes in the
+  preview and the PDF.
+- GitHub-style alerts. A blockquote that starts with `> [!NOTE]`, `[!TIP]`,
+  `[!IMPORTANT]`, `[!WARNING]` or `[!CAUTION]` shows as a coloured box with
+  a title. The marker can be in any case and must be alone on the first line.
+- A Copy button on highlighted code blocks in the preview. It shows
+  "Copied" for a moment after you click. Charts and diagrams do not get one,
+  and it does not appear in the PDF or the HTML export.
+- Paste an image into the editor. The image is saved in an `images` folder
+  beside the document as `pasted-YYYYMMDD-HHMMSS.png` (JPEG, GIF and WebP
+  keep their type), and a link is inserted with the cursor in the alt text.
+  An existing file is never overwritten. A document that has not been saved
+  shows "Save the document before pasting images". A paste that contains
+  both text and an image inserts the text.
+- File → Export HTML… writes one self-contained file: styles, maths with its
+  fonts, charts and diagrams as drawn, and local images embedded. Remote
+  images stay as links. The file has no scripts. It uses the light theme, a
+  white page and the body font you chose, and the save panel opens in the
+  document's folder. Export waits for charts to finish drawing. A document
+  with large images makes a large file.
+- View → Appearance → Sepia, a cream page on screen. The PDF and the HTML
+  export stay white.
+- View → Body Font: New York (default), Charter, Iowan Old Style, Palatino,
+  Georgia or System Sans. It applies to the preview, the PDF and the HTML
+  export.
+- Quick Look. Press the space bar on a `.md` file in Finder to see it
+  rendered. Citations show as written, with no References section. Images
+  stored beside the document show as "[Image: name]"; only images embedded
+  as `data:image/` links are drawn. It is always light, reads only the first
+  5 MB of the file and fetches nothing from the network.
+
 ## [0.13.0] - 2026-10-16
 
 ### Changed

@@ -218,6 +218,35 @@ The language name after the opening fence switches on syntax colouring in
 the editor and the preview. Blocks can be folded out of the way with **View
 → Fold Block** (⌘⌥[) while you write the prose around them.
 
+In the preview, a highlighted code block has a **Copy** button in its corner.
+It puts the code on the clipboard and reads "Copied" for a moment. Charts and
+diagrams have no button, and it does not appear in the PDF or HTML export.
+
+### Task lists and alerts
+
+Start a list item with `[ ]` or `[x]` for a read-only checkbox in the preview
+and the PDF. Start a blockquote with `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`,
+`[!WARNING]` or `[!CAUTION]` on a line of its own for a coloured box:
+
+```markdown
+- [x] Write the introduction
+- [ ] Add the second figure
+
+> [!TIP]
+> Alerts are blockquotes, so the next lines start with `>` too.
+```
+
+### Pasting images
+
+Copy an image (a screenshot, say) and paste it into the editor. Halmos saves
+it in an `images` folder beside the document as
+`pasted-20261017-143005.png`, never over an existing file, and inserts the
+link with the cursor in the alt text. Type a caption there to make the image
+a numbered figure. JPEG, GIF and WebP images keep their type. A document that
+has not been saved has no folder yet, so Halmos shows "Save the document
+before pasting images". If the clipboard holds text and an image, the text is
+pasted.
+
 ### Tables
 
 **Insert → Table…** opens a grid where you type the cells and set each
@@ -290,7 +319,13 @@ paper shows no underlines until you edit or move through it; and turning
 the setting off stops new underlines but leaves the existing ones until
 their line is edited or the document reopened.
 
-**Appearance.** System, Light or Dark. System follows the Mac's setting.
+**Appearance.** System, Light, Dark or Sepia. System follows the Mac's
+setting. Sepia is a cream page on screen; the PDF and the HTML export stay
+white.
+
+**Body Font.** New York (the default), Charter, Iowan Old Style, Palatino,
+Georgia or System Sans. It sets the font of the preview, the PDF and the HTML
+export.
 
 **Figure Alignment.** Left, Centre or Right, for every figure, chart and
 image in the document at once.
@@ -313,6 +348,14 @@ shows; the preview and the file are unaffected.
 charts, the contents page and the References section included. **File →
 Paper Size** (A4 or Letter) and **File → PDF Orientation** set the page,
 and the preview is drawn at that size so what you see is what prints.
+
+**File → Export HTML…** writes the document as one file you can send or open
+in any browser, offline. It holds the styles, the maths with its fonts, charts
+and diagrams as drawn, and local images embedded in the file. Images that are
+links to the web stay links. It contains no scripts. It always uses the light
+theme on a white page, in the body font you chose. The save panel opens in the
+document's folder, and export waits for charts to finish drawing. Large
+images make a large file.
 
 **File → Print…** (⌘P) opens the system print panel.
 
