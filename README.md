@@ -49,7 +49,7 @@ on screen is rendered from it.
 - **Quick Look** — press the space bar on a `.md` file in Finder to see it
   rendered.
 
-Latest release: **v0.13.0**. See [CHANGELOG.md](CHANGELOG.md) for what shipped
+Latest release: **v0.14.0**. See [CHANGELOG.md](CHANGELOG.md) for what shipped
 and [ROADMAP.md](ROADMAP.md) for what is planned.
 
 ---
