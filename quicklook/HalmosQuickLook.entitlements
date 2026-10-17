@@ -4,7 +4,11 @@
 <dict>
 	<!-- An app extension must be sandboxed or pluginkit will not load it.
 	     No file entitlement: Quick Look extends the sandbox to the file
-	     being previewed. -->
+	     being previewed.
+	     No com.apple.security.network.client either, on purpose: the user
+	     docs say Quick Look fetches nothing, and the page strips images, but
+	     a Vega spec can still name a data URL; without this entitlement the
+	     sandbox refuses it. The root Taskfile's release fails if it appears. -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 </dict>

@@ -23,6 +23,9 @@ export interface PreviewOptions {
  */
 export const HYDRATE_TIMEOUT_MS = 5000
 
+/** An inline image: loads nothing. Any other `data:` type is not an image. */
+const DATA_IMAGE = /^data:image\//i
+
 /**
  * The Quick Look preview's whole render: the document into the sheet, then
  * charts, diagrams and code hydrated the way Preview.svelte does it.
@@ -31,7 +34,7 @@ export const HYDRATE_TIMEOUT_MS = 5000
  * file and nothing else, so citations show as written and a bibliography
  * named in the frontmatter is not read.
  *
- * Images other than inline `data:` ones are replaced by their file name
+ * Images other than inline `data:image/` ones are replaced by their file name
  * before the HTML reaches the page. A document-relative image has no route
  * to load from here, and a remote one would be a network request made just
  * by pressing space in Finder.
@@ -51,14 +54,7 @@ export async function renderPreview(
   // nothing in it is fetched until it is moved into the page.
   const template = document.createElement('template')
   template.innerHTML = renderDocument(markdown).html
-  for (const img of Array.from(template.content.querySelectorAll('img'))) {
-    const src = img.getAttribute('src') ?? ''
-    if (src.startsWith('data:')) continue
-    const stand = document.createElement('span')
-    stand.className = 'quicklook-image'
-    stand.textContent = `[Image: ${fileName(src)}]`
-    img.replaceWith(stand)
-  }
+  replaceImages(template.content)
   const note = truncationNote(opts)
   if (note) template.content.prepend(note)
   sheet.replaceChildren(template.content)
@@ -73,6 +69,22 @@ export async function renderPreview(
     await Promise.race([Promise.allSettled(hydrators.map((h) => h.hydrate(sheet))), timeout])
   } finally {
     clearTimeout(timer)
+  }
+}
+
+/**
+ * Replaces every `<img>` under `root` except inline `data:image/` ones with
+ * a `[Image: name]` stand-in. Exported for tests: markdown-it already refuses
+ * most other `data:` links, so this is the second line, not the only one.
+ */
+export function replaceImages(root: ParentNode): void {
+  for (const img of Array.from(root.querySelectorAll('img'))) {
+    const src = img.getAttribute('src') ?? ''
+    if (DATA_IMAGE.test(src)) continue
+    const stand = document.createElement('span')
+    stand.className = 'quicklook-image'
+    stand.textContent = `[Image: ${fileName(src)}]`
+    img.replaceWith(stand)
   }
 }
 

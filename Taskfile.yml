@@ -193,6 +193,13 @@ tasks:
       # its own sandbox entitlements, which --deep would not apply.
       - task: quicklook:embed
         vars: { IDENTITY: '{{.IDENTITY}}', TIMESTAMP: '--timestamp' }
+      # The docs promise Quick Look fetches nothing, and that rests on the
+      # extension having no network entitlement. Fail rather than ship one.
+      - |
+        if codesign -d --entitlements - "{{.APP}}/Contents/PlugIns/HalmosQuickLook.appex" 2>/dev/null | grep -q network.client; then
+          echo "HalmosQuickLook.appex is signed with com.apple.security.network.client; Quick Look must not reach the network."
+          exit 1
+        fi
       # --options runtime (hardened runtime) and --timestamp are both required
       # for notarization; without either, submission is rejected rather than
       # the app being. No --deep: Apple deprecated it for signing, and the
@@ -291,8 +298,8 @@ tasks:
     desc: |
       quicklook/Tests/main.swift against quicklook/PreviewText.swift: reading
       and decoding the file (size cap, invalid UTF-8, byte-order mark) and
-      recognising the page's own URL. A plain executable rather than XCTest,
-      since there is no Xcode project. The page itself is tested by vitest
+      deciding which navigations the page may make. A plain executable
+      rather than XCTest, since there is no Xcode project. The page itself is tested by vitest
       (frontend/src/quicklook.test.ts).
     vars:
       TEST_BIN: '{{.BIN_DIR}}/HalmosQuickLookTests'

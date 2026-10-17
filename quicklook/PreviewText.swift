@@ -53,14 +53,20 @@ enum PreviewText {
         return bytes
     }
 
-    /// Whether `url` is `page`, or a fragment on it. Compared as resolved
-    /// file paths, because WebKit can report the page with a `/private`
-    /// prefix or percent-encoded — the bundle path has a space in it
-    /// ("Halmos Editor.app") — and an exact URL comparison would then cancel
-    /// the page's own load.
-    static func isSamePage(_ url: URL?, _ page: URL?) -> Bool {
+    /// Whether the page may navigate to `url`: its own load, or a move to a
+    /// fragment on itself (a table of contents). Anything else — another
+    /// file, a web URL, a query, or a link back to the page itself — would
+    /// reload or replace the page and blank the preview.
+    ///
+    /// The page is matched by resolved file path, because WebKit can report it
+    /// with a `/private` prefix or percent-encoded — the bundle path has a
+    /// space in it ("Halmos Editor.app") — and an exact URL comparison would
+    /// then cancel the page's own load. `isLinkClick` is any navigation other
+    /// than the initial load; one of those must carry a fragment.
+    static func allowsNavigation(to url: URL?, page: URL?, isLinkClick: Bool) -> Bool {
         guard let url = url, let page = page, url.isFileURL, page.isFileURL else { return false }
-        return resolvedPath(url) == resolvedPath(page)
+        guard resolvedPath(url) == resolvedPath(page), url.query == page.query else { return false }
+        return !isLinkClick || url.fragment != nil
     }
 
     private static func resolvedPath(_ url: URL) -> String {

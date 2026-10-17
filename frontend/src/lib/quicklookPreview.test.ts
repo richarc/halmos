@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
-import { renderPreview, HYDRATE_TIMEOUT_MS, type Hydrator } from './quicklookPreview'
+import { renderPreview, replaceImages, HYDRATE_TIMEOUT_MS, type Hydrator } from './quicklookPreview'
 
 function sheet(): HTMLElement {
   return document.createElement('div')
@@ -100,6 +100,29 @@ describe('renderPreview', () => {
     await renderPreview(el, '![](images/my%20plot.png)', [settled])
     expect(el.querySelector('img')).toBeNull()
     expect(el.querySelector('.quicklook-image')?.textContent).toBe('[Image: my plot.png]')
+  })
+
+  it('never renders a data: URL that is not an image as an image', async () => {
+    const el = sheet()
+    await renderPreview(el, '![x](data:text/html,hello)', [settled])
+    expect(el.querySelector('img')).toBeNull()
+  })
+
+  it('replaces an img whose data: URL is not an image', () => {
+    // markdown-it refuses this link, so the filter is tested directly.
+    const el = sheet()
+    el.innerHTML = '<img src="data:text/html,hello"><img src="Data:Image/png;base64,AA==">'
+    replaceImages(el)
+    expect(el.querySelectorAll('img')).toHaveLength(1)
+    expect(el.querySelector('img')?.getAttribute('src')).toBe('Data:Image/png;base64,AA==')
+    expect(el.querySelector('.quicklook-image')).not.toBeNull()
+  })
+
+  it('keeps a data image whatever the case of its scheme', async () => {
+    const el = sheet()
+    const src = 'DATA:image/png;base64,iVBORw0KGgo='
+    await renderPreview(el, `![dot](${src})`, [settled])
+    expect(el.querySelector('img')?.getAttribute('src')).toBe(src)
   })
 
   it('keeps an inline data image, which loads nothing', async () => {

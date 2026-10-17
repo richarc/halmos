@@ -15,7 +15,11 @@ func check(_ condition: Bool, _ message: String, line: Int = #line) {
 }
 
 let fm = FileManager.default
-let dir = fm.temporaryDirectory.appendingPathComponent("halmos-ql-tests-\(getpid())", isDirectory: true)
+// QL_TEST_TMP overrides the base, to exercise the /tmp and no-alternate
+// branches of the /private case below.
+let base = ProcessInfo.processInfo.environment["QL_TEST_TMP"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+    ?? fm.temporaryDirectory
+let dir = base.appendingPathComponent("halmos-ql-tests-\(getpid())", isDirectory: true)
 try! fm.createDirectory(at: dir, withIntermediateDirectories: true)
 defer { try? fm.removeItem(at: dir) }
 
@@ -59,36 +63,51 @@ do {
     check(false, "read threw \(error)")
 }
 
-// MARK: recognising the page
+// MARK: which navigations the page may make
 
 let page = write("quick look.html", Array("<p>".utf8))
 
-check(PreviewText.isSamePage(page, page), "a URL is its own page")
+func allows(_ url: URL?, link: Bool = true) -> Bool {
+    PreviewText.allowsNavigation(to: url, page: page, isLinkClick: link)
+}
+
+func onPage(_ suffix: String) -> URL {
+    URL(string: page.absoluteString + suffix)!
+}
+
+check(allows(page, link: false), "the page's own load is allowed")
 
 let encoded = URL(string: "file://" + page.path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)!
-check(PreviewText.isSamePage(encoded, page), "percent-encoding is ignored: \(encoded.absoluteString)")
+check(allows(encoded, link: false), "percent-encoding is ignored: \(encoded.absoluteString)")
 
-var fragment = URLComponents(url: page, resolvingAgainstBaseURL: false)!
-fragment.fragment = "section-2"
-check(PreviewText.isSamePage(fragment.url!, page), "a fragment on the page is the page")
+check(allows(onPage("#section-2")), "a fragment link on the page is allowed")
+check(allows(onPage("#section-2"), link: false), "and so is a fragment navigation that is not a click")
 
-// temporaryDirectory is under /var, a symlink to /private/var; WebKit can
-// report either spelling.
-if page.path.hasPrefix("/var/") {
-    let privateSpelling = URL(fileURLWithPath: "/private" + page.path)
-    check(PreviewText.isSamePage(privateSpelling, page), "a /private prefix is the same file")
-    check(PreviewText.isSamePage(page, privateSpelling), "and the other way round")
+// Anything else reloads the page and blanks the preview.
+check(!allows(page), "a link to the page itself (no fragment) is cancelled")
+check(!allows(onPage("?a")), "a query on the page is cancelled")
+check(!allows(onPage("?a#x")), "a query with a fragment is cancelled")
+check(!allows(onPage("?a"), link: false), "a query is cancelled however it arrives")
+
+// The temporary directory is reached through a symlink (/var -> /private/var,
+// /tmp -> /private/tmp); WebKit can report either spelling. Derived from the
+// path actually in use, and skipped rather than failed when it has neither.
+let alternates = [("/private/var/", "/var/"), ("/private/tmp/", "/tmp/"), ("/var/", "/private/var/"), ("/tmp/", "/private/tmp/")]
+if let (from, to) = alternates.first(where: { page.path.hasPrefix($0.0) }) {
+    let other = URL(fileURLWithPath: to + page.path.dropFirst(from.count))
+    check(allows(other, link: false), "\(other.path) is the same file as \(page.path)")
+    check(PreviewText.allowsNavigation(to: page, page: other, isLinkClick: false), "and the other way round")
 } else {
-    check(false, "expected the temporary directory under /var, got \(page.path)")
+    print("note: \(page.path) has no /private alternate spelling; skipping that case")
 }
 
 let dotted = dir.appendingPathComponent("sub/../quick look.html")
-check(PreviewText.isSamePage(dotted, page), "dot-dot components are resolved")
+check(allows(dotted, link: false), "dot-dot components are resolved")
 
-check(!PreviewText.isSamePage(dir.appendingPathComponent("other.html"), page), "another file is not the page")
-check(!PreviewText.isSamePage(URL(string: "https://example.com/quick%20look.html")!, page), "a web URL is not the page")
-check(!PreviewText.isSamePage(nil, page), "no URL is not the page")
-check(!PreviewText.isSamePage(page, nil), "no page matches nothing")
+check(!allows(dir.appendingPathComponent("other.html")), "another file is cancelled")
+check(!allows(URL(string: "https://example.com/quick%20look.html")!), "a web URL is cancelled")
+check(!allows(nil), "no URL is cancelled")
+check(!PreviewText.allowsNavigation(to: page, page: nil, isLinkClick: false), "no page allows nothing")
 
 if failures > 0 {
     print("\(failures) failure(s)")

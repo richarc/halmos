@@ -9,7 +9,7 @@
 // never shows a half-drawn page. A backstop here completes it regardless, so
 // a page that never loads or never answers cannot hold Quick Look forever.
 //
-// Reading and decoding the file, and recognising the page's own URL, are in
+// Reading and decoding the file, and deciding which navigations to allow, are in
 // PreviewText.swift, which quicklook/Tests exercises.
 
 import Cocoa
@@ -106,7 +106,12 @@ final class PreviewViewController: NSViewController, QLPreviewingController, WKN
         decidePolicyFor action: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
-        decisionHandler(PreviewText.isSamePage(action.request.url, pageURL) ? .allow : .cancel)
+        let allowed = PreviewText.allowsNavigation(
+            to: action.request.url,
+            page: pageURL,
+            isLinkClick: action.navigationType != .other
+        )
+        decisionHandler(allowed ? .allow : .cancel)
     }
 
     /// Calls Quick Look's completion handler exactly once, from whichever of
