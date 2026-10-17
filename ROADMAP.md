@@ -48,15 +48,11 @@ separate, much larger project and is deliberately not part of this.
       API key matters more than convenience here — unlike an app-specific
       password it is not tied to a personal Apple ID, and it can be revoked
       on its own.
-- [ ] **A documentation site**, static, on GitHub Pages. Most of the content
-      exists — `README.md`, `docs/authoring.md`, `CHANGELOG.md` — so
-      the work is a generator (Astro Starlight, MkDocs Material or similar), a
-      landing page with a download link, and pointing the release at it.
-      Sequencing note: the bundled in-app guides land in v0.9, and the
-      eventual ambition is that the site's pages ARE Halmos documents
-      published through the app. That argues for keeping the first site
-      deliberately thin rather than investing in a structure the publishing
-      work would then replace.
+- [x] **A documentation site.** Done outside this repository: instead of a
+      static site on GitHub Pages, the `hermesportal` application serves
+      [halmoseditor.com](https://www.halmoseditor.com) — the landing page, the
+      download, and the guides from `docs/`, rendered by Halmos's own
+      renderer. Its roadmap tracks the site's work.
 - [ ] **Auto-update — deliberately deferred, and worth naming.** Without
       something like Sparkle, everyone who downloads a release stays on it
       until they think to check. Tolerable at first; the main complaint later.
@@ -78,9 +74,10 @@ separate, much larger project and is deliberately not part of this.
       Help → Acknowledgements to open it. Also correct NOTICE, which says
       these dependencies "are credited in README.md": a credit is not the
       licence text.
-- [ ] **Pricing page on the documentation site**, ready for v1.1.0. The
-      site states what is free (the editor and citations) and what the
-      subscription adds.
+- [ ] **Pricing page on halmoseditor.com**, ready for v1.1.0. The site
+      states what is free (the editor and citations) and what the
+      subscription adds. Drafted in `hermesportal`; it goes live with the
+      back end.
 - [ ] Windows and Linux stay in the backlog. Decide before v1.1.0 whether
       Windows comes before the first paid release: many academics use it,
       and a Mac-only product limits who can pay.
@@ -102,7 +99,7 @@ one — dissolves when the conversion runs on a server Halmos controls.
       so it is true.
 - [ ] **Licence and name.** Decided 2026-10-13: the desktop app stays
       Apache-2.0 and the server code stays private. The product was renamed
-      from Halmos Editor to Halmos Editor in v0.13.0, because "Halmos" is a
+      from Hermes Editor to Halmos Editor in v0.13.0, because "Hermes" is a
       crowded name in software. Before charging: run a clearance search for
       "Halmos Editor" in classes 9 and 42 (note a16z's unrelated `halmos`
       smart-contract testing tool) and register the name and the HE logo
