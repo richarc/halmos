@@ -3,8 +3,12 @@
 
   interface Props {
     open: boolean
-    /** Accessible name; the dialogs here have no visible title element. */
+    /** Accessible name. Kept even when `title` is shown, so the dialog is
+        found and announced the same way either way. */
     label: string
+    /** Visible title, the first thing in the body. Optional: New document
+        and the builders draw their own headings. */
+    title?: string
     /** The dialog asks to close; the parent owns `open` and decides. */
     onclose: () => void
     /** Extra classes, for a call site that needs its own sizing. */
@@ -16,7 +20,7 @@
     footer?: Snippet
   }
 
-  const { open, label, onclose, class: extra = '', role, children, footer }: Props = $props()
+  const { open, label, title, onclose, class: extra = '', role, children, footer }: Props = $props()
 
   let el: HTMLDialogElement | undefined = $state()
 
@@ -115,7 +119,10 @@
   oncancel={onCancel}
   onclose={onNativeClose}
 >
-  <div class="dialog-body">{@render children()}</div>
+  <div class="dialog-body">
+    {#if title}<h2 class="dialog-title">{title}</h2>{/if}
+    {@render children()}
+  </div>
   {#if footer}
     <div class="modal-buttons">{@render footer()}</div>
   {/if}

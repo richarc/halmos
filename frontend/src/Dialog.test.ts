@@ -26,6 +26,42 @@ function mountDialog(open: boolean, onclose = vi.fn()) {
 }
 
 describe('Dialog', () => {
+  function mountTitled(title?: string) {
+    const target = document.createElement('div')
+    document.body.appendChild(target)
+    const cmp = mount(Dialog, {
+      target,
+      props: { open: true, label: 'Unsaved changes', title, onclose: vi.fn(), children: body },
+    })
+    flushSync()
+    return { target, cleanup: () => { unmount(cmp); target.remove() } }
+  }
+
+  // The design system gives every dialog a visible title; before this only
+  // New document had one, and the rest named themselves to screen readers only.
+  it('shows a visible title when given one', () => {
+    const d = mountTitled('Unsaved changes')
+    const bodyEl = d.target.querySelector('.dialog-body')!
+    const h = bodyEl.querySelector('h2.dialog-title')
+    expect(h?.textContent).toBe('Unsaved changes')
+    expect(bodyEl.firstElementChild).toBe(h)
+    d.cleanup()
+  })
+
+  it('shows no title element without one', () => {
+    const d = mountTitled()
+    expect(d.target.querySelector('h2.dialog-title')).toBeNull()
+    d.cleanup()
+  })
+
+  // Tests and screen readers find dialogs by aria-label; a title must not
+  // replace it.
+  it('keeps the accessible name when titled', () => {
+    const d = mountTitled('Unsaved changes')
+    expect(d.target.querySelector('dialog')!.getAttribute('aria-label')).toBe('Unsaved changes')
+    d.cleanup()
+  })
+
   it('mounts without throwing where showModal is absent', () => {
     // jsdom 30 implements <dialog> as an element but not showModal/close. An
     // unguarded call throws and takes out every suite that mounts a dialog,
