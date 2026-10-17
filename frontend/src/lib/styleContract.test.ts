@@ -152,13 +152,33 @@ function blockNames(css: string, selector: string): string[] {
   return [...css.slice(start, end).matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm)].map((m) => m[1])
 }
 
-describe('dark palette', () => {
-  it('overrides exactly the chrome variables the light palette defines', () => {
+const THEMES = [...CSS.matchAll(/^:root\[data-theme="([a-z]+)"\] \{/gm)].map((m) => m[1])
+
+describe('theme palettes', () => {
+  it('finds the dark and sepia blocks', () => {
+    expect(THEMES).toEqual(expect.arrayContaining(['dark', 'sepia']))
+  })
+
+  it.each(THEMES)('%s overrides exactly the chrome variables the light palette defines', (theme) => {
     const light = blockNames(CSS, ':root')
-    const dark = blockNames(CSS, ':root[data-theme="dark"]')
-    // A name defined light-only is a rule that stays light in dark mode —
-    // the single most likely way this feature ships half-finished.
-    expect([...light].sort()).toEqual([...dark].sort())
+    const other = blockNames(CSS, `:root[data-theme="${theme}"]`)
+    // A name defined light-only is a rule that stays light in that theme —
+    // the single most likely way a theme ships half-finished.
+    expect([...light].sort()).toEqual([...other].sort())
+  })
+
+  it('sepia defines exactly the chrome variables the light palette defines', () => {
+    expect(blockNames(CSS, ':root[data-theme="sepia"]').sort()).toEqual(
+      blockNames(CSS, ':root').sort(),
+    )
+  })
+
+  it('sheet uses --sheet-paper on screen and --doc-bg in print', () => {
+    const screen = stripComments(CSS).slice(0, CSS.indexOf('@media print'))
+    const sheetRules = [...screen.matchAll(/\.sheet \{[^}]*\}/g)].map((m) => m[0])
+    expect(sheetRules.some((r) => /background:\s*var\(--sheet-paper\)/.test(r))).toBe(true)
+    const print = stripComments(CSS.slice(CSS.indexOf('@media print')))
+    expect(print).toMatch(/\.sheet\s*\{[^}]*background:\s*var\(--doc-bg\)/)
   })
 
   it('declares no document tokens in a theme block', () => {
@@ -167,9 +187,11 @@ describe('dark palette', () => {
     // quietly broken, and it would look correct in whichever theme the
     // author happened to have open.
     expect(blockNames(CSS, ':root').filter((n) => n.startsWith('--doc-'))).toEqual([])
-    expect(
-      blockNames(CSS, ':root[data-theme="dark"]').filter((n) => n.startsWith('--doc-')),
-    ).toEqual([])
+    for (const theme of THEMES) {
+      expect(
+        blockNames(CSS, `:root[data-theme="${theme}"]`).filter((n) => n.startsWith('--doc-')),
+      ).toEqual([])
+    }
   })
 
   it('declares no palette variables at all inside @media print', () => {

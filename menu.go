@@ -357,6 +357,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 		{"System", "system"},
 		{"Light", "light"},
 		{"Dark", "dark"},
+		{"Sepia", "sepia"},
 	}
 	for _, t := range themes {
 		value := t.value
@@ -390,6 +391,18 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 			next.FigureAlignment = value
 			if err := docs.UpdateSettings(next); err != nil {
 				log.Printf("could not save figure alignment: %v", err)
+			}
+		})
+	}
+
+	fontMenu := view.AddSubmenu("Body Font")
+	for _, f := range bodyFonts {
+		value := f.value
+		fontMenu.AddRadio(f.label, viewCurrent.BodyFont == value).OnClick(func(*application.Context) {
+			next := docs.Settings()
+			next.BodyFont = value
+			if err := docs.UpdateSettings(next); err != nil {
+				log.Printf("could not save body font: %v", err)
 			}
 		})
 	}

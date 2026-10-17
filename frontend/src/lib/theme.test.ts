@@ -17,6 +17,18 @@ describe('resolveTheme', () => {
   })
 })
 
+describe('sepia', () => {
+  it('resolves sepia to sepia whatever the system prefers', () => {
+    expect(resolveTheme('sepia', true)).toBe('sepia')
+    expect(resolveTheme('sepia', false)).toBe('sepia')
+  })
+
+  it('sets data-theme="sepia"', () => {
+    applyTheme('sepia')
+    expect(document.documentElement.dataset.theme).toBe('sepia')
+  })
+})
+
 describe('applyTheme', () => {
   it('always sets data-theme rather than removing it', () => {
     applyTheme('dark')

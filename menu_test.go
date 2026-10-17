@@ -203,3 +203,28 @@ func TestCitationStyleClickAlwaysRebuildsMenu(t *testing.T) {
 		t.Fatalf("emitted %d, rebuilt %d; want 2 and 2", emitted, rebuilt)
 	}
 }
+
+// The menu's body-font values and the frontend's BODY_FONTS keys are two lists
+// of the same thing; a value in one and not the other would tick nothing or
+// fall back to the default stack.
+func TestBodyFontMenuValuesMatchFrontend(t *testing.T) {
+	src, err := os.ReadFile("frontend/src/lib/bodyFont.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	block := regexp.MustCompile(`(?s)BODY_FONTS[^\n]*\{\n(.*?)\n\}`).FindSubmatch(src)
+	if block == nil {
+		t.Fatal("no BODY_FONTS table in bodyFont.ts")
+	}
+	want := map[string]bool{}
+	for _, m := range regexp.MustCompile(`(?m)^\s*'?([a-z-]+)'?:`).FindAllSubmatch(block[1], -1) {
+		want[string(m[1])] = true
+	}
+	got := map[string]bool{}
+	for _, f := range bodyFonts {
+		got[f.value] = true
+	}
+	if len(want) == 0 || !reflect.DeepEqual(got, want) {
+		t.Fatalf("menu values %v, frontend values %v", got, want)
+	}
+}

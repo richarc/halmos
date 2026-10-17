@@ -33,6 +33,7 @@ var assets embed.FS
 var (
 	lightWindowBg = application.NewRGB(0xfc, 0xfc, 0xfc)
 	darkWindowBg  = application.NewRGB(0x1f, 0x1f, 0x1f)
+	sepiaWindowBg = application.NewRGB(0xf1, 0xe7, 0xd0)
 )
 
 // windowBackground is the colour the window wears until the webview's first
@@ -43,8 +44,11 @@ var (
 // "system" keeps the light value: resolving it would mean reading the OS
 // appearance through cgo, which is disproportionate for a flash at launch.
 func windowBackground(theme string) application.RGBA {
-	if theme == "dark" {
+	switch theme {
+	case "dark":
 		return darkWindowBg
+	case "sepia":
+		return sepiaWindowBg
 	}
 	return lightWindowBg
 }

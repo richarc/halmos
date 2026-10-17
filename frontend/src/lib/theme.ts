@@ -1,9 +1,9 @@
-export type ThemeSetting = 'system' | 'light' | 'dark'
-export type ResolvedTheme = 'light' | 'dark'
+export type ThemeSetting = 'system' | 'light' | 'dark' | 'sepia'
+export type ResolvedTheme = 'light' | 'dark' | 'sepia'
 
 /**
  * Decides the theme actually in force. Pure, so the whole decision surface —
- * three settings against two system states — is testable without a DOM.
+ * four settings against two system states — is testable without a DOM.
  */
 export function resolveTheme(
   setting: ThemeSetting,

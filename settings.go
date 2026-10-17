@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 )
 
@@ -29,7 +30,28 @@ type Settings struct {
 	// frontend as the editor's spellcheck attribute; WebKit's own
 	// continuous-checking flag is registered on in spellcheck_darwin.go.
 	SpellCheck bool `json:"spellCheck"`
+	// Body typeface of the document, by key. The CSS stacks live in
+	// frontend/src/lib/bodyFont.ts; menu_test.go keeps the two key lists equal.
+	BodyFont string `json:"bodyFont"`
 }
+
+// bodyFonts is the View → Body Font menu, in display order.
+var bodyFonts = []struct{ label, value string }{
+	{"New York", "new-york"},
+	{"Charter", "charter"},
+	{"Iowan Old Style", "iowan"},
+	{"Palatino", "palatino"},
+	{"Georgia", "georgia"},
+	{"System Sans", "system-sans"},
+}
+
+var bodyFontValues = func() []string {
+	v := make([]string, len(bodyFonts))
+	for i, f := range bodyFonts {
+		v[i] = f.value
+	}
+	return v
+}()
 
 func defaultSettings() Settings {
 	return Settings{
@@ -43,6 +65,7 @@ func defaultSettings() Settings {
 		AutoSave:         true,
 		UpdateCheck:      "unasked",
 		SpellCheck:       true,
+		BodyFont:         "new-york",
 	}
 }
 
@@ -57,7 +80,7 @@ func (s Settings) normalise() Settings {
 	if s.PrintOrientation != "portrait" && s.PrintOrientation != "landscape" {
 		s.PrintOrientation = defaultSettings().PrintOrientation
 	}
-	if s.Theme != "system" && s.Theme != "light" && s.Theme != "dark" {
+	if s.Theme != "system" && s.Theme != "light" && s.Theme != "dark" && s.Theme != "sepia" {
 		s.Theme = defaultSettings().Theme
 	}
 	// Hermes spells this `centre` throughout; the frontend maps it to CSS's
@@ -70,6 +93,9 @@ func (s Settings) normalise() Settings {
 	}
 	if s.PaperSize != "a4" && s.PaperSize != "letter" {
 		s.PaperSize = defaultSettings().PaperSize
+	}
+	if !slices.Contains(bodyFontValues, s.BodyFont) {
+		s.BodyFont = defaultSettings().BodyFont
 	}
 	if s.UpdateCheck != "unasked" && s.UpdateCheck != "on" && s.UpdateCheck != "off" {
 		s.UpdateCheck = defaultSettings().UpdateCheck

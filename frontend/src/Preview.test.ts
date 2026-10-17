@@ -216,3 +216,29 @@ describe('code block copy button', () => {
     cleanup()
   })
 })
+
+describe('Preview body font', () => {
+  async function sheetStyle(props: Record<string, unknown>) {
+    const { BODY_FONTS } = await import('./lib/bodyFont')
+    const r = render(Preview, { props: { html: '<p>x</p>', ...props } as never })
+    const sheet = r.container.querySelector('.sheet') as HTMLElement
+    const value = sheet.style.getPropertyValue('--doc-font-body')
+    r.cleanup()
+    return { value, BODY_FONTS }
+  }
+
+  it('sets --doc-font-body from the BodyFont setting', async () => {
+    const { value, BODY_FONTS } = await sheetStyle({ bodyFont: 'charter' })
+    expect(value).toBe(BODY_FONTS.charter)
+  })
+
+  it('defaults to the New York stack', async () => {
+    const { value } = await sheetStyle({})
+    expect(value).toBe("ui-serif, 'New York', Georgia, serif")
+  })
+
+  it('falls back to the default for an unknown key', async () => {
+    const { value, BODY_FONTS } = await sheetStyle({ bodyFont: 'comic' })
+    expect(value).toBe(BODY_FONTS['new-york'])
+  })
+})

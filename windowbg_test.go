@@ -85,6 +85,7 @@ func TestWindowBackgroundMatchesPalette(t *testing.T) {
 	}{
 		{"light", ":root {", lightWindowBg},
 		{"dark", `:root[data-theme="dark"] {`, darkWindowBg},
+		{"sepia", `:root[data-theme="sepia"] {`, sepiaWindowBg},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			hex := bgIn(t, css, tc.selector)
@@ -105,6 +106,7 @@ func TestWindowBackgroundForTheme(t *testing.T) {
 		want  application.RGBA
 	}{
 		{"dark", darkWindowBg},
+		{"sepia", sepiaWindowBg},
 		{"light", lightWindowBg},
 		{"system", lightWindowBg},
 		{"", lightWindowBg},

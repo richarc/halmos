@@ -234,6 +234,28 @@ func TestThemeAcceptsAllThreeLegalValues(t *testing.T) {
 	}
 }
 
+func TestNormaliseAcceptsSepia(t *testing.T) {
+	if got := (Settings{Theme: "sepia"}).normalise().Theme; got != "sepia" {
+		t.Errorf("sepia normalised to %q", got)
+	}
+}
+
+func TestNormaliseClampsBodyFont(t *testing.T) {
+	for _, bad := range []string{"", "comic", "Charter"} {
+		if got := (Settings{BodyFont: bad}).normalise().BodyFont; got != "new-york" {
+			t.Errorf("BodyFont %q normalised to %q, want new-york", bad, got)
+		}
+	}
+	for _, ok := range bodyFontValues {
+		if got := (Settings{BodyFont: ok}).normalise().BodyFont; got != ok {
+			t.Errorf("BodyFont %q normalised to %q", ok, got)
+		}
+	}
+	if got := defaultSettings().BodyFont; got != "new-york" {
+		t.Errorf("default BodyFont = %q", got)
+	}
+}
+
 func TestThemeIsIndependentOfTheOtherSettings(t *testing.T) {
 	s := newTestService(t)
 	if err := s.UpdateSettings(Settings{

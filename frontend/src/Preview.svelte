@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte'
   import { Browser, Clipboard } from '@wailsio/runtime'
   import { createChartHydrator } from './lib/charts'
+  import { bodyFontStack, DEFAULT_BODY_FONT } from './lib/bodyFont'
   import { createMermaidHydrator } from './lib/mermaid'
   import { createCodeHydrator } from './lib/codeHighlight'
   import { collectAnchors, createScrollSync, type Anchor } from './lib/scrollSync'
@@ -22,6 +23,7 @@
     /** Hermes spelling ('left' | 'centre' | 'right'); mapped to CSS below. */
     figureAlign = 'centre',
     paperSize = DEFAULT_PAPER_SIZE,
+    bodyFont = DEFAULT_BODY_FONT,
     orientation = DEFAULT_ORIENTATION,
     // Injectable so tests can supply known anchors: jsdom has no layout engine
     // and would measure every element at zero. Mirrors createChartHydrator's
@@ -31,6 +33,8 @@
     html: string
     figureAlign?: FigureAlignment
     paperSize?: PaperSize
+    /** BodyFont setting key; see lib/bodyFont.ts. */
+    bodyFont?: string
     orientation?: PageOrientation
     collectAnchorsFn?: (c: HTMLElement) => Anchor[]
   } = $props()
@@ -226,6 +230,6 @@
   <div
     class="sheet"
     bind:this={sheet}
-    style={sheetStyle(paperSize, orientation)}
+    style={`${sheetStyle(paperSize, orientation)}; --doc-font-body: ${bodyFontStack(bodyFont)}`}
   ></div>
 </div>

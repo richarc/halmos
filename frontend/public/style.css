@@ -41,6 +41,9 @@
      --bg is nearly white and the sheet would have no edge against it. */
   --desk: #e4e4e4;
   --sheet-shadow: rgba(0, 0, 0, 0.14);
+  /* The sheet's on-screen paper. White in light and dark; tinted in sepia.
+     Print draws the sheet with the document palette's white instead. */
+  --sheet-paper: #ffffff;
 
   /* CodeMirror reads these through var() in its generated stylesheet, so
      switching themes needs no reconfiguration. See Editor.svelte. */
@@ -99,6 +102,7 @@
 
   --desk: #161616;
   --sheet-shadow: rgba(0, 0, 0, 0.5);
+  --sheet-paper: #ffffff;
 
   --editor-bg: #1f1f1f;
   --editor-fg: #d0d0d0;
@@ -119,6 +123,53 @@
   --syn-number: #e0a878;
   --syn-type: #7fd0d0;
   --syn-function: #8fb8f0;
+}
+
+/* Sepia: a warm reading palette. Same names as the light palette; the sheet
+   is tinted on screen through --sheet-paper only, and prints white. The --bg
+   is duplicated in main.go as sepiaWindowBg. */
+:root[data-theme="sepia"] {
+  color-scheme: light;
+
+  --bg: #f1e7d0;
+  --fg: #433422;
+  --border: #d6c7a6;
+  --border-strong: #c2b08a;
+  --muted: #6b5a42;
+  --muted-strong: #55452f;
+  --surface: #e8dcc0;
+  --divider: #dfd2b4;
+  --accent: #8a4b0f;
+  --on-accent: #fff8e8;
+  --overlay-bg: #f1e7d0;
+  --backdrop: rgba(40, 28, 10, 0.4);
+  --toast-bg: #3a2d1b;
+  --toast-fg: #f6eedb;
+  --cite-error-fg: #a02020;
+
+  --desk: #e0d3b4;
+  --sheet-shadow: rgba(60, 40, 10, 0.2);
+  --sheet-paper: #f4ecd8;
+
+  --editor-bg: #f1e7d0;
+  --editor-fg: #433422;
+  --editor-caret: #433422;
+  --editor-selection: #dcc89a;
+  --editor-gutter-bg: #e8dcc0;
+  --editor-gutter-fg: #6f5f47;
+  --editor-active-line: #5a3c0a0f;
+
+  --syn-heading: #7a3b0a;
+  --syn-emphasis: #7a5200;
+  --syn-code: #7a2a6a;
+  --syn-link: #8a4b0f;
+  --syn-quote: #55452f;
+  --syn-meta: #7a6a50;
+  --syn-keyword: #7b2d8e;
+  --syn-string: #2d6b3a;
+  --syn-number: #9a4a00;
+  --syn-type: #1d6b6b;
+  --syn-function: #1a4fa0;
 }
 
 /* The document palette. Declared once, light, and deliberately outside every
@@ -378,7 +429,7 @@ textarea:focus-visible,
   width: min(var(--sheet-width), 100%);
   margin: 0 auto;
   padding: min(var(--sheet-margin), var(--sheet-margin-max));
-  background: var(--doc-bg);
+  background: var(--sheet-paper);
   color: var(--doc-fg);
   font-family: var(--doc-font-body);
   font-size: 11pt;
@@ -778,6 +829,7 @@ dialog::backdrop { background: var(--backdrop); }
      shadow and the desk are chrome and simply go. */
   .sheet {
     width: auto; padding: 0; box-shadow: none;
+    background: var(--doc-bg);
   }
   .katex-display, .vega-lite-chart, .mermaid-diagram, figure, .chart-error, .csl-entry, .footnotes li, .markdown-alert { break-inside: avoid; }
   /* The printed page is true paper width, so the preview's fit does not

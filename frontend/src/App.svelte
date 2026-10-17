@@ -144,6 +144,7 @@
   let chartWidth = $state<ChartWidth>('medium')
   let figureAlign = $state<FigureAlignment>('centre')
   let paperSize = $state<PaperSize>(DEFAULT_PAPER_SIZE)
+  let bodyFont = $state('new-york')
   let orientation = $state<PageOrientation>(DEFAULT_ORIENTATION)
   let systemPrefersDark = $state(false)
   let scrollFrame: number | null = null
@@ -797,6 +798,7 @@
     chartWidth = s.chartWidth as ChartWidth
     figureAlign = s.figureAlignment as FigureAlignment
     paperSize = s.paperSize as PaperSize
+    bodyFont = s.bodyFont
     orientation = s.printOrientation as PageOrientation
     applyTheme(resolveTheme(themeSetting, systemPrefersDark))
   }
@@ -1277,7 +1279,7 @@
       aria-valuemax={80}
       tabindex="0"
     ></div>
-    <Preview bind:this={preview} {html} {figureAlign} {paperSize} {orientation} />
+    <Preview bind:this={preview} {html} {figureAlign} {paperSize} {bodyFont} {orientation} />
   </main>
 
   <footer class="status-bar">

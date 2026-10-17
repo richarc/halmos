@@ -60,6 +60,12 @@ export interface Settings {
      * continuous-checking flag is registered on in spellcheck_darwin.go.
      */
     "spellCheck": boolean;
+
+    /**
+     * Body typeface of the document, by key. The CSS stacks live in
+     * frontend/src/lib/bodyFont.ts; menu_test.go keeps the two key lists equal.
+     */
+    "bodyFont": string;
 }
 
 /**
