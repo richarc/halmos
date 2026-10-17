@@ -151,6 +151,19 @@
   --doc-cite-error-fg: #b30000;
   --doc-cite-error-bg: #fff5f5;
 
+  /* GitHub-style alerts: one accent per type, used for the left border and the
+     title, with a pale tint behind the body. */
+  --doc-alert-note: #0969da;
+  --doc-alert-note-bg: #f1f7fe;
+  --doc-alert-tip: #1a7f37;
+  --doc-alert-tip-bg: #f0f9f2;
+  --doc-alert-important: #8250df;
+  --doc-alert-important-bg: #f7f3fd;
+  --doc-alert-warning: #9a6700;
+  --doc-alert-warning-bg: #fdf7e8;
+  --doc-alert-caution: #cf222e;
+  --doc-alert-caution-bg: #fef2f3;
+
   /* ui-serif resolves to New York on macOS: a text face Apple designed for
      screen and print, so it costs nothing to bundle and pairs with the SF
      chrome around it. One token, so swapping in a bundled academic serif
@@ -399,6 +412,26 @@ textarea:focus-visible,
 .sheet blockquote {
   padding-left: 1em; border-left: 3px solid var(--doc-border); color: var(--doc-muted);
 }
+.sheet .markdown-alert {
+  margin: 0 0 0.9em; padding: 0.5em 1em; border-left: 4px solid var(--doc-border);
+  border-radius: 0 6px 6px 0;
+}
+.sheet .markdown-alert > :last-child { margin-bottom: 0; }
+.sheet .markdown-alert-title { margin: 0 0 0.3em; font-weight: 600; }
+.sheet .markdown-alert-note { border-left-color: var(--doc-alert-note); background: var(--doc-alert-note-bg); }
+.sheet .markdown-alert-note > .markdown-alert-title { color: var(--doc-alert-note); }
+.sheet .markdown-alert-tip { border-left-color: var(--doc-alert-tip); background: var(--doc-alert-tip-bg); }
+.sheet .markdown-alert-tip > .markdown-alert-title { color: var(--doc-alert-tip); }
+.sheet .markdown-alert-important { border-left-color: var(--doc-alert-important); background: var(--doc-alert-important-bg); }
+.sheet .markdown-alert-important > .markdown-alert-title { color: var(--doc-alert-important); }
+.sheet .markdown-alert-warning { border-left-color: var(--doc-alert-warning); background: var(--doc-alert-warning-bg); }
+.sheet .markdown-alert-warning > .markdown-alert-title { color: var(--doc-alert-warning); }
+.sheet .markdown-alert-caution { border-left-color: var(--doc-alert-caution); background: var(--doc-alert-caution-bg); }
+.sheet .markdown-alert-caution > .markdown-alert-title { color: var(--doc-alert-caution); }
+/* Task lists: the checkbox takes the bullet's place. */
+.sheet ul.task-list-container { list-style: none; padding-left: 0.4em; }
+.sheet li.task-list-item > input[type="checkbox"] { margin: 0 0.4em 0 0; vertical-align: middle; }
+.sheet li.task-list-item > ul.task-list-container { padding-left: 1.4em; }
 .sheet pre {
   background: var(--doc-surface-code-block); padding: 12px; border-radius: 6px; overflow-x: auto;
 }
@@ -729,7 +762,7 @@ dialog::backdrop { background: var(--backdrop); }
   .sheet {
     width: auto; padding: 0; box-shadow: none;
   }
-  .katex-display, .vega-lite-chart, .mermaid-diagram, figure, .chart-error, .csl-entry, .footnotes li { break-inside: avoid; }
+  .katex-display, .vega-lite-chart, .mermaid-diagram, figure, .chart-error, .csl-entry, .footnotes li, .markdown-alert { break-inside: avoid; }
   /* The printed page is true paper width, so the preview's fit does not
      apply — and a scrollbar means nothing on paper. */
   .sheet .katex-display > .katex { font-size: 1.21em; }

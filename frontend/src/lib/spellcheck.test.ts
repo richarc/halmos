@@ -213,3 +213,10 @@ describe('protectedRanges: footnotes', () => {
     expect(protectedText(doc)).toEqual(['[^note1]', '[^note1]:'])
   })
 })
+
+describe('protectedRanges: alerts', () => {
+  it('protects the [!NOTE] marker from spell check', () => {
+    const doc = '> [!NOTE]\n> Useful text.\n\n> [!caution]\n> Careful.\n'
+    expect(protectedText(doc)).toEqual(['[!NOTE]', '[!caution]'])
+  })
+})

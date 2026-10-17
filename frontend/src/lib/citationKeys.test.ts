@@ -81,6 +81,11 @@ const CORPUS = [
   // Maths is maths, not a citation.
   'Inline $f(@a)$ maths and @b',
   '$$\ng(@a)\n$$\n\nthen @b',
+  // Alerts and task items change the first line of their block.
+  '> [!NOTE]\n> See [@a] and @b.',
+  '> [!warning]\n> Careful @a\n> more [@b; @c]',
+  '- [ ] read @a\n- [x] cite [@b]',
+  '> [!TIP]\n> - [ ] task [@a]\n> - plain @b',
 ]
 
 describe('findCitationKeys', () => {

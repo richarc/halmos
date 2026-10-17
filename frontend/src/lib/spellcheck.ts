@@ -47,6 +47,8 @@ const BARE_ENVIRONMENT = /\\begin\{([A-Za-z*]+)\}[\s\S]*?\\end\{\1\}/g
 const CITATION_GROUP = /\[@[^[\]\n]+\]/g
 // Footnote markers [^label] and the label opening a definition, "[^label]:".
 const FOOTNOTE_MARKER = /\[\^[^\s[\]]+\]:?/g
+// The marker line of a GitHub alert, "> [!NOTE]": a keyword, not a word.
+const ALERT_MARKER = /\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi
 const BARE_CITATION = /(?<![\w@[])@[\w][\w:#$%&\-+?<>~/]*(?:\.[\w][\w:#$%&\-+?<>~/]*)*/g
 
 /**
@@ -65,7 +67,7 @@ function documentWideRanges(state: EditorState): Range[] {
   if (fmEnd > 0) found.push({ from: 0, to: state.doc.line(fmEnd).to })
 
   const text = state.doc.toString()
-  for (const re of [DISPLAY_MATH, INLINE_MATH, BARE_ENVIRONMENT, CITATION_GROUP, BARE_CITATION, FOOTNOTE_MARKER]) {
+  for (const re of [DISPLAY_MATH, INLINE_MATH, BARE_ENVIRONMENT, CITATION_GROUP, BARE_CITATION, FOOTNOTE_MARKER, ALERT_MARKER]) {
     re.lastIndex = 0
     for (let m = re.exec(text); m; m = re.exec(text)) {
       found.push({ from: m.index, to: m.index + m[0].length })

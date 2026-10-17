@@ -421,3 +421,44 @@ describe('render: footnotes', () => {
     expect(html).not.toContain('References')
   })
 })
+
+describe('render: task lists and alerts', () => {
+  it('renders task list items as disabled checkboxes', () => {
+    const html = render('- [ ] a\n- [x] b')
+    expect(html.match(/<input type="checkbox"[^>]*disabled/g)).toHaveLength(2)
+    expect(html.match(/<li class="task-list-item">/g)).toHaveLength(2)
+    expect(html.match(/checked="checked"/g)).toHaveLength(1)
+    expect(html).toMatch(/<input type="checkbox"[^>]*checked[^>]*>[^]*> b</)
+  })
+
+  it.each(['note', 'tip', 'important', 'warning', 'caution'])('renders a %s alert', (type) => {
+    const html = render(`> [!${type.toUpperCase()}]\n> Body text.`)
+    const title = type[0].toUpperCase() + type.slice(1)
+    expect(html).toContain(`<div class="markdown-alert markdown-alert-${type}"`)
+    expect(html).toContain(`<p class="markdown-alert-title">${title}</p>`)
+    expect(html).toContain('<p>Body text.</p>')
+  })
+
+  it('accepts a lower-case alert marker', () => {
+    const html = render('> [!note]\n> hi')
+    expect(html).toContain('markdown-alert-note')
+    expect(html).toContain('<p class="markdown-alert-title">Note</p>')
+  })
+
+  it('renders an alert inside a list item and a task list inside an alert', () => {
+    expect(render('- item\n\n  > [!TIP]\n  > nested')).toMatch(/<li>[^]*<div class="markdown-alert markdown-alert-tip"/)
+    expect(render('> [!NOTE]\n> - [ ] one\n> - [x] two')).toMatch(
+      /markdown-alert-note[^]*<li class="task-list-item">[^]*<li class="task-list-item">/,
+    )
+  })
+
+  it('keeps html:false: raw HTML in an alert is escaped', () => {
+    const html = render('> [!NOTE]\n> <script>alert(1)</script>')
+    expect(html).not.toContain('<script>')
+    expect(html).toContain('&lt;script&gt;')
+  })
+
+  it('leaves an unknown marker as an ordinary blockquote', () => {
+    expect(render('> [!UNKNOWN]\n> hi')).not.toContain('markdown-alert')
+  })
+})
