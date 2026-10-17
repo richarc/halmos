@@ -80,11 +80,30 @@ const NAMED_COLOURS = [
 ]
 
 const LITERAL_COLOUR = new RegExp(
-  `#[0-9a-fA-F]{3,8}\\b|rgba?\\([^)]*\\)|\\b(?:${NAMED_COLOURS.join('|')})\\b`,
+  `#[0-9a-fA-F]{3,8}\\b|rgba?\\([^)]*\\)|\\b(?:${NAMED_COLOURS.join('|')})\\b(?!-)`,
   'gi',
 )
 
 describe('style.css palette contract', () => {
+  // white-space is a property, not the colour white. Counting it pushed rules
+  // onto text-wrap: nowrap alone, which WebKit before Safari 17.4 drops.
+  it('does not mistake white-space for a colour', () => {
+    expect('white-space: nowrap'.match(LITERAL_COLOUR)).toBeNull()
+    expect('color: white'.match(LITERAL_COLOUR)).toEqual(['white'])
+  })
+
+  // One-line truncation needs white-space: nowrap on the macOS 12 and 13
+  // WebKit this app still supports; text-wrap: nowrap is only from 17.4.
+  it('keeps truncated lines on one line in older WebKit', () => {
+    const css = stripComments(CSS)
+    for (const selector of ['.outline-entry {', '.welcome-recent-name, .welcome-recent-folder {']) {
+      const start = css.indexOf(selector)
+      expect(start, selector).toBeGreaterThan(-1)
+      const body = css.slice(start, css.indexOf('}', start))
+      expect(body, selector).toContain('white-space: nowrap')
+    }
+  })
+
   it('declares no literal colours outside the palette', () => {
     // Colours are decided in one place. A literal here means a rule that
     // cannot follow the theme — the exact way a half-dark UI ships.

@@ -399,7 +399,7 @@ textarea:focus-visible,
 .outline ul { list-style: none; margin: 0; padding: 6px 0; }
 .outline-entry {
   display: block; width: 100%; text-align: left; padding: 3px 8px 3px 0;
-  overflow: hidden; text-overflow: ellipsis; text-wrap: nowrap; color: var(--fg);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg);
 }
 .outline-entry:hover { color: var(--accent); }
 .outline-empty { margin: 12px; color: var(--muted); }
@@ -662,7 +662,7 @@ textarea:focus-visible,
 .welcome-recent-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .welcome-recent-name { font-size: 14px; font-weight: 500; }
 .welcome-recent-name, .welcome-recent-folder {
-  text-wrap: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .welcome-recent-folder { font-size: 12px; color: var(--muted); }
 /* A narrow window: the panel goes above the list instead of squeezing it. */
