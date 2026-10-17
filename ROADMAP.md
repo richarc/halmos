@@ -27,7 +27,7 @@ Agreed 2026-10-12. These rules decide what goes into each release below.
   payment with export and citation services as the first paid features,
   then AI for routine work, then AI limited to the user's own sources.
 
-## v0.13.0 — Reading and sharing
+## v0.14.0 — Reading and sharing
 
 Smaller improvements for reading and sharing documents. Can move after
 v1.0.0 if the release work needs the time.
