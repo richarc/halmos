@@ -34,9 +34,16 @@
 		<dict>
 			<key>QLIsDataBasedPreview</key>
 			<false/>
+			<!-- Markdown only, never public.plain-text. net.daringfireball.markdown
+			     is what macOS itself assigns .md and .markdown (mdls, macOS 26).
+			     public.markdown is not declared on macOS 26; listed so the
+			     extension still applies if Apple adds it. org.daringfireball.markdown
+			     is the misspelling some older editors export as their own type. -->
 			<key>QLSupportedContentTypes</key>
 			<array>
 				<string>net.daringfireball.markdown</string>
+				<string>public.markdown</string>
+				<string>org.daringfireball.markdown</string>
 			</array>
 			<key>QLSupportsSearchableItems</key>
 			<false/>

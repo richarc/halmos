@@ -4,8 +4,13 @@
 // The page is frontend/quicklook.html, built by `vite build --mode quicklook`
 // and copied into this extension's Resources/quicklook by the root
 // Taskfile's quicklook:build. It exposes window.renderMarkdown(text), which
-// resolves once charts, diagrams and code have hydrated; the completion
-// handler is held until then so Quick Look never shows a half-drawn page.
+// resolves once charts, diagrams and code have hydrated (or after the page's
+// own 5 s limit); the completion handler is held until then so Quick Look
+// never shows a half-drawn page. A backstop here completes it regardless, so
+// a page that never loads or never answers cannot hold Quick Look forever.
+//
+// Reading and decoding the file, and recognising the page's own URL, are in
+// PreviewText.swift, which quicklook/Tests exercises.
 
 import Cocoa
 import Quartz
@@ -15,7 +20,15 @@ import WebKit
 final class PreviewViewController: NSViewController, QLPreviewingController, WKNavigationDelegate {
     private var webView: WKWebView!
     private var pageURL: URL?
-    private var pending: (text: String, done: (Error?) -> Void)?
+    /// The file's contents, waiting for the page to finish loading.
+    private var pending: PreviewText.Contents?
+    private var handler: ((Error?) -> Void)?
+    private var backstop: DispatchWorkItem?
+    private var pageLoaded = false
+
+    /// Longer than the page's own hydrator limit (HYDRATE_TIMEOUT_MS, 5 s),
+    /// so this fires only when the page itself is stuck.
+    private static let backstopSeconds = 10.0
 
     override func loadView() {
         let config = WKWebViewConfiguration()
@@ -26,13 +39,12 @@ final class PreviewViewController: NSViewController, QLPreviewingController, WKN
     }
 
     func preparePreviewOfFile(at url: URL, completionHandler handler: @escaping (Error?) -> Void) {
-        let text: String
+        let contents: PreviewText.Contents
         do {
             // Read here, by the extension: Quick Look extends the sandbox to
             // the file it is previewing, and the web content process is not
             // given access to it at all.
-            let data = try Data(contentsOf: url)
-            text = String(decoding: data, as: UTF8.self)
+            contents = try PreviewText.read(url)
         } catch {
             handler(error)
             return
@@ -43,31 +55,48 @@ final class PreviewViewController: NSViewController, QLPreviewingController, WKN
         }
         let page = dir.appendingPathComponent("quicklook.html")
         pageURL = page
-        pending = (text, handler)
+        pageLoaded = false
+        self.handler = handler
+        pending = contents
+        let backstop = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            // Loaded: show whatever the page drew. Not loaded: an error, so
+            // Quick Look falls back to its own plain-text preview.
+            self.complete(self.pageLoaded ? nil : CocoaError(.fileReadUnknown))
+        }
+        self.backstop = backstop
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.backstopSeconds, execute: backstop)
         webView.loadFileURL(page, allowingReadAccessTo: dir)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        guard let (text, done) = pending else { return }
+        guard let contents = pending else { return }
         pending = nil
-        // Passed as an argument, never spliced into the script source, so
+        pageLoaded = true
+        // Passed as arguments, never spliced into the script source, so
         // nothing in the document can be read as JavaScript.
         webView.callAsyncJavaScript(
-            "await window.renderMarkdown(text)",
-            arguments: ["text": text],
+            "await window.renderMarkdown(text, { totalBytes, shownBytes })",
+            arguments: [
+                "text": contents.text,
+                "totalBytes": contents.totalBytes,
+                "shownBytes": contents.shownBytes,
+            ],
             in: nil,
             in: .page
-        ) { result in
-            if case .failure(let error) = result { done(error) } else { done(nil) }
+        ) { [weak self] result in
+            if case .failure(let error) = result { self?.complete(error) } else { self?.complete(nil) }
         }
     }
 
+    // Only the page's own load counts: once it has loaded, the render owns
+    // the completion, and a later navigation failing must not cut it short.
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        finish(error)
+        if !pageLoaded { complete(error) }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        finish(error)
+        if !pageLoaded { complete(error) }
     }
 
     // The page itself and same-page fragment links (a table of contents) only.
@@ -77,17 +106,17 @@ final class PreviewViewController: NSViewController, QLPreviewingController, WKN
         decidePolicyFor action: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
-        let target = action.request.url.flatMap { u -> URL? in
-            var c = URLComponents(url: u, resolvingAgainstBaseURL: false)
-            c?.fragment = nil
-            return c?.url
-        }
-        decisionHandler(target == pageURL ? .allow : .cancel)
+        decisionHandler(PreviewText.isSamePage(action.request.url, pageURL) ? .allow : .cancel)
     }
 
-    private func finish(_ error: Error) {
-        guard let (_, done) = pending else { return }
+    /// Calls Quick Look's completion handler exactly once, from whichever of
+    /// the render, a load failure or the backstop gets there first.
+    private func complete(_ error: Error?) {
+        backstop?.cancel()
+        backstop = nil
         pending = nil
+        guard let done = handler else { return }
+        handler = nil
         done(error)
     }
 }

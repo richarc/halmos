@@ -6,17 +6,29 @@ import { createChartHydrator } from './lib/charts'
 import { createMermaidHydrator } from './lib/mermaid'
 import { createCodeHydrator } from './lib/codeHighlight'
 import { DEFAULT_ORIENTATION, DEFAULT_PAPER_SIZE, sheetStyle } from './lib/paper'
-import { renderPreview } from './lib/quicklookPreview'
+import { renderPreview, type Hydrator, type PreviewOptions } from './lib/quicklookPreview'
 
 declare global {
   interface Window {
-    /** Called by PreviewViewController.swift with the file's text. */
-    renderMarkdown(text: string): Promise<void>
+    /**
+     * Called by PreviewViewController.swift with the file's text and, when
+     * the file was too large to read whole, its size and the bytes read.
+     */
+    renderMarkdown(text: string, info?: PreviewOptions): Promise<void>
   }
 }
 
-const sheet = document.getElementById('sheet')!
-sheet.setAttribute('style', sheetStyle(DEFAULT_PAPER_SIZE, DEFAULT_ORIENTATION))
-const hydrators = [createChartHydrator(), createMermaidHydrator(), createCodeHydrator()]
+/** Wires the page's sheet to window.renderMarkdown. Exported for tests. */
+export function mountQuickLook(sheet: HTMLElement, hydrators: Hydrator[]): void {
+  sheet.setAttribute('style', sheetStyle(DEFAULT_PAPER_SIZE, DEFAULT_ORIENTATION))
+  window.renderMarkdown = (text, info) =>
+    renderPreview(sheet, text, hydrators, {
+      totalBytes: info?.totalBytes,
+      shownBytes: info?.shownBytes,
+    })
+}
 
-window.renderMarkdown = (text) => renderPreview(sheet, text, hydrators)
+const sheet = document.getElementById('sheet')
+if (sheet) {
+  mountQuickLook(sheet, [createChartHydrator(), createMermaidHydrator(), createCodeHydrator()])
+}

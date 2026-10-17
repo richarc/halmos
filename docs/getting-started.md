@@ -316,6 +316,21 @@ and the preview is drawn at that size so what you see is what prints.
 
 **File → Print…** (⌘P) opens the system print panel.
 
+### Quick Look in Finder
+
+Select a `.md` file in Finder and press the space bar to see it drawn the
+way the preview draws it: headings, maths, task lists, alerts, code, charts
+and diagrams. If Finder shows plain text instead, open Halmos once so
+macOS registers its preview. Quick Look works only from the file itself, so
+it differs from the preview in a few ways:
+
+- Citations show as written (`[@smith2020]`), with no References section;
+  the `.bib` file is not read.
+- Images show as their file name in brackets rather than the picture, and
+  nothing is fetched from the internet.
+- It is always light, on an A4 page.
+- A file over 5 MB shows its first 5 MB, with a note at the top.
+
 ---
 
 ## Where next

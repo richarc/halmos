@@ -65,8 +65,9 @@ tasks:
       # bundle id plus the team, which every build shares, so a grant made
       # once lasts; an ad-hoc signature is a new identity every build, so
       # each repackage silently revoked it and the demo's record step failed.
-      # Not the release path: that one does the same copy and then signs
-      # with `wails3 tool sign` (hardened runtime, timestamp) for notarizing.
+      # Not the release path: that one does the same copy and extension
+      # embed, then signs with `codesign --options runtime --timestamp` for
+      # notarizing.
       - |
         if security find-identity -v -p codesigning | grep -q "{{.IDENTITY}}"; then
           codesign --force --sign "{{.IDENTITY}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app"
@@ -96,8 +97,14 @@ tasks:
       to the signature, because codesign seals Contents/ and anything that
       touches the bundle afterwards invalidates it:
 
-        test -> build universal -> bundle -> copy licences -> sign ->
+        test -> build universal -> bundle -> copy licences ->
+        build, embed and sign the Quick Look extension -> sign the app ->
         notarize -> staple -> zip
+
+      The extension (quicklook/, see quicklook:build) is nested code inside
+      Contents/PlugIns, so it is signed before the app around it, with its own
+      sandbox entitlements; the app is then signed without --deep. It is
+      always rebuilt here, never reused from an earlier package.
 
       Why not `wails3 task darwin:sign:notarize`, which looks like it does
       this: its `deps: [package]` resolves inside build/darwin/Taskfile.yml to
@@ -173,9 +180,13 @@ tasks:
       # to be built.
       - go test ./.
       - '{{.PACKAGE_MANAGER}} --prefix frontend test'
+      - task: quicklook:test
       # create:app:bundle never cleans, so a Resources file deleted since the
       # last package would otherwise survive into the release.
       - rm -rf "{{.APP}}"
+      # quicklook:build skips itself when its sources look unchanged; a
+      # release must not trust that, so the extension is always rebuilt.
+      - rm -rf "{{.BIN_DIR}}/HalmosQuickLook.appex"
       - task: darwin:package:universal
       - task: bundle:licences:copy
       # The Quick Look extension is nested code, so it is signed first — with
@@ -250,6 +261,8 @@ tasks:
       - frontend/public/style.css
       - frontend/vite.config.ts
       - frontend/package.json
+      # A dependency update can change the page with no other file changing.
+      - frontend/package-lock.json
       - build/darwin/Info.plist
     generates:
       - '{{.APPEX}}/Contents/MacOS/HalmosQuickLook'
@@ -263,7 +276,7 @@ tasks:
             -target "$arch-apple-macos12.0" -module-name HalmosQuickLook \
             -framework Cocoa -framework Quartz -framework WebKit \
             -Xlinker -e -Xlinker _NSExtensionMain \
-            quicklook/PreviewViewController.swift \
+            quicklook/PreviewViewController.swift quicklook/PreviewText.swift \
             -o "{{.BIN_DIR}}/HalmosQuickLook-$arch"
         done
       - lipo -create -output "{{.APPEX}}/Contents/MacOS/HalmosQuickLook" "{{.BIN_DIR}}/HalmosQuickLook-arm64" "{{.BIN_DIR}}/HalmosQuickLook-x86_64"
@@ -271,6 +284,23 @@ tasks:
       - cp quicklook/Info.plist "{{.APPEX}}/Contents/Info.plist"
       - /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{.VERSION}}" -c "Set :CFBundleVersion {{.VERSION}}" "{{.APPEX}}/Contents/Info.plist"
       - cp -R frontend/dist-quicklook "{{.APPEX}}/Contents/Resources/quicklook"
+
+  quicklook:test:
+    summary: Runs the Quick Look extension's Swift tests
+    platforms: [darwin]
+    desc: |
+      quicklook/Tests/main.swift against quicklook/PreviewText.swift: reading
+      and decoding the file (size cap, invalid UTF-8, byte-order mark) and
+      recognising the page's own URL. A plain executable rather than XCTest,
+      since there is no Xcode project. The page itself is tested by vitest
+      (frontend/src/quicklook.test.ts).
+    vars:
+      TEST_BIN: '{{.BIN_DIR}}/HalmosQuickLookTests'
+    cmds:
+      - mkdir -p "{{.BIN_DIR}}"
+      - xcrun swiftc -swift-version 5 quicklook/PreviewText.swift quicklook/Tests/main.swift -o "{{.TEST_BIN}}"
+      - defer: rm -f "{{.TEST_BIN}}"
+      - '"{{.TEST_BIN}}"'
 
   quicklook:embed:
     summary: Copies the Quick Look extension into the packaged .app and signs it
