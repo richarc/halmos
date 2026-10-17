@@ -224,7 +224,7 @@ Ideas noted along the way, not yet committed to a release:
     file instead of closing or quitting.
 - Quitting from the Dock menu or at logout with unsaved changes loses them.
   Those paths go straight to `applicationShouldTerminate`, which Wails
-  beta.12 gives no hook for; only ⌘Q and the close button are guarded.
+  (checked up to beta.30) gives no hook for; only ⌘Q and the close button are guarded.
   Pre-dates v0.11.4.
 - The `.md` association is by extension only (`CFBundleTypeExtensions`). If
   Open With turns out to miss Halmos on some macOS version, add

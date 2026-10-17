@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated Wails to v3.0.0-beta.30. On macOS this stops the app running
+  about 120 empty script calls a second while the window is open, fixes a
+  memory leak, and keeps the app responsive while print and file panels
+  are open.
+
 ## [0.14.0] - 2026-10-17
 
 ### Added
