@@ -48,6 +48,9 @@ separate, much larger project and is deliberately not part of this.
       API key matters more than convenience here — unlike an app-specific
       password it is not tied to a personal Apple ID, and it can be revoked
       on its own.
+      *Status 2026-10-18*: the workflow exists (`release.yml`): a `v*` tag
+      produces a notarized draft release. Tick this when a real release has
+      gone through it.
 - [x] **A documentation site.** Done outside this repository: instead of a
       static site on GitHub Pages, the `hermesportal` application serves
       [halmoseditor.com](https://www.halmoseditor.com) — the landing page, the

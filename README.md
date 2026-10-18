@@ -141,18 +141,79 @@ Wails v3 uses [Task](https://taskfile.dev) for orchestration, so `wails3 task
 
 ### Cutting a release
 
+Releases are built by the **Release** workflow (`.github/workflows/release.yml`)
+on GitHub's macOS runner. It runs the same `wails3 task release` described
+below, and stops at a draft: publishing and pushing `main` stay with you.
+
+1. Bump `version` in `build/config.yml` and `updates/latest.json`, and give
+   the version its own `## [<version>] - <date>` section in `CHANGELOG.md`,
+   all in one commit on `main`. `release` refuses to run if the first two
+   differ, and the workflow refuses a version with no changelog section.
+2. Tag it and push **only the tag**:
+
+   ```bash
+   git tag v<version>
+   git push origin v<version>
+   ```
+
+   The tag must be `v` plus the version in `build/config.yml` (the app
+   derives the release page from that exact name); the workflow checks this
+   before signing anything. Pushing a tag uploads its commit but does not
+   move `main`.
+3. Wait for the workflow. It leaves a draft release with the zip attached
+   and the changelog section as its notes. Download the zip, unzip it, and
+   check it the way Gatekeeper will:
+
+   ```bash
+   wails3 task release:verify APP="$HOME/Downloads/Halmos Editor.app"
+   ```
+
+   Look for `source=Notarized Developer ID`.
+4. Publish the draft on GitHub.
+5. Only then push `main`: `git push origin main`.
+
+The order matters for the update check. Installed copies read the feed from
+`main`, so pushing `main` before the release is public would announce a
+version nobody can download yet.
+
+"Run workflow" on the Actions tab is a dry run: it builds, signs and
+notarizes without a tag and attaches the zip to the run instead of creating
+a release. Use it to test the secrets.
+
+#### One-time setup
+
+The workflow reads five secrets from a GitHub environment named `release`:
+
+| Secret | What it is |
+|---|---|
+| `DEVELOPER_ID_P12_BASE64` | The **Developer ID Application** certificate and its private key, exported from Keychain Access as a `.p12`, then `base64 -i cert.p12 \| pbcopy` |
+| `DEVELOPER_ID_P12_PASSWORD` | The password set when exporting the `.p12` |
+| `NOTARY_KEY_BASE64` | An App Store Connect **team** API key with the Developer role (Users and Access → Integrations), `base64 -i AuthKey_<id>.p8 \| pbcopy`. The `.p8` downloads only once |
+| `NOTARY_KEY_ID` | That key's ID |
+| `NOTARY_ISSUER_ID` | The issuer ID shown above the key list |
+
+Then, in the repository settings:
+
+- **Environments → New environment → `release`.** Add the five secrets
+  there, not as repository secrets. Under deployment branches and tags,
+  allow only tags matching `v*` and the branch `main` (for the dry run).
+- **Rules → Rulesets → New tag ruleset** targeting `v*`, restricting
+  creation, update and deletion to yourself.
+
+Delete the `.p12` and `.p8` from your Mac once they are stored. If either
+leaks: revoke the API key in App Store Connect (it can be revoked on its
+own), ask Apple to revoke the Developer ID certificate, and delete the
+environment's secrets.
+
+#### By hand
+
 ```bash
 wails3 task release          # test, build universal, sign, notarize, staple, zip
 wails3 task release:verify   # check a built or downloaded .app the way Gatekeeper will
 ```
 
-The order matters for the update check. Bump `version` in `build/config.yml`
-and `updates/latest.json` together in one commit (`release` refuses to run if
-they differ), cut the release, tag it `v<version>` (the app derives the
-release page from that exact tag name), publish it on GitHub with the zip
-attached, and only then push `main` and the tag. Installed copies read the
-feed from `main`, so pushing first would announce a version nobody can
-download yet.
+The same order applies: tag, publish the release with the zip attached, then
+push `main` and the tag.
 
 `release` needs a **Developer ID Application** certificate in the keychain
 (not "Apple Development", and not "3rd Party Mac Developer Application" — those
@@ -163,6 +224,9 @@ notarization credentials stored once:
 xcrun notarytool store-credentials "hermes-notary" \
   --apple-id <apple-id> --team-id <team-id> --password <app-specific-password>
 ```
+
+Or pass the API key instead: `wails3 task release NOTARY_KEY=AuthKey.p8
+NOTARY_KEY_ID=<id> NOTARY_ISSUER=<issuer>`.
 
 Run `wails3 task --list` to read why the steps are in the order they are; the
 ordering is load-bearing and the task documents itself.
