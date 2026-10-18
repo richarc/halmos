@@ -1,0 +1,144 @@
+name: Release
+
+# A v<version> tag builds, signs, notarizes and staples the app with
+# `wails3 task release` — the same task a local release runs, so the ordering
+# it documents lives in one place — and leaves a DRAFT GitHub release with the
+# zip attached. A person checks the draft and publishes it, then pushes main.
+# Never the other way round: installed copies read the update feed from main,
+# so main must not name a version before its release is public (README,
+# Cutting a release). Pushing only the tag uploads its commit without moving
+# main, which is what makes this order possible.
+#
+# "Run workflow" (workflow_dispatch) is a dry run: it skips the tag check and
+# the release, and attaches the zip to the run instead, so the secrets can be
+# tested before any real tag exists.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never cancel: a notarization cut off part-way leaves a submission at Apple
+# and nothing to show for it.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    # The signing certificate and notary key are secrets of this environment,
+    # not of the repository, so only runs its deployment rules allow (v* tags,
+    # and main for the dry run) can read them.
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          # As ci.yml: the newest 1.26 patch, so the release is built with the
+          # standard-library fixes govulncheck gates on.
+          go-version: '1.26.x'
+          check-latest: true
+          cache: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      # Pinned to the version in go.mod; the two (and @wailsio/runtime) are
+      # bumped together. release_workflow_test.go checks this one.
+      - name: Install wails3
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
+
+      # Before anything is signed: the app derives its release page from the
+      # tag name, so a tag that disagrees with build/config.yml must not ship.
+      - name: Check the tag matches the version
+        if: github.event_name == 'push'
+        run: wails3 task release:check-tag TAG="$GITHUB_REF_NAME"
+
+      # Secrets reach scripts only through env, never ${{ }} inside run:, so
+      # their values are never part of the script text the runner writes out.
+      # The keychain is a throwaway one under RUNNER_TEMP with a random
+      # password; set-key-partition-list lets codesign use the key without a
+      # prompt that would hang the job.
+      - name: Import the Developer ID certificate
+        env:
+          P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          echo "::add-mask::$KEYCHAIN_PASSWORD"
+          umask 077
+          printf '%s' "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/developer-id.p12" -k "$KEYCHAIN" \
+            -P "$P12_PASSWORD" -f pkcs12 -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/developer-id.p12"
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "Developer ID Application"
+
+      # An App Store Connect API key, not an Apple ID: it belongs to the team,
+      # not a person, and can be revoked on its own.
+      - name: Write the notary key
+        env:
+          NOTARY_KEY_BASE64: ${{ secrets.NOTARY_KEY_BASE64 }}
+        run: |
+          umask 077
+          printf '%s' "$NOTARY_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+
+      - name: Build, sign, notarize and staple
+        env:
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          wails3 task release \
+            NOTARY_KEY="$RUNNER_TEMP/notary.p8" \
+            NOTARY_KEY_ID="$NOTARY_KEY_ID" \
+            NOTARY_ISSUER="$NOTARY_ISSUER_ID"
+
+      - name: Release notes from CHANGELOG.md
+        if: github.event_name == 'push'
+        run: wails3 task release:notes OUT="$RUNNER_TEMP/notes.md"
+
+      # A draft, never published here: see the comment at the top.
+      - name: Create the draft release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" bin/Halmos-Editor-*-macos-universal.zip \
+            --draft --verify-tag \
+            --title "Halmos Editor ${GITHUB_REF_NAME#v}" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+
+      - name: Attach the zip to the dry run
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: halmos-editor-dry-run
+          path: bin/Halmos-Editor-*-macos-universal.zip
+          retention-days: 7
+
+      - name: Remove the keychain and key files
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
+          rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/notary.p8"
