@@ -1306,12 +1306,26 @@
 
 <div class="app">
   <header class="toolbar">
-    <button onclick={requestOpen}>Open</button>
-    <button onclick={() => void save()}>Save</button>
-    <button onclick={() => void insertCitation()}>Cite</button>
-    <button onclick={openChartBuilder}>Chart</button>
-    <button onclick={openTableBuilder}>Table</button>
-    <button onclick={() => void DocumentService.ExportPDF(path ?? '').catch((e) => toast(String(e)))}>Export PDF</button>
+    <div class="toolbar-group" role="group" aria-label="Outline">
+      <button
+        class="outline-toggle"
+        aria-pressed={showOutline}
+        title={showOutline ? 'Hide outline (⌘⌥O)' : 'Show outline (⌘⌥O)'}
+        onclick={() => void setOutlineShown(!showOutline)}>Outline</button
+      >
+    </div>
+    <div class="toolbar-group" role="group" aria-label="File">
+      <button onclick={requestOpen}>Open…</button>
+      <button onclick={() => void save()}>Save</button>
+    </div>
+    <div class="toolbar-group" role="group" aria-label="Insert">
+      <button onclick={() => void insertCitation()}>Cite…</button>
+      <button onclick={openChartBuilder}>Chart…</button>
+      <button onclick={openTableBuilder}>Table…</button>
+    </div>
+    <div class="toolbar-group toolbar-end" role="group" aria-label="Export">
+      <button onclick={() => void DocumentService.ExportPDF(path ?? '').catch((e) => toast(String(e)))}>Export PDF…</button>
+    </div>
   </header>
 
   <main class="panes">

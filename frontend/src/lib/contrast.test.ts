@@ -42,6 +42,7 @@ const PAIRS: Array<[label: string, fg: string, bg: string, target: number]> = [
   ['primary button', '--on-accent', '--accent', 4.5],
   ['toast', '--toast-fg', '--toast-bg', 4.5],
   ['welcome button', '--fg', '--surface', 4.5],
+  ['pressed toolbar button', '--fg', '--border', 4.5],
   // The chart builder's field error is the last error colour left in the
   // chrome — it sits in a dialog, so it is measured against the dialog's
   // ground. The markers that render on the sheet moved to the document

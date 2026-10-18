@@ -253,7 +253,8 @@ describe('welcome pane', () => {
     await vi.waitFor(() => expect(buttonByText(target, 'New document')).toBeDefined())
 
     expect(buttonByText(target, 'New document')!.dataset.shortcut).toBe('⌘N')
-    expect(buttonByText(target, 'Open…')!.dataset.shortcut).toBe('⌘O')
+    // Scoped to the welcome pane: the toolbar has its own Open… button.
+    expect(buttonByText(target.querySelector('.welcome')!, 'Open…')!.dataset.shortcut).toBe('⌘O')
   })
 
   // With nothing left to list, the pane goes the way a first launch does:
@@ -278,15 +279,15 @@ describe('welcome pane', () => {
 
     await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
     expect(buttonByText(target, 'New document')).toBeDefined()
-    expect(buttonByText(target, 'Open…')).toBeDefined()
+    expect(buttonByText(target.querySelector('.welcome')!, 'Open…')).toBeDefined()
   })
 
   it('routes Open… through the same file dialog as the toolbar', async () => {
     recents.current = ['/papers/thesis.md']
     const { target } = mountApp()
-    await vi.waitFor(() => expect(buttonByText(target, 'Open…')).toBeDefined())
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
 
-    buttonByText(target, 'Open…')!.click()
+    buttonByText(target.querySelector('.welcome')!, 'Open…')!.click()
     flushSync()
 
     expect(DocumentService.Open).toHaveBeenCalled()
@@ -470,6 +471,40 @@ describe('new documents', () => {
     await Promise.resolve()
     expect(DocumentService.CreateDocument).not.toHaveBeenCalled()
     expect(target.querySelector('.welcome')).not.toBeNull()
+  })
+})
+
+describe('toolbar', () => {
+  it('labels and groups the toolbar buttons', async () => {
+    recents.current = []
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.editor-pane')).not.toBeNull())
+    expect([...target.querySelectorAll('.toolbar button')].map((b) => b.textContent?.trim())).toEqual([
+      'Outline', 'Open…', 'Save', 'Cite…', 'Chart…', 'Table…', 'Export PDF…',
+    ])
+    expect(target.querySelectorAll('.toolbar .toolbar-group')).toHaveLength(4)
+  })
+
+  it("the Outline button shows the panel's state and toggles it", async () => {
+    recents.current = []
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.outline-toggle')).not.toBeNull())
+    const toggle = target.querySelector('.outline-toggle') as HTMLButtonElement
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+    expect(toggle.title).toBe('Show outline (⌘⌥O)')
+    toggle.click()
+    await vi.waitFor(() => expect(DocumentService.UpdateSettings).toHaveBeenCalled())
+    expect(DocumentService.UpdateSettings.mock.calls[0][0].showOutline).toBe(true)
+  })
+
+  it('the Outline button reads as pressed while the outline is shown', async () => {
+    recents.current = []
+    settings.current = { ...DEFAULT_SETTINGS, showOutline: true }
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.outline')).not.toBeNull())
+    const toggle = target.querySelector('.outline-toggle') as HTMLButtonElement
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+    expect(toggle.title).toBe('Hide outline (⌘⌥O)')
   })
 })
 
@@ -1116,7 +1151,7 @@ describe('table builder', () => {
     buttonByText(target, 'Cancel')!.click()
     flushSync()
     expect(target.querySelector('.table-builder')).toBeNull()
-    buttonByText(target, 'Table')!.click()
+    buttonByText(target, 'Table…')!.click()
     flushSync()
     expect(target.querySelector('.table-builder')).not.toBeNull()
   })
