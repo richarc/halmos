@@ -119,6 +119,30 @@ describe('style.css palette contract', () => {
     expect(rule).toMatch(/padding: 0 20px;/)
   })
 
+  // One spacing scale for the chrome (design system). The document on the
+  // sheet keeps its own spacing: it belongs to the paper, not the app.
+  it('keeps chrome spacing on the scale', () => {
+    const SCALE = new Set([0, 2, 4, 8, 12, 16, 20, 24, 32, 48, 72, 104])
+    const DOCUMENT = /\.sheet|\.preview-pane|\.cite-error|\.chart-error|\.mermaid/
+    const offenders: string[] = []
+    // Innermost rules only: an @media wrapper's own braces hold rules, not
+    // declarations, so [^{}] never spans one.
+    for (const [, selector, body] of stripComments(CSS).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const sel = selector.trim()
+      if (DOCUMENT.test(sel)) continue
+      for (const [, prop, value] of body.matchAll(/(?:^|;|\s)((?:row-|column-)?gap|padding(?:-[a-z]+)?|margin(?:-[a-z]+)?)\s*:\s*([^;]+)/g)) {
+        for (const [, n] of value.matchAll(/(-?\d+(?:\.\d+)?)px/g)) {
+          const px = Math.abs(Number(n))
+          // The regular button's 5px is its 28px height, not a gap.
+          if (SCALE.has(px) || (sel === 'button' && px === 5)) continue
+          offenders.push(`${sel}: ${prop} ${value.trim()}`)
+          break
+        }
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
   it('keeps truncated lines on one line in older WebKit', () => {
     const css = stripComments(CSS)
     for (const selector of ['.outline-entry {', '.welcome-recent-name, .welcome-recent-folder {']) {
