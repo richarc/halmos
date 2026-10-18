@@ -82,7 +82,7 @@ separate, much larger project and is deliberately not part of this.
       list and the New and Open buttons so it looks more professional and
       is easier to read. Produce three alternative designs to assess
       before choosing one. *Done 2026-10-17*: option A, the split launcher.
-- [ ] **A design system, and the rest of the app brought up to it.** The
+- [x] **A design system, and the rest of the app brought up to it.** The
       new start screen makes the other screens look rough: button sizes,
       corners, spacing and dialog text sizes were each chosen one rule at a
       time. *Status 2026-10-17*: step 1 done, the Halmos Design System in
@@ -94,8 +94,9 @@ separate, much larger project and is deliberately not part of this.
       choices, one joined table grid). The toolbar, outline and status bar
       followed the same day (button groups and an Outline toggle, outline
       rows like the start screen's, "Edited" and a red unknown-citations
-      link). Left: toast text size, the start screen's button sizes, and
-      the spacing scale.
+      link). Done 2026-10-18: the last items, one spacing scale for the
+      chrome (checked by a test), toast text at dialog size above the status
+      bar, and two named button sizes.
 - [ ] Windows and Linux stay in the backlog. Decide before v1.1.0 whether
       Windows comes before the first paid release: many academics use it,
       and a Mac-only product limits who can pay.

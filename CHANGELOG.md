@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Spacing across the app follows one scale, toasts use the same text size
+  as dialogs, wrap long messages and sit above the status bar instead of
+  covering it, and the start screen's button reads "New Document".
 - The toolbar, outline and status bar follow the design system. The
   toolbar groups its buttons, adds "…" where a dialog follows, and gains
   an Outline button that shows and hides the outline. The outline's arrows
