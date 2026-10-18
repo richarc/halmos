@@ -46,8 +46,8 @@ file beside it.
 
 ### Saving
 
-- **⌘S** saves. The status bar at the bottom shows the file name, with a
-  **•** after it while there are unsaved changes.
+- **⌘S** saves. The status bar at the bottom shows the file name, with
+  **— Edited** after it while there are unsaved changes.
 - **⌘⇧S** is Save As….
 - Halmos also keeps a recovery draft while you have unsaved changes (see
   **Autosave** under the View menu below), so a crash loses at most a couple
@@ -62,10 +62,10 @@ file beside it.
 - **Preview**, right. Updates a moment after you stop typing. Links open in
   your browser.
 - **Divider** between them. Drag it, or focus it and use the arrow keys.
-- **Toolbar** across the top: Open, Save, Cite, Chart, Table, Export PDF.
-  Everything on it is also in the menus.
+- **Toolbar** across the top: Outline; Open…, Save; Cite…, Chart…, Table…;
+  and Export PDF… at the right. Everything on it is also in the menus.
 - **Outline**, an optional column on the far left listing the document's
-  headings (View → Outline, or the › tab at the left edge).
+  headings (the toolbar's Outline button, View → Outline, or ⌘⌥O).
 
 ---
 
@@ -299,8 +299,9 @@ match. When off, the two panes scroll independently. Clicking an entry in
 the outline moves both panes regardless, because you asked to go there.
 
 **Outline (⌘⌥O).** Shows or hides the headings panel on the left. Click a
-heading to put the cursor on it and scroll both panes to it. The ‹ arrow in
-the panel and the › tab at the window's edge do the same as the menu item.
+heading to put the cursor on it and scroll both panes to it. The toolbar's
+Outline button does the same as the menu item, and looks pressed while the
+panel is shown.
 
 **Autosave.** On by default. While the document has unsaved changes, Halmos
 writes a recovery draft a couple of seconds after you stop typing. The
