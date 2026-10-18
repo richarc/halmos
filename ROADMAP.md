@@ -53,16 +53,6 @@ separate, much larger project and is deliberately not part of this.
       [halmoseditor.com](https://www.halmoseditor.com) — the landing page, the
       download, and the guides from `docs/`, rendered by Halmos's own
       renderer. Its roadmap tracks the site's work.
-- [ ] **Auto-update — deliberately deferred, and worth naming.** Without
-      something like Sparkle, everyone who downloads a release stays on it
-      until they think to check. Tolerable at first; the main complaint later.
-      One constraint to note now: Sparkle validates that an update is signed by
-      the same team, so if the Developer ID ever changes — an individual
-      enrolment becoming an organization one, say — that needs a transitional
-      release. Cheapest while there are few users.
-      *Status 2026-10-11*: since v0.10.0 Halmos checks a feed
-      (`updates/latest.json`) and tells the user a newer version exists, but
-      downloading and installing it is still manual.
 - [ ] **Third-party licence notices in the app.** The MIT, BSD and ISC
       licences of the bundled libraries (about 260: CodeMirror, markdown-it,
       KaTeX, Mermaid, Vega and their dependencies) require their copyright
@@ -97,9 +87,6 @@ separate, much larger project and is deliberately not part of this.
       link). Done 2026-10-18: the last items, one spacing scale for the
       chrome (checked by a test), toast text at dialog size above the status
       bar, and two named button sizes.
-- [ ] Windows and Linux stay in the backlog. Decide before v1.1.0 whether
-      Windows comes before the first paid release: many academics use it,
-      and a Mac-only product limits who can pay.
 
 ## v1.1.0 — Back end, payment and first paid services
 
@@ -166,6 +153,20 @@ accepting it.
 - [ ] **Prompt-injection safety.** An opened document must not be able to
       instruct the AI. Prerequisite: the Content-Security-Policy item in the
       backlog.
+- [ ] **Auto-update.** Moved from v1.0.0 on 2026-10-18. Without
+      something like Sparkle, everyone who downloads a release stays on it
+      until they think to check. Tolerable at first; the main complaint later.
+      One constraint to note now: Sparkle validates that an update is signed by
+      the same team, so if the Developer ID ever changes — an individual
+      enrolment becoming an organization one, say — that needs a transitional
+      release. Cheapest while there are few users.
+      *Status 2026-10-11*: since v0.10.0 Halmos checks a feed
+      (`updates/latest.json`) and tells the user a newer version exists, but
+      downloading and installing it is still manual.
+- [ ] **Windows and Linux versions.** Moved here on 2026-10-18 from the
+      backlog and v1.0.0. Many academics use Windows, and a Mac-only product
+      limits who can pay. The paths, menus and print behaviour are currently
+      macOS-focused.
 
 ## v1.3.0 — AI limited to the user's own sources
 
@@ -191,8 +192,6 @@ Ideas noted along the way, not yet committed to a release:
 - File a Wails issue for the hardcoded landscape print orientation (their
   code carries a TODO inviting a config option; Halmos ships its own print
   path meanwhile).
-- Windows/Linux support (paths, menus, and print behavior are currently
-  macOS-focused).
 - The chart hydrator runs twice on first open. The document renders once
   immediately and again when the bibliography loads, so the first hydrate
   pass is abandoned by the generation guard part-way through its embeds and

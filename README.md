@@ -97,7 +97,7 @@ Everything below is for working on Halmos rather than using it.
 ### Requirements
 
 Halmos is currently macOS-focused. The paths, menus, and print behaviour assume
-macOS; Windows and Linux support is on the backlog.
+macOS; Windows and Linux versions are planned for v1.2.0.
 
 | Requirement | Notes |
 |---|---|
@@ -469,8 +469,8 @@ deliberate error cases — and section 11 is meant to look broken.
   property.
 - A chart's column types are quantitative, temporal or nominal; `ordinal` is
   not offered, so a hand-written chart using it will not reopen in the builder.
-- Windows and Linux are on the backlog, as is a file-tree sidebar for
-  multi-part documents.
+- Windows and Linux versions are planned for v1.2.0. A file-tree sidebar for
+  multi-part documents is on the backlog.
 - Spell checking is as-you-type only. macOS checks the word you just typed
   and the word you leave, never a document you open, so an existing paper
   shows no underlines until you edit or move through it. A whole-document
