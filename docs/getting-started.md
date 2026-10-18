@@ -24,7 +24,7 @@ is on disk until you save, so press **⌘S** early; the save panel asks where
 to put the file.
 
 On later launches Halmos shows the welcome pane instead: your recent files,
-a **New document** button, and **Open…**.
+a **New Document** button, and **Open…**.
 
 ### File → New… (⌘N)
 

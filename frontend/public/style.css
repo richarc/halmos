@@ -944,9 +944,13 @@ dialog::backdrop { background: var(--backdrop); }
 .table-import .field-error { color: var(--cite-error-fg); margin-top: 4px; }
 .table-import .dialog-hint { margin-top: 4px; }
 
+/* Dialog-sized text, wrapped at 360px (anywhere, so a long path without
+   spaces still breaks), and 16px above the 24px status bar so the
+   unknown-citations link stays visible under it. */
 .toast {
-  position: fixed; bottom: 16px; right: 16px;
+  position: fixed; bottom: 40px; right: 16px; max-width: 360px;
   background: var(--toast-bg); color: var(--toast-fg); padding: 8px 12px; border-radius: 6px;
+  font-size: 13px; line-height: 1.5; overflow-wrap: anywhere;
 }
 
 /* All four error rules below read the document palette, not the theme: every

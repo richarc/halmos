@@ -250,9 +250,9 @@ describe('welcome pane', () => {
   it('shows the shortcut hints without changing the labels', async () => {
     recents.current = ['/papers/thesis.md']
     const { target } = mountApp()
-    await vi.waitFor(() => expect(buttonByText(target, 'New document')).toBeDefined())
+    await vi.waitFor(() => expect(buttonByText(target, 'New Document')).toBeDefined())
 
-    expect(buttonByText(target, 'New document')!.dataset.shortcut).toBe('⌘N')
+    expect(buttonByText(target, 'New Document')!.dataset.shortcut).toBe('⌘N')
     // Scoped to the welcome pane: the toolbar has its own Open… button.
     expect(buttonByText(target.querySelector('.welcome')!, 'Open…')!.dataset.shortcut).toBe('⌘O')
   })
@@ -273,12 +273,21 @@ describe('welcome pane', () => {
     )
   })
 
+  it('names the start screen button New Document', async () => {
+    recents.current = ['/papers/thesis.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    const welcome = target.querySelector<HTMLElement>('.welcome')!
+    expect(buttonByText(welcome, 'New Document')).toBeDefined()
+    expect(buttonByText(welcome, 'New document')).toBeUndefined()
+  })
+
   it('offers both New document and Open… when recents exist', async () => {
     recents.current = ['/papers/thesis.md']
     const { target } = mountApp()
 
     await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
-    expect(buttonByText(target, 'New document')).toBeDefined()
+    expect(buttonByText(target, 'New Document')).toBeDefined()
     expect(buttonByText(target.querySelector('.welcome')!, 'Open…')).toBeDefined()
   })
 
@@ -303,9 +312,9 @@ describe('new documents', () => {
   it('opens the New… dialog from the welcome pane and File → New', async () => {
     recents.current = ['/papers/thesis.md']
     const { target } = mountApp()
-    await vi.waitFor(() => expect(buttonByText(target, 'New document')).toBeDefined())
+    await vi.waitFor(() => expect(buttonByText(target, 'New Document')).toBeDefined())
 
-    buttonByText(target, 'New document')!.click()
+    buttonByText(target, 'New Document')!.click()
     flushSync()
     expect(dialog(target)?.open).toBe(true)
 
@@ -323,8 +332,8 @@ describe('new documents', () => {
   async function openNewDialog() {
     recents.current = ['/papers/thesis.md']
     const { target } = mountApp()
-    await vi.waitFor(() => expect(buttonByText(target, 'New document')).toBeDefined())
-    buttonByText(target, 'New document')!.click()
+    await vi.waitFor(() => expect(buttonByText(target, 'New Document')).toBeDefined())
+    buttonByText(target, 'New Document')!.click()
     flushSync()
     return target
   }
@@ -445,9 +454,9 @@ describe('new documents', () => {
     recents.current = ['/papers/thesis.md']
     DocumentService.ChooseNewDocumentPath.mockResolvedValueOnce('/papers/notes.md')
     const { target } = mountApp()
-    await vi.waitFor(() => expect(buttonByText(target, 'New document')).toBeDefined())
+    await vi.waitFor(() => expect(buttonByText(target, 'New Document')).toBeDefined())
 
-    buttonByText(target, 'New document')!.click()
+    buttonByText(target, 'New Document')!.click()
     flushSync()
     const box = dialog(target)!.querySelector('input[type="checkbox"]') as HTMLInputElement
     box.click()

@@ -143,6 +143,15 @@ describe('style.css palette contract', () => {
     expect(offenders).toEqual([])
   })
 
+  // The toast had no size of its own (the browser's 16px) and sat on top of
+  // the status bar and its unknown-citations link.
+  it('gives the toast its own text size and keeps it above the status bar', () => {
+    const rule = stripComments(CSS).match(/\n\.toast \{[^}]*\}/)![0]
+    for (const decl of ['font-size: 13px', 'max-width: 360px', 'overflow-wrap: anywhere', 'bottom: 40px']) {
+      expect(rule, decl).toContain(decl)
+    }
+  })
+
   it('keeps truncated lines on one line in older WebKit', () => {
     const css = stripComments(CSS)
     for (const selector of ['.outline-entry {', '.welcome-recent-name, .welcome-recent-folder {']) {
