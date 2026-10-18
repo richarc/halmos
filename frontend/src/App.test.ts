@@ -68,6 +68,31 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
   }
 })
 
+// Signed in with a complimentary seat unless a test says otherwise.
+const { PortalService, SIGNED_IN } = vi.hoisted(() => {
+  const SIGNED_IN = {
+    signedIn: true, email: 'c@x.com', organisation: '', seatSource: 'complimentary', seatStatus: 'active',
+    deviceName: 'Mac · ABCD', pricingURL: 'https://www.halmoseditor.com/pricing', error: null,
+  }
+  return {
+    SIGNED_IN,
+    PortalService: {
+      Account: vi.fn(async () => ({ ...SIGNED_IN }) as Record<string, unknown>),
+      StartPairing: vi.fn(async () => ({
+        userCode: 'BDFG-HJKL', verificationURL: 'https://www.halmoseditor.com/device?user_code=BDFG-HJKL',
+        expiresIn: 900, error: null,
+      }) as Record<string, unknown>),
+      CancelPairing: vi.fn(async () => {}),
+      SignOut: vi.fn(async () => {}),
+      OpenPortalURL: vi.fn(async (_url: string) => null),
+      ChooseExportPath: vi.fn(async (_format: string, _docPath: string) => ''),
+      ReadExportImage: vi.fn(async (_docPath: string, _src: string) => ({ base64: 'iVBORw==', mime: 'image/png', error: '' })),
+      Export: vi.fn(async (_path: string, _req: Record<string, unknown>) => null as Record<string, unknown> | null),
+      RevealExport: vi.fn(async (_path: string) => {}),
+    },
+  }
+})
+
 vi.mock('@wailsio/runtime', () => ({
   Events: {
     On: (name: string, cb: (ev: { data: unknown }) => void) => {
@@ -81,6 +106,7 @@ vi.mock('@wailsio/runtime', () => ({
 // because vi.mock is hoisted above any top-level constant.
 vi.mock('../bindings/hermes', () => ({
   DocumentService,
+  PortalService,
   DemoService: {
     Script: vi.fn(async () => null),
     StartRecording: vi.fn(async () => {}),
@@ -2458,5 +2484,101 @@ describe('pasting an image', () => {
     await new Promise((r) => setTimeout(r, 20))
     expect(DocumentService.SavePastedImage).not.toHaveBeenCalled()
     expect(view.state.doc.toString()).toContain('hello')
+  })
+})
+
+describe('Word and LaTeX export', () => {
+  async function openPaper(content = '# Results\n') {
+    recents.current = ['/tmp/paper.md']
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/tmp/paper.md', content })
+    const m = mountApp()
+    await vi.waitFor(() => expect(m.target.querySelector('.welcome')).not.toBeNull())
+    listeners['menu:open-recent']({ data: '/tmp/paper.md' })
+    await vi.waitFor(() => expect(m.target.textContent).toContain('Results'))
+    return m
+  }
+  const dialog = (root: HTMLElement, label: string) =>
+    root.querySelector<HTMLElement>(`dialog[aria-label="${label}"][open]`)
+
+  it('asks to connect before the first export', async () => {
+    PortalService.Account.mockResolvedValueOnce({ ...SIGNED_IN, signedIn: false, email: '' })
+    const { target } = await openPaper()
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(dialog(target, 'Connect to Halmos')).not.toBeNull())
+    expect(dialog(target, 'Connect to Halmos')!.textContent).toContain('Export to Word')
+    expect(PortalService.ChooseExportPath).not.toHaveBeenCalled()
+  })
+
+  it('shows the code while waiting', async () => {
+    PortalService.Account.mockResolvedValueOnce({ ...SIGNED_IN, signedIn: false, email: '' })
+    const { target } = await openPaper()
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(dialog(target, 'Connect to Halmos')).not.toBeNull())
+    buttonByText(dialog(target, 'Connect to Halmos')!, 'Connect')!.click()
+    await vi.waitFor(() => expect(dialog(target, 'Connect to Halmos')!.textContent).toContain('BDFG-HJKL'))
+    expect(PortalService.StartPairing).toHaveBeenCalled()
+  })
+
+  it('continues the export once approved', async () => {
+    PortalService.Account.mockResolvedValueOnce({ ...SIGNED_IN, signedIn: false, email: '' })
+    const { target } = await openPaper()
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(dialog(target, 'Connect to Halmos')).not.toBeNull())
+    buttonByText(dialog(target, 'Connect to Halmos')!, 'Connect')!.click()
+    await vi.waitFor(() => expect(dialog(target, 'Connect to Halmos')!.textContent).toContain('BDFG-HJKL'))
+    listeners['portal:pairing']({ data: { state: 'approved', email: 'c@x.com' } })
+    await vi.waitFor(() => expect(PortalService.ChooseExportPath).toHaveBeenCalledWith('docx', '/tmp/paper.md'))
+  })
+
+  it('sends the document with its style and writes where the panel chose', async () => {
+    const { target } = await openPaper()
+    PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.docx')
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(PortalService.Export).toHaveBeenCalled())
+    const [out, req] = PortalService.Export.mock.calls[0]
+    expect(out).toBe('/tmp/out/paper.docx')
+    expect(req.format).toBe('docx')
+    expect(req.markdown).toBe('# Results\n')
+    expect(String(req.csl)).toContain('<style')
+    await vi.waitFor(() => expect(target.querySelector('.toast')?.textContent).toContain('Exported paper.docx'))
+    buttonByText(target.querySelector('.toast')!, 'Show in Finder')!.click()
+    expect(PortalService.RevealExport).toHaveBeenCalledWith('/tmp/out/paper.docx')
+  })
+
+  it('offers plans on no_seat', async () => {
+    const { target } = await openPaper()
+    PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.docx')
+    PortalService.Export.mockResolvedValueOnce({ status: 402, code: 'no_seat', pricingURL: 'https://www.halmoseditor.com/pricing' })
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(dialog(target, 'Halmos subscription')).not.toBeNull())
+    const d = dialog(target, 'Halmos subscription')!
+    expect(d.textContent).toContain('Word and LaTeX export need a Halmos subscription.')
+    buttonByText(d, 'See Plans')!.click()
+    expect(PortalService.OpenPortalURL).toHaveBeenCalledWith('https://www.halmoseditor.com/pricing')
+    expect(PortalService.SignOut).not.toHaveBeenCalled()
+  })
+
+  it('does not send when a check fails', async () => {
+    const { target } = await openPaper('# Results\n\n[[[[[[[x]]]]]]]\n')
+    PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.docx')
+    listeners['menu:export-pandoc']({ data: 'latex' })
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe(
+        'Line 3 nests square brackets more than 6 deep, which the export service refuses.',
+      ),
+    )
+    expect(PortalService.Export).not.toHaveBeenCalled()
+  })
+
+  it('Account shows the seat and signs out', async () => {
+    const { target } = mountApp()
+    listeners['menu:account']({ data: null })
+    await vi.waitFor(() => expect(dialog(target, 'Halmos account')?.textContent).toContain('c@x.com'))
+    const d = dialog(target, 'Halmos account')!
+    expect(d.textContent).toContain('Complimentary')
+    expect(d.textContent).toContain('Mac · ABCD')
+    buttonByText(d, 'Sign Out')!.click()
+    await vi.waitFor(() => expect(PortalService.SignOut).toHaveBeenCalled())
+    await vi.waitFor(() => expect(dialog(target, 'Halmos account')?.textContent).toContain('Not connected'))
   })
 })

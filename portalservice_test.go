@@ -40,7 +40,7 @@ func TestServiceAccountMe(t *testing.T) {
 	})
 	s, _ := newTestPortalService(t, f, signedIn(t, f, "r1"))
 	got := s.Account()
-	want := AccountInfo{SignedIn: true, Email: "c@x.com", Organisation: "Acme", SeatSource: "complimentary", SeatStatus: "active", DeviceName: "Mac · ABCD"}
+	want := AccountInfo{SignedIn: true, Email: "c@x.com", Organisation: "Acme", SeatSource: "complimentary", SeatStatus: "active", DeviceName: "Mac · ABCD", PricingURL: f.srv.URL + "/pricing"}
 	if got != want {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
@@ -202,5 +202,11 @@ func TestPandocExportTarget(t *testing.T) {
 	}
 	if dir, name := pandocExportTarget("latex", ""); dir != "" || name != "Untitled.tex" {
 		t.Errorf("latex untitled: %q %q", dir, name)
+	}
+}
+
+func TestRevealCommandSelectsTheFileInFinder(t *testing.T) {
+	if got := strings.Join(revealCommand("/a/b c/paper.docx"), "|"); got != "open|-R|/a/b c/paper.docx" {
+		t.Errorf("got %q", got)
 	}
 }

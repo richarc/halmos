@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -54,13 +55,15 @@ var errMisconfigured = &PortalError{Code: "misconfigured"}
 // not be read (offline, rate limited); SignedIn still says whether this Mac
 // holds a credential.
 type AccountInfo struct {
-	SignedIn     bool         `json:"signedIn"`
-	Email        string       `json:"email"`
-	Organisation string       `json:"organisation"`
-	SeatSource   string       `json:"seatSource"`
-	SeatStatus   string       `json:"seatStatus"`
-	DeviceName   string       `json:"deviceName"`
-	Error        *PortalError `json:"error"`
+	SignedIn     bool   `json:"signedIn"`
+	Email        string `json:"email"`
+	Organisation string `json:"organisation"`
+	SeatSource   string `json:"seatSource"`
+	SeatStatus   string `json:"seatStatus"`
+	DeviceName   string `json:"deviceName"`
+	// PricingURL is the portal's pricing page, for "No subscription".
+	PricingURL string       `json:"pricingURL"`
+	Error      *PortalError `json:"error"`
 }
 
 type meResponse struct {
@@ -103,7 +106,8 @@ func (s *PortalService) Account() AccountInfo {
 	if err := json.Unmarshal(data, &me); err != nil {
 		return AccountInfo{SignedIn: true, DeviceName: cred.DeviceName, Error: &PortalError{Status: 200, Code: "server_error"}}
 	}
-	info := AccountInfo{SignedIn: true, Email: me.User.Email, DeviceName: me.Device.Name}
+	info := AccountInfo{SignedIn: true, Email: me.User.Email, DeviceName: me.Device.Name,
+		PricingURL: s.auth.client.origin + "/pricing"}
 	if info.DeviceName == "" {
 		info.DeviceName = cred.DeviceName
 	}
@@ -316,4 +320,15 @@ func (s *PortalService) Export(path string, req ConvertRequest) *PortalError {
 		return &PortalError{Code: "write_failed"}
 	}
 	return nil
+}
+
+// revealCommand selects a file in Finder.
+func revealCommand(path string) []string { return []string{"open", "-R", path} }
+
+// RevealExport shows an exported file in Finder (the toast's Show in
+// Finder). Wails' Browser.OpenFile opens a file or folder, but cannot select
+// one inside its folder.
+func (s *PortalService) RevealExport(path string) error {
+	c := revealCommand(path)
+	return exec.Command(c[0], c[1:]...).Start()
 }

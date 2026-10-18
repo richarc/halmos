@@ -733,6 +733,22 @@ dialog::backdrop { background: var(--backdrop); }
 .dialog-body p + p { margin-top: 8px; }
 .dialog-title { margin: 0 0 8px; font-size: 15px; font-weight: 600; line-height: 1.3; }
 .dialog-hint { font-size: 12px; color: var(--muted); }
+/* Connect to Halmos: the code to compare with the browser's. */
+.connect-code {
+  margin: 16px 0;
+  font: 600 24px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+/* Halmos account: label and value pairs. */
+.account-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin: 0 0 12px;
+}
+.account-details dt { color: var(--muted); }
+.account-details dd { margin: 0; }
 /* The alternative action (Don't Save, Discard Draft) stands apart on the
    left, as in other Mac apps; Cancel and the primary stay on the right. */
 .modal-buttons .dialog-alt { margin-right: auto; }
@@ -953,6 +969,14 @@ dialog::backdrop { background: var(--backdrop); }
   position: fixed; bottom: 40px; right: 16px; max-width: 360px;
   background: var(--toast-bg); color: var(--toast-fg); padding: 8px 12px; border-radius: 6px;
   font-size: 13px; line-height: 1.5; overflow-wrap: anywhere;
+}
+/* Show in Finder after an export: underlined in the toast's own colour, so
+   it reads on the inverted fill in every theme. */
+.toast .toast-action {
+  margin-left: 12px;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
 }
 
 /* All four error rules below read the document palette, not the theme: every

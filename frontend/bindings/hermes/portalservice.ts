@@ -66,6 +66,15 @@ export function ReadExportImage(docPath: string, src: string): $CancellablePromi
 }
 
 /**
+ * RevealExport shows an exported file in Finder (the toast's Show in
+ * Finder). Wails' Browser.OpenFile opens a file or folder, but cannot select
+ * one inside its folder.
+ */
+export function RevealExport(path: string): $CancellablePromise<void> {
+    return $Call.ByID(4230401456, path);
+}
+
+/**
  * SignOut forgets this Mac's credential. The device stays listed on the
  * portal until the person removes it there.
  */

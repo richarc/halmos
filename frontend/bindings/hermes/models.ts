@@ -13,6 +13,11 @@ export interface AccountInfo {
     "seatSource": string;
     "seatStatus": string;
     "deviceName": string;
+
+    /**
+     * PricingURL is the portal's pricing page, for "No subscription".
+     */
+    "pricingURL": string;
     "error": PortalError | null;
 }
 
