@@ -31,6 +31,24 @@ type portalAuth struct {
 // send one that dies in flight.
 const refreshMargin = 60 * time.Second
 
+// refreshRetryWait is the pause before asking again for a refresh whose
+// answer was lost; well inside the portal's 60-second retry window.
+const refreshRetryWait = 2 * time.Second
+
+// saveAttempts is how many times a rotated refresh token is written to the
+// Keychain before the refresh is given up.
+const saveAttempts = 3
+
+// transient reports a failure where the request may have reached the
+// portal and its answer was lost.
+func transient(perr *PortalError) bool {
+	switch perr.Code {
+	case "network", "server_error", "service_unavailable":
+		return true
+	}
+	return false
+}
+
 // maxBusyRetries bounds the retries of a 503 busy (one conversion per seat
 // at a time); the person is told after that.
 const maxBusyRetries = 3
@@ -182,10 +200,21 @@ func (a *portalAuth) accessToken(ctx context.Context) (string, *PortalError) {
 // access token is kept; if saving fails, the old token stays current in
 // memory, so the next attempt presents it again inside the portal's retry
 // window and is answered with a fresh one.
+//
+// Both recoveries happen here rather than on the person's next try, because
+// the window is 60 seconds: an answer lost in transit is asked for again
+// once, with the same token, after a short wait, and a failed Keychain write
+// is tried again before giving up.
 func (a *portalAuth) refreshLocked(ctx context.Context) (string, *PortalError) {
 	a.access = ""
-	data, perr := a.client.do(ctx, "POST", "/token",
-		map[string]string{"grant_type": "refresh_token", "refresh_token": a.cred.RefreshToken}, "", portalTimeout)
+	body := map[string]string{"grant_type": "refresh_token", "refresh_token": a.cred.RefreshToken}
+	data, perr := a.client.do(ctx, "POST", "/token", body, "", portalTimeout)
+	if perr != nil && transient(perr) {
+		if err := a.sleep(ctx, refreshRetryWait); err != nil {
+			return "", &PortalError{Code: "cancelled"}
+		}
+		data, perr = a.client.do(ctx, "POST", "/token", body, "", portalTimeout)
+	}
 	if perr != nil {
 		if perr.Code == "invalid_grant" {
 			a.forgetLocked()
@@ -202,7 +231,13 @@ func (a *portalAuth) refreshLocked(ctx context.Context) (string, *PortalError) {
 	if t.Device.ID != 0 {
 		next.DeviceID, next.DeviceName = t.Device.ID, t.Device.Name
 	}
-	if err := a.store.Save(a.client.origin, next); err != nil {
+	var err error
+	for range saveAttempts {
+		if err = a.store.Save(a.client.origin, next); err == nil {
+			break
+		}
+	}
+	if err != nil {
 		return "", &PortalError{Code: "keychain"}
 	}
 	a.cred = next

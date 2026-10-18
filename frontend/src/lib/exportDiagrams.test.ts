@@ -62,6 +62,11 @@ describe('replaceDiagramFences', () => {
     expect(markdown).toBe('```js\nlet x = 1\n```\n\n![Rates](diagrams/1.png)\n')
   })
 
+  it('sends no pictures when the preview and the text disagree on how many there are', () => {
+    const md = `${CHART}\n\n${MERMAID}\n`
+    expect(replaceDiagramFences(md, ['AAA'])).toEqual({ markdown: md, images: {} })
+  })
+
   it('counts a fence inside a list item in order', () => {
     const md = `- item\n\n  ${CHART.replace(/\n/g, '\n  ')}\n\n${MERMAID}\n`
     const { images, markdown } = replaceDiagramFences(md, ['AAA', 'BBB'])

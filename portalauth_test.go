@@ -398,3 +398,38 @@ func TestSignOutForgetsCredential(t *testing.T) {
 		t.Errorf("got %+v, want signed_out", perr)
 	}
 }
+
+// A refresh the portal answered but whose new token could not be kept, or
+// whose answer was lost, must be recovered inside the portal's 60-second
+// retry window, not left to whenever the person tries again — past it, the
+// old token reads as theft and the device is revoked. Final review,
+// Important 2.
+func TestRefreshRetriesASaveThatFailsOnce(t *testing.T) {
+	f := newFakePortal(t, map[string][]fakeResp{"/token": {{200, tokenBody("a2", "r2"), nil}}})
+	store := signedIn(t, f, "r1")
+	store.failSaves = 2
+	a, _ := newTestAuth(f, store)
+	if tok, perr := a.accessToken(context.Background()); perr != nil || tok != "a2" {
+		t.Fatalf("got %q %+v", tok, perr)
+	}
+	if got, _, _ := store.Load(f.srv.URL); got.RefreshToken != "r2" {
+		t.Errorf("stored %q, want r2", got.RefreshToken)
+	}
+	if f.count("/token") != 1 {
+		t.Errorf("%d refreshes, want 1", f.count("/token"))
+	}
+}
+
+func TestRefreshRepresentsTheTokenAfterALostAnswer(t *testing.T) {
+	f := newFakePortal(t, map[string][]fakeResp{"/token": {{502, `bad gateway`, nil}, {200, tokenBody("a2", "r2"), nil}}})
+	a, slept := newTestAuth(f, signedIn(t, f, "r1"))
+	if tok, perr := a.accessToken(context.Background()); perr != nil || tok != "a2" {
+		t.Fatalf("got %q %+v", tok, perr)
+	}
+	if f.count("/token") != 2 || f.bodies["/token"][1]["refresh_token"] != "r1" {
+		t.Errorf("calls %d, second presented %v", f.count("/token"), f.bodies["/token"][1]["refresh_token"])
+	}
+	if len(*slept) != 1 || (*slept)[0] > 10*time.Second {
+		t.Errorf("slept %v, want one short wait well inside 60 s", *slept)
+	}
+}

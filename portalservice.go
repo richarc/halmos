@@ -25,8 +25,12 @@ type PortalService struct {
 	emit    func(name string, data any)
 	openURL func(url string) error
 
+	// mu guards the pairing in progress. gen counts StartPairing and
+	// CancelPairing calls, so a start that was cancelled or overtaken while
+	// it waited for its code never begins polling.
 	mu     sync.Mutex
 	cancel context.CancelFunc
+	gen    int
 }
 
 // NewPortalService talks to the production portal, or in a development
@@ -144,7 +148,7 @@ func (s *PortalService) StartPairing() PairingInfo {
 	if s.auth == nil {
 		return PairingInfo{Error: errMisconfigured}
 	}
-	s.CancelPairing()
+	gen := s.cancelPairing()
 	p, perr := s.auth.startPairing(context.Background(), deviceName(computerName(), rand.Reader))
 	if perr != nil {
 		return PairingInfo{Error: perr}
@@ -152,13 +156,19 @@ func (s *PortalService) StartPairing() PairingInfo {
 	if !sameOrigin(p.VerificationURIComplete, s.auth.client.origin) {
 		return PairingInfo{Error: errMisconfigured}
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s.mu.Lock()
+	if s.gen != gen {
+		// Cancelled, or another Connect started, while the code was asked for.
+		s.mu.Unlock()
+		cancel()
+		return PairingInfo{Error: &PortalError{Code: "cancelled"}}
+	}
+	s.cancel = cancel
+	s.mu.Unlock()
 	if err := s.openURL(p.VerificationURIComplete); err != nil {
 		log.Printf("portal: opening the approval page: %v", err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	s.mu.Lock()
-	s.cancel = cancel
-	s.mu.Unlock()
 	go func() {
 		defer cancel()
 		_, perr := s.auth.pollPairing(ctx, p)
@@ -181,14 +191,20 @@ func (s *PortalService) StartPairing() PairingInfo {
 	return PairingInfo{UserCode: p.UserCode, VerificationURL: p.VerificationURIComplete, ExpiresIn: p.ExpiresIn}
 }
 
-// CancelPairing stops polling. Nothing is emitted for a cancel.
-func (s *PortalService) CancelPairing() {
+// CancelPairing stops polling, and any start still waiting for its code.
+// Nothing is emitted for a cancel.
+func (s *PortalService) CancelPairing() { s.cancelPairing() }
+
+// cancelPairing is CancelPairing, returning the new generation.
+func (s *PortalService) cancelPairing() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.gen++
 	if s.cancel != nil {
 		s.cancel()
 		s.cancel = nil
 	}
+	return s.gen
 }
 
 // SignOut forgets this Mac's credential. The device stays listed on the

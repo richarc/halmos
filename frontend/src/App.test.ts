@@ -135,6 +135,12 @@ const htmlExport = vi.hoisted(() => ({
   loadExportStyles: vi.fn(async () => ({ css: 'DOC CSS', katexCss: 'KATEX CSS' })),
 }))
 vi.mock('./lib/htmlExport', () => htmlExport)
+// jsdom has no canvas: a redraw to PNG is recorded, not performed.
+const rasterise = vi.hoisted(() => ({
+  toPng: vi.fn(async (_uri: string, _scale?: number) => 'PNGDATA'),
+  canvasToPng: vi.fn(() => 'CANVASPNG'),
+}))
+vi.mock('./lib/rasterise', () => rasterise)
 vi.mock('./lib/recoveryDraft', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./lib/recoveryDraft')>()),
   DRAFT_DEBOUNCE_MS: 20,
@@ -2568,6 +2574,66 @@ describe('Word and LaTeX export', () => {
       ),
     )
     expect(PortalService.Export).not.toHaveBeenCalled()
+  })
+
+  it('redraws a document image that is not PNG, JPEG or GIF at its own size', async () => {
+    await openPaper('# Results\n\n![A](fig.webp)\n')
+    PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.docx')
+    PortalService.ReadExportImage.mockResolvedValueOnce({ base64: 'UklGRg==', mime: 'image/webp', error: '' })
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(PortalService.Export).toHaveBeenCalled())
+    expect(rasterise.toPng).toHaveBeenCalledWith('data:image/webp;base64,UklGRg==', 1)
+    const req = PortalService.Export.mock.calls[0][1] as { markdown: string; images: Record<string, string> }
+    expect(req.images['images/1.png']).toBe('PNGDATA')
+    expect(req.markdown).toContain('![A](images/1.png)')
+  })
+
+  it('abandons the export when the document is edited while the panel is up', async () => {
+    const { target } = await openPaper()
+    let choose!: (v: string) => void
+    PortalService.ChooseExportPath.mockReturnValueOnce(new Promise<string>((r) => (choose = r)))
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(PortalService.ChooseExportPath).toHaveBeenCalled())
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: 0, insert: 'Edited ' } })
+    choose('/tmp/out/paper.docx')
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe('Export cancelled: the document changed'),
+    )
+    expect(PortalService.Export).not.toHaveBeenCalled()
+  })
+
+  it('starts one connection however often Connect is pressed', async () => {
+    PortalService.Account.mockResolvedValueOnce({ ...SIGNED_IN, signedIn: false, email: '' })
+    const { target } = await openPaper()
+    let started!: (v: Record<string, unknown>) => void
+    PortalService.StartPairing.mockReturnValueOnce(new Promise((r) => (started = r)))
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(dialog(target, 'Connect to Halmos')).not.toBeNull())
+    const connect = buttonByText(dialog(target, 'Connect to Halmos')!, 'Connect')!
+    connect.click()
+    flushSync()
+    buttonByText(dialog(target, 'Connect to Halmos')!, 'Connect')?.click()
+    expect(PortalService.StartPairing).toHaveBeenCalledTimes(1)
+    started({ userCode: 'BDFG-HJKL', verificationURL: 'https://www.halmoseditor.com/device', expiresIn: 900, error: null })
+    await vi.waitFor(() => expect(dialog(target, 'Connect to Halmos')!.textContent).toContain('BDFG-HJKL'))
+  })
+
+  it('drops a code that arrives after Cancel', async () => {
+    PortalService.Account.mockResolvedValueOnce({ ...SIGNED_IN, signedIn: false, email: '' })
+    const { target } = await openPaper()
+    let started!: (v: Record<string, unknown>) => void
+    PortalService.StartPairing.mockReturnValueOnce(new Promise((r) => (started = r)))
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(dialog(target, 'Connect to Halmos')).not.toBeNull())
+    buttonByText(dialog(target, 'Connect to Halmos')!, 'Connect')!.click()
+    flushSync()
+    buttonByText(dialog(target, 'Connect to Halmos')!, 'Cancel')!.click()
+    expect(PortalService.CancelPairing).toHaveBeenCalled()
+    started({ userCode: 'BDFG-HJKL', verificationURL: 'https://www.halmoseditor.com/device', expiresIn: 900, error: null })
+    await new Promise((r) => setTimeout(r, 0))
+    flushSync()
+    expect(dialog(target, 'Connect to Halmos')).toBeNull()
   })
 
   it('Account shows the seat and signs out', async () => {

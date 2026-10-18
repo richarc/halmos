@@ -1,10 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -208,5 +214,73 @@ func TestPandocExportTarget(t *testing.T) {
 func TestRevealCommandSelectsTheFileInFinder(t *testing.T) {
 	if got := strings.Join(revealCommand("/a/b c/paper.docx"), "|"); got != "open|-R|/a/b c/paper.docx" {
 		t.Errorf("got %q", got)
+	}
+}
+
+// A Cancel, or a second Connect, while the code is still being asked for
+// must leave no pairing polling behind: a stray poller would collect a
+// device for a code the person never compared. Final review, Important 3.
+func TestCancelDuringStartLeavesNoPoller(t *testing.T) {
+	release := make(chan struct{})
+	var polls atomic.Int32
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/device/authorize":
+			<-release
+			fmt.Fprintf(w, `{"device_code":"dc","user_code":"AAAA-BBBB","verification_uri_complete":"https://%s/device","expires_in":900,"interval":1}`, r.Host)
+		case "/api/v1/device/token":
+			polls.Add(1)
+			w.WriteHeader(400)
+			w.Write([]byte(`{"error":"authorization_pending"}`))
+		}
+	}))
+	defer srv.Close()
+	a := newPortalAuth(testClient(srv), &memoryStore{})
+	a.sleep = func(ctx context.Context, d time.Duration) error { return sleepCtx(ctx, 10*time.Millisecond) }
+	s := newPortalServiceWith(a, func(string, any) {}, func(string) error { return nil })
+
+	done := make(chan PairingInfo)
+	go func() { done <- s.StartPairing() }()
+	time.Sleep(50 * time.Millisecond)
+	s.CancelPairing()
+	close(release)
+	info := <-done
+	if info.Error == nil || info.Error.Code != "cancelled" {
+		t.Fatalf("StartPairing = %+v, want cancelled", info)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if n := polls.Load(); n != 0 {
+		t.Errorf("%d polls after a cancelled start", n)
+	}
+}
+
+func TestSecondStartCancelsTheFirst(t *testing.T) {
+	var polls atomic.Int32
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/device/authorize":
+			fmt.Fprintf(w, `{"device_code":"dc","user_code":"AAAA-BBBB","verification_uri_complete":"https://%s/device","expires_in":900,"interval":1}`, r.Host)
+		case "/api/v1/device/token":
+			polls.Add(1)
+			w.WriteHeader(400)
+			w.Write([]byte(`{"error":"authorization_pending"}`))
+		}
+	}))
+	defer srv.Close()
+	a := newPortalAuth(testClient(srv), &memoryStore{})
+	a.sleep = func(ctx context.Context, d time.Duration) error { return sleepCtx(ctx, 20*time.Millisecond) }
+	s := newPortalServiceWith(a, func(string, any) {}, func(string) error { return nil })
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() { defer wg.Done(); s.StartPairing() }()
+	}
+	wg.Wait()
+	time.Sleep(30 * time.Millisecond)
+	s.CancelPairing()
+	before := polls.Load()
+	time.Sleep(150 * time.Millisecond)
+	if after := polls.Load(); after != before {
+		t.Errorf("polling went on after CancelPairing: %d then %d", before, after)
 	}
 }

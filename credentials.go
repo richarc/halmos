@@ -31,6 +31,8 @@ type memoryStore struct {
 	mu       sync.Mutex
 	items    map[string]storedCredential
 	failSave bool
+	// failSaves fails that many Saves, then succeeds: a Keychain hiccup.
+	failSaves int
 }
 
 func (m *memoryStore) Load(origin string) (storedCredential, bool, error) {
@@ -45,6 +47,10 @@ func (m *memoryStore) Save(origin string, c storedCredential) error {
 	defer m.mu.Unlock()
 	if m.failSave {
 		return errors.New("memoryStore: save refused")
+	}
+	if m.failSaves > 0 {
+		m.failSaves--
+		return errors.New("memoryStore: save refused once")
 	}
 	if m.items == nil {
 		m.items = map[string]storedCredential{}

@@ -59,6 +59,10 @@ export function replaceDiagramFences(
   const fences = md
     .parse(body, {})
     .filter((t) => t.type === 'fence' && t.map && DIAGRAM_INFO.has(t.info.trim()))
+  // One picture per block, matched by position. If the preview drew a
+  // different number than the text has — it was edited and has not caught
+  // up — no picture can be trusted to land on its own block.
+  if (images.length !== fences.length) return { markdown, images: {} }
   const lines = body.split('\n')
   const keyed: { key: string; png: string }[] = []
   // Last first, so earlier line numbers still hold while splicing.

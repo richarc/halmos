@@ -681,7 +681,10 @@
       const target = await PortalService.ChooseExportPath(format, docPath)
       if (!target) return
       // As exportHTML: the panel is not modal to the webview.
-      const moved = () => (path ?? '') !== docPath || showWelcome || chartOpen || tableOpen || newOpen
+      // Unlike the HTML page, the request is built from the text, matched
+      // against what the preview drew, so an edit made meanwhile cancels too.
+      const moved = () =>
+        (path ?? '') !== docPath || content !== source || showWelcome || chartOpen || tableOpen || newOpen
       if (moved()) {
         toast('Export cancelled: the document changed')
         return
@@ -735,7 +738,8 @@
         else if (img.mime === 'image/jpeg') ext = 'jpg'
         else if (img.mime === 'image/gif') ext = 'gif'
         else {
-          data = await toPng(`data:${img.mime};base64,${img.base64}`).catch(() => '')
+          // At its own size: a photo doubled would pass the 8 MB limit.
+          data = await toPng(`data:${img.mime};base64,${img.base64}`, 1).catch(() => '')
           if (data) ext = 'png'
         }
       }
@@ -767,7 +771,11 @@
   }
 
   async function startConnect() {
+    if (connectState?.kind === 'starting' || connectState?.kind === 'waiting') return
+    connectState = { kind: 'starting' }
     const info = await PortalService.StartPairing()
+    // Cancelled while the code was asked for: Go has already dropped it.
+    if (connectState?.kind !== 'starting') return
     if (info.error) {
       connectState = { kind: 'failed', message: messageFor(info.error, pendingExport ?? 'docx').text }
       return
@@ -776,7 +784,7 @@
   }
 
   function cancelConnect() {
-    if (connectState?.kind === 'waiting') void PortalService.CancelPairing()
+    if (connectState?.kind === 'waiting' || connectState?.kind === 'starting') void PortalService.CancelPairing()
     connectState = null
     pendingExport = null
   }

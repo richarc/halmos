@@ -26,7 +26,8 @@ export function Account(): $CancellablePromise<$models.AccountInfo> {
 }
 
 /**
- * CancelPairing stops polling. Nothing is emitted for a cancel.
+ * CancelPairing stops polling, and any start still waiting for its code.
+ * Nothing is emitted for a cancel.
  */
 export function CancelPairing(): $CancellablePromise<void> {
     return $Call.ByID(1034132907);

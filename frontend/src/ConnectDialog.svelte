@@ -3,6 +3,7 @@
       ended without a connection. */
   export type ConnectState =
     | { kind: 'ask' }
+    | { kind: 'starting' }
     | { kind: 'waiting'; code: string; url: string }
     | { kind: 'connected'; email: string }
     | { kind: 'failed'; message: string }
@@ -36,6 +37,8 @@
   {#if state?.kind === 'ask'}
     <p>{intro}</p>
     <p class="dialog-hint">Your browser opens halmoseditor.com, where you sign in and approve this Mac.</p>
+  {:else if state?.kind === 'starting'}
+    <p class="dialog-hint">Asking halmoseditor.com for a code…</p>
   {:else if state?.kind === 'waiting'}
     <p>Your browser has opened halmoseditor.com. Check the code matches, then approve.</p>
     <p class="connect-code" aria-label="Connection code">{state.code}</p>
@@ -50,6 +53,8 @@
     {#if state?.kind === 'ask'}
       <button onclick={oncancel}>Cancel</button>
       <button class="primary" onclick={onconnect}>Connect</button>
+    {:else if state?.kind === 'starting'}
+      <button onclick={oncancel}>Cancel</button>
     {:else if state?.kind === 'waiting'}
       <button class="dialog-alt" onclick={() => onreopen(state.url)}>Open the Page Again</button>
       <button onclick={oncancel}>Cancel</button>
