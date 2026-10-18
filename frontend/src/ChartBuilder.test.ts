@@ -87,7 +87,7 @@ describe('ChartBuilder data step', () => {
     ImportData.mockResolvedValueOnce('x,y\n1,2\n3,4\n')
     const { target, cleanup } = mountBuilder()
     const button = [...target.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Choose file'),
+      b.textContent?.includes('Choose File'),
     )!
     button.click()
     await vi.waitFor(() => expect(target.textContent).toContain('2 rows'))
@@ -98,7 +98,7 @@ describe('ChartBuilder data step', () => {
     ImportData.mockRejectedValueOnce(new Error('nope'))
     const { target, cleanup } = mountBuilder()
     const button = [...target.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Choose file'),
+      b.textContent?.includes('Choose File'),
     )!
     button.click()
     await vi.waitFor(() => expect(target.textContent).toContain('nope'))
@@ -117,7 +117,7 @@ describe('ChartBuilder data step', () => {
     )
     const { target, cleanup } = mountBuilder()
     const button = [...target.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Choose file'),
+      b.textContent?.includes('Choose File'),
     )!
     button.click()
     await vi.waitFor(() =>
@@ -130,7 +130,7 @@ describe('ChartBuilder data step', () => {
     ImportData.mockRejectedValueOnce(new Error('nope'))
     const { target, cleanup } = mountBuilder()
     const button = [...target.querySelectorAll('button')].find((b) =>
-      b.textContent?.includes('Choose file'),
+      b.textContent?.includes('Choose File'),
     )!
     button.click()
     await vi.waitFor(() => expect(target.textContent).toContain('nope'))
@@ -212,7 +212,7 @@ describe('ChartBuilder encoding step', () => {
     const { target, cleanup } = mountBuilder()
     paste(target, 'dose,response\n0,1\n5,2\n')
     const insert = [...target.querySelectorAll('button')].find(
-      (b) => b.textContent?.trim() === 'Insert chart',
+      (b) => b.textContent?.trim() === 'Insert',
     )!
     expect(insert.disabled).toBe(true)
     select(target, 'x', 'dose')
@@ -234,7 +234,7 @@ describe('ChartBuilder encoding step', () => {
     select(target, 'x', 'dose')
     select(target, 'y', 'response')
     ;[...target.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Insert chart')!
+      .find((b) => b.textContent?.trim() === 'Insert')!
       .click()
     flushSync()
 
@@ -270,7 +270,7 @@ describe('ChartBuilder encoding step', () => {
     flushSync()
     expect(target.querySelector<HTMLSelectElement>('select[data-field="x"]')!.value).toBe('dose')
     expect(target.querySelector<HTMLSelectElement>('select[data-field="chart-type"]')!.value).toBe('bar')
-    expect(target.textContent).toContain('Update chart')
+    expect(target.textContent).toContain('Edit chart')
     unmount(cmp)
     target.remove()
   })
@@ -313,7 +313,7 @@ describe('ChartBuilder encoding step', () => {
     select(target, 'y', 'score')
     select(target, 'x-type', 'nominal')
     ;[...target.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Insert chart')!
+      .find((b) => b.textContent?.trim() === 'Insert')!
       .click()
     flushSync()
 
@@ -334,7 +334,7 @@ describe('ChartBuilder encoding step', () => {
     select(target, 'x', 'dose')
     select(target, 'aggregate', 'count')
     const insert = [...target.querySelectorAll('button')].find(
-      (b) => b.textContent?.trim() === 'Insert chart',
+      (b) => b.textContent?.trim() === 'Insert',
     )!
     expect(insert.disabled).toBe(false)
     select(target, 'chart-type', 'boxplot')
@@ -355,7 +355,7 @@ describe('ChartBuilder encoding step', () => {
     select(target, 'x', 'dose')
     select(target, 'y', 'response')
     const insert = [...target.querySelectorAll('button')].find(
-      (b) => b.textContent?.trim() === 'Insert chart',
+      (b) => b.textContent?.trim() === 'Insert',
     )!
     expect(insert.disabled).toBe(false)
 
@@ -430,7 +430,7 @@ function readyBuilder(oncommit = vi.fn()) {
     oncommit,
     commit: () => {
       const button = [...target.querySelectorAll('button')].find(
-        (b) => b.textContent?.trim() === 'Insert chart',
+        (b) => b.textContent?.trim() === 'Insert',
       )!
       button.click()
       flushSync()
@@ -520,7 +520,7 @@ describe('ChartBuilder caption', () => {
     flushSync()
     typeInto(target, 'caption', '')
     ;[...target.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Update chart')!
+      .find((b) => b.textContent?.trim() === 'Update')!
       .click()
     flushSync()
     const spec = JSON.parse(oncommit.mock.calls[0][0] as string)
@@ -558,7 +558,7 @@ describe('ChartBuilder caption', () => {
     })
     flushSync()
     ;[...target.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Update chart')!
+      .find((b) => b.textContent?.trim() === 'Update')!
       .click()
     flushSync()
     const spec = JSON.parse(oncommit.mock.calls[0][0] as string)
@@ -598,7 +598,7 @@ describe('ChartBuilder caption', () => {
     })
     flushSync()
     ;[...target.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Update chart')!
+      .find((b) => b.textContent?.trim() === 'Update')!
       .click()
     flushSync()
     const spec = JSON.parse(oncommit.mock.calls[0][0] as string)
@@ -655,7 +655,7 @@ function reopened(
     box: target.querySelector<HTMLTextAreaElement>('textarea')!,
     update: () => {
       ;[...target.querySelectorAll('button')]
-        .find((b) => b.textContent?.trim() === 'Update chart')!
+        .find((b) => b.textContent?.trim() === 'Update')!
         .click()
       flushSync()
     },
@@ -756,7 +756,7 @@ describe('ChartBuilder data box on reopen', () => {
 /** The dialog's confirming button, whose disabled state is readiness. */
 function insertBtn(target: HTMLElement): HTMLButtonElement {
   return [...target.querySelectorAll('button')].find(
-    (b) => b.textContent?.trim() === 'Insert chart',
+    (b) => b.textContent?.trim() === 'Insert',
   )! as HTMLButtonElement
 }
 
@@ -846,5 +846,90 @@ describe('preview sizing', () => {
     const { oncommit, commit } = readyBuilder()
     commit()
     expect(JSON.parse(oncommit.mock.calls[0][0]).width).toBeUndefined()
+  })
+})
+
+describe('chart builder design', () => {
+  const EXISTING = {
+    chartType: 'bar' as const,
+    rows: [{ dose: 0, response: 1 }],
+    x: { field: 'dose', type: 'quantitative' as const, title: '' },
+    y: { field: 'response', type: 'quantitative' as const, title: '', aggregate: 'none' as const },
+    colour: null,
+    extent: 'ci' as const,
+    extras: {},
+  }
+  const texts = (els: Iterable<Element>) => [...els].map((e) => e.textContent?.trim())
+  const optionTexts = (target: HTMLElement, field: string) =>
+    texts(target.querySelectorAll(`select[data-field="${field}"] option`))
+  const primary = (target: HTMLElement) => target.querySelector<HTMLButtonElement>('.modal-buttons .primary')!
+
+  it('titles a new chart Insert chart and an existing one Edit chart', () => {
+    const fresh = mountBuilder()
+    expect(fresh.target.querySelector('h2.dialog-title')?.textContent).toBe('Insert chart')
+    expect(fresh.target.querySelector('dialog')?.getAttribute('aria-label')).toBe('Insert chart')
+    expect(primary(fresh.target).textContent?.trim()).toBe('Insert')
+    fresh.cleanup()
+
+    const target = document.createElement('div')
+    document.body.appendChild(target)
+    const cmp = mount(ChartBuilder, { target, props: { initial: EXISTING, oncommit: vi.fn(), oncancel: vi.fn() } })
+    flushSync()
+    expect(target.querySelector('h2.dialog-title')?.textContent).toBe('Edit chart')
+    expect(target.querySelector('dialog')?.getAttribute('aria-label')).toBe('Edit chart')
+    expect(primary(target).textContent?.trim()).toBe('Update')
+    unmount(cmp)
+    target.remove()
+  })
+
+  it('shows plain names and keeps stored values', () => {
+    const { target, cleanup } = mountBuilder()
+    paste(target, 'dose,response\n0,1\n5,2\n')
+    expect(optionTexts(target, 'chart-type')).toEqual([
+      'Line', 'Bar', 'Point', 'Area', 'Box Plot', 'Strip', 'Stem', 'Histogram', 'Heat Map', 'Error Bar', 'Pie',
+    ])
+    expect([...target.querySelectorAll<HTMLOptionElement>('select[data-field="chart-type"] option')].map((o) => o.value))
+      .toEqual(['line', 'bar', 'point', 'area', 'boxplot', 'tick', 'rule', 'histogram', 'heatmap', 'errorbar', 'pie'])
+    expect(optionTexts(target, 'x-type')).toEqual(['Number', 'Date', 'Category'])
+    expect(optionTexts(target, 'aggregate')).toEqual(['None', 'Average', 'Median', 'Total', 'Count'])
+    expect(optionTexts(target, 'colour')[0]).toBe('None')
+    expect(optionTexts(target, 'x')[0]).toBe('Choose a column')
+    select(target, 'chart-type', 'errorbar')
+    expect(optionTexts(target, 'extent')).toEqual([
+      '95% confidence interval', 'Standard error', 'Standard deviation', 'Interquartile range',
+    ])
+    cleanup()
+  })
+
+  it('groups the settings under headings', () => {
+    const { target, cleanup } = mountBuilder()
+    paste(target, 'dose,response\n0,1\n5,2\n')
+    const headings = () => texts(target.querySelectorAll('.builder-section'))
+    expect(headings()).toEqual(['Data', 'Chart', 'X axis', 'Y axis', 'Colour'])
+    select(target, 'chart-type', 'pie')
+    expect(headings()).toEqual(['Data', 'Chart', 'Slice size', 'Slices'])
+    select(target, 'chart-type', 'heatmap')
+    expect(headings().at(-1)).toBe('Cell colour')
+    cleanup()
+  })
+
+  it('keeps the paste box focused when data arrives', () => {
+    const { target, cleanup } = mountBuilder()
+    const box = target.querySelector<HTMLTextAreaElement>('#chart-paste')!
+    box.focus()
+    expect(target.querySelector('.chart-layout')?.classList.contains('has-data')).toBe(false)
+    paste(target, 'dose,response\n0,1\n5,2\n')
+    expect(target.querySelector('#chart-paste')).toBe(box)
+    expect(document.activeElement).toBe(box)
+    expect(target.querySelector('.chart-layout')?.classList.contains('has-data')).toBe(true)
+    cleanup()
+  })
+
+  it('shows the column name as the axis title hint', () => {
+    const { target, cleanup } = mountBuilder()
+    paste(target, 'dose,response\n0,1\n5,2\n')
+    select(target, 'x', 'dose')
+    expect(target.querySelector<HTMLInputElement>('input[data-field="x-title"]')!.placeholder).toBe('dose')
+    cleanup()
   })
 })

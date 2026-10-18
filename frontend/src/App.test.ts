@@ -790,7 +790,7 @@ describe('chart builder', () => {
     view.dispatch({ selection: { anchor: WITH_CHART.indexOf('"mark"') } })
     listeners['menu:insert-chart']({ data: null })
     flushSync()
-    expect(target.textContent).toContain('Update chart')
+    expect(target.textContent).toContain('Edit chart')
   })
 
   it('refuses a spec it cannot model and leaves the document untouched', async () => {
@@ -825,7 +825,7 @@ describe('chart builder', () => {
       flushSync()
     }
     ;[...target.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Insert chart')!
+      .find((b) => b.textContent?.trim() === 'Insert')!
       .click()
     flushSync()
 
@@ -866,7 +866,7 @@ describe('chart builder', () => {
       flushSync()
     }
     ;[...target.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Insert chart')!
+      .find((b) => b.textContent?.trim() === 'Insert')!
       .click()
     flushSync()
 
@@ -907,7 +907,7 @@ describe('chart builder', () => {
     view.dispatch({ selection: { anchor: WITH_CHART.indexOf('"mark"') } })
     listeners['menu:insert-chart']({ data: null })
     flushSync()
-    expect(target.textContent).toContain('Update chart')
+    expect(target.textContent).toContain('Edit chart')
 
     const markSelect = target.querySelector<HTMLSelectElement>('select[data-field="chart-type"]')!
     markSelect.value = 'bar'
@@ -915,7 +915,7 @@ describe('chart builder', () => {
     flushSync()
 
     ;[...target.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Update chart')!
+      .find((b) => b.textContent?.trim() === 'Update')!
       .click()
     flushSync()
 
@@ -941,7 +941,7 @@ describe('chart builder', () => {
     view.dispatch({ selection: { anchor: insidePos } })
     listeners['menu:insert-chart']({ data: null })
     flushSync()
-    expect(target.textContent).toContain('Update chart')
+    expect(target.textContent).toContain('Edit chart')
 
     // Simulates a stray keystroke reaching the editor behind the modal —
     // exactly what the paste-box autofocus in ChartBuilder.svelte exists to
@@ -951,7 +951,7 @@ describe('chart builder', () => {
     const stray = view.state.doc.toString()
 
     ;[...target.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Update chart')!
+      .find((b) => b.textContent?.trim() === 'Update')!
       .click()
     flushSync()
 
@@ -1001,7 +1001,7 @@ describe('chart builder', () => {
       flushSync()
     }
     ;[...target.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Insert chart')!
+      .find((b) => b.textContent?.trim() === 'Insert')!
       .click()
     flushSync()
 

@@ -13,6 +13,7 @@
   } from './lib/chartSpec'
   import { embedChart, type ChartView } from './lib/charts'
   import { captionFromTitle } from './lib/figures'
+  import { AGGREGATE_LABELS, CHART_TYPE_LABELS, EXTENT_LABELS, FIELD_TYPE_LABELS } from './lib/chartLabels'
   import { DocumentService } from '../bindings/hermes'
   import Dialog from './Dialog.svelte'
 
@@ -220,8 +221,10 @@
   const showX = $derived(!isPie)
   const showY = $derived(!isHistogram)
   const showAggregate = $derived(chartType !== 'boxplot' && !isHistogram)
-  const valueLabel = $derived(isPie ? 'Slice size' : 'Y')
-  const colourLabel = $derived(isPie ? 'Category' : isHeatmap ? 'Value' : 'Colour')
+  const valueHeading = $derived(isPie ? 'Slice size' : 'Y axis')
+  const colourHeading = $derived(isPie ? 'Slices' : isHeatmap ? 'Cell colour' : 'Colour')
+  const colourLabel = $derived(isPie ? 'Category' : isHeatmap ? 'Value' : 'Split by')
+  const title = untrack(() => (initial ? 'Edit chart' : 'Insert chart'))
 
   // load() no longer clears a selection whose column has vanished (see the
   // comment there), so readiness has to check that a selected column still
@@ -305,7 +308,7 @@
   // underneath. No number is shown: numbering is a property of the document,
   // assigned by position, and the builder cannot know it.
   /** Plotting-area width for the preview only. See previewSpec. */
-  const PREVIEW_WIDTH_PX = 560
+  const PREVIEW_WIDTH_PX = 420
 
   const previewSpec = $derived(
     builderState
@@ -392,125 +395,151 @@
   })
 </script>
 
-<Dialog open label="Chart builder" class="chart-builder" onclose={oncancel}>
-  <h2>Chart</h2>
-
-  <section class="data-step">
-    <label for="chart-paste">Data</label>
-    <textarea
-      id="chart-paste"
-      bind:this={pasteEl}
-      rows={initial ? 12 : 6}
-      placeholder="Paste a comma- or tab-separated table with a header row"
-      value={pasted}
-      oninput={onPaste}
-    ></textarea>
-    <button onclick={() => void chooseFile()}>Choose file…</button>
-
-    {#if parseError}
-      <p class="field-error" role="alert">{parseError}</p>
-    {/if}
-    {#if importError}
-      <p class="field-error" role="alert">{importError}</p>
-    {/if}
-    {#if table}
-      <p class="data-summary">
-        {table.columns.length} columns, {table.rows.length} rows
-        {#if table.rows.length > ROW_WARNING}
-          — that is a large table to store in the document, but it will work.
+<Dialog open label={title} {title} class="chart-builder" onclose={oncancel}>
+  <!-- One wrapper whether or not there is data yet: the layout switches by
+       class, so the paste box is never re-mounted and keeps focus while the
+       author is still typing into it. -->
+  <div class="chart-layout" class:has-data={table !== null}>
+    <div class="chart-side">
+      <section class="chart-group">
+        <label class="builder-section" for="chart-paste">Data</label>
+        <textarea
+          id="chart-paste"
+          bind:this={pasteEl}
+          rows={initial ? 12 : table ? 5 : 6}
+          placeholder={'year,qubits\n2023,127\n2024,1121'}
+          value={pasted}
+          oninput={onPaste}
+        ></textarea>
+        <div class="data-row">
+          {#if table}
+            <span class="dialog-hint">
+              {table.columns.length} columns, {table.rows.length} rows
+              {#if table.rows.length > ROW_WARNING}
+                — that is a large table to store in the document, but it will work.
+              {/if}
+            </span>
+          {:else}
+            <span class="dialog-hint">Paste comma- or tab-separated text with a header row, or choose a .csv, .tsv or .txt file.</span>
+          {/if}
+          <button onclick={() => void chooseFile()}>Choose File…</button>
+        </div>
+        {#if parseError}
+          <p class="field-error" role="alert">{parseError}</p>
         {/if}
-      </p>
+        {#if importError}
+          <p class="field-error" role="alert">{importError}</p>
+        {/if}
+      </section>
+
+      {#if table}
+        <section class="chart-group">
+          <p class="builder-section">Chart</p>
+          <label>Type
+            <select data-field="chart-type" bind:value={chartType}>
+              {#each CHART_TYPES as t (t)}<option value={t}>{CHART_TYPE_LABELS[t]}</option>{/each}
+            </select>
+          </label>
+          <label>Caption
+            <input data-field="caption" bind:value={caption} />
+          </label>
+        </section>
+
+        {#if showX}
+          <section class="chart-group">
+            <p class="builder-section">X axis</p>
+            <div class="chart-pair">
+              <label>Column
+                <select data-field="x" value={xField} onchange={(e) => pickX(e.currentTarget.value)}>
+                  <option value="" disabled>Choose a column</option>
+                  {#each columns as c (c.name)}<option value={c.name}>{c.name}</option>{/each}
+                </select>
+              </label>
+              <label>Treat as
+                <select data-field="x-type" bind:value={xType}>
+                  {#each FIELD_TYPES as t (t)}<option value={t}>{FIELD_TYPE_LABELS[t]}</option>{/each}
+                </select>
+              </label>
+            </div>
+            <label>Title <input data-field="x-title" placeholder={xField} bind:value={xTitle} /></label>
+          </section>
+        {/if}
+
+        {#if showY}
+          <section class="chart-group">
+            <p class="builder-section">{valueHeading}</p>
+            <div class="chart-pair">
+              <label>Column
+                <select data-field="y" value={yField} onchange={(e) => pickY(e.currentTarget.value)}>
+                  <option value="" disabled>Choose a column</option>
+                  {#each columns as c (c.name)}<option value={c.name}>{c.name}</option>{/each}
+                </select>
+              </label>
+              <label>Treat as
+                <select data-field="y-type" bind:value={yType}>
+                  {#each FIELD_TYPES as t (t)}<option value={t}>{FIELD_TYPE_LABELS[t]}</option>{/each}
+                </select>
+              </label>
+            </div>
+            <div class="chart-pair">
+              {#if showAggregate}
+                <label>Combine
+                  <select data-field="aggregate" bind:value={aggregate}>
+                    {#each AGGREGATES as a (a)}<option value={a}>{AGGREGATE_LABELS[a]}</option>{/each}
+                  </select>
+                </label>
+              {/if}
+              <label>Title <input data-field="y-title" placeholder={yField} bind:value={yTitle} /></label>
+            </div>
+            {#if chartType === 'errorbar'}
+              <label>Error bar shows
+                <select data-field="extent" bind:value={extent}>
+                  {#each EXTENTS as e (e)}<option value={e}>{EXTENT_LABELS[e]}</option>{/each}
+                </select>
+              </label>
+            {/if}
+          </section>
+        {/if}
+
+        <section class="chart-group">
+          <p class="builder-section">{colourHeading}</p>
+          <div class="chart-pair">
+            <label>{colourLabel}
+              <select
+                data-field="colour"
+                value={colourField}
+                onchange={(e) => pickColour(e.currentTarget.value)}
+              >
+                <option value="">None</option>
+                {#each columns as c (c.name)}<option value={c.name}>{c.name}</option>{/each}
+              </select>
+            </label>
+            {#if isHeatmap}
+              <label>Combine
+                <select data-field="colour-aggregate" bind:value={colourAggregate}>
+                  {#each AGGREGATES as a (a)}<option value={a}>{AGGREGATE_LABELS[a]}</option>{/each}
+                </select>
+              </label>
+            {/if}
+          </div>
+        </section>
+      {/if}
+    </div>
+
+    {#if table}
+      <div class="chart-preview-pane">
+        <div class="chart-preview" bind:this={previewEl}></div>
+        {#if caption.trim()}
+          <p class="chart-caption">{caption.trim()}</p>
+        {/if}
+      </div>
     {/if}
-  </section>
-
-  {#if table}
-    <section class="encode-step">
-      <label class="caption-row">Caption
-        <input data-field="caption" bind:value={caption} />
-      </label>
-
-      <label class="mark-row">Chart type
-        <select data-field="chart-type" bind:value={chartType}>
-          {#each CHART_TYPES as t (t)}<option value={t}>{t}</option>{/each}
-        </select>
-      </label>
-
-      {#if showX}
-        <label>X
-          <select data-field="x" value={xField} onchange={(e) => pickX(e.currentTarget.value)}>
-            <option value="" disabled>choose a column…</option>
-            {#each columns as c (c.name)}<option value={c.name}>{c.name}</option>{/each}
-          </select>
-        </label>
-        <label>X type
-          <select data-field="x-type" bind:value={xType}>
-            {#each FIELD_TYPES as t (t)}<option value={t}>{t}</option>{/each}
-          </select>
-        </label>
-        <label>X title <input data-field="x-title" bind:value={xTitle} /></label>
-      {/if}
-
-      {#if showY}
-        <label>{valueLabel}
-          <select data-field="y" value={yField} onchange={(e) => pickY(e.currentTarget.value)}>
-            <option value="" disabled>choose a column…</option>
-            {#each columns as c (c.name)}<option value={c.name}>{c.name}</option>{/each}
-          </select>
-        </label>
-        <label>{valueLabel} type
-          <select data-field="y-type" bind:value={yType}>
-            {#each FIELD_TYPES as t (t)}<option value={t}>{t}</option>{/each}
-          </select>
-        </label>
-        <label>{valueLabel} title <input data-field="y-title" bind:value={yTitle} /></label>
-      {/if}
-
-      {#if showAggregate}
-        <label>Aggregate
-          <select data-field="aggregate" bind:value={aggregate}>
-            {#each AGGREGATES as a (a)}<option value={a}>{a}</option>{/each}
-          </select>
-        </label>
-      {/if}
-
-      {#if chartType === 'errorbar'}
-        <label>Extent
-          <select data-field="extent" bind:value={extent}>
-            {#each EXTENTS as e (e)}<option value={e}>{e}</option>{/each}
-          </select>
-        </label>
-      {/if}
-
-      <label>{colourLabel}
-        <select
-          data-field="colour"
-          value={colourField}
-          onchange={(e) => pickColour(e.currentTarget.value)}
-        >
-          <option value="">none</option>
-          {#each columns as c (c.name)}<option value={c.name}>{c.name}</option>{/each}
-        </select>
-      </label>
-
-      {#if isHeatmap}
-        <label>Value aggregate
-          <select data-field="colour-aggregate" bind:value={colourAggregate}>
-            {#each AGGREGATES as a (a)}<option value={a}>{a}</option>{/each}
-          </select>
-        </label>
-      {/if}
-    </section>
-
-    <div class="chart-preview" bind:this={previewEl}></div>
-    {#if caption.trim()}
-      <p class="chart-caption">{caption.trim()}</p>
-    {/if}
-  {/if}
+  </div>
 
   {#snippet footer()}
     <button onclick={oncancel}>Cancel</button>
     <button class="primary" disabled={!ready} onclick={commit}>
-      {initial ? 'Update chart' : 'Insert chart'}
+      {initial ? 'Update' : 'Insert'}
     </button>
   {/snippet}
 </Dialog>

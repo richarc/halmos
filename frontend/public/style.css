@@ -751,67 +751,56 @@ dialog::backdrop { background: var(--backdrop); }
 
 .chart-builder textarea {
   width: 100%;
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
 }
 
-/* Dialog content has to declare its own vertical rhythm. The reset on line 1
-   strips every default margin, and the preview pane's typography rules are
-   scoped to .preview-pane — so without these the title, the label, the box
-   and the button stack flush against each other. */
-.chart-builder h2 { margin-bottom: 16px; }
-
-/* The label reads as part of the control below it, so it sits closer to the
-   textarea than the textarea does to the button — same 4px pairing the
-   encode-step labels use. */
-.data-step label {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.data-step textarea { margin-bottom: 12px; }
-.data-step .field-error,
-.data-step .data-summary { margin-top: 12px; }
-
-.chart-builder .field-error {
-  color: var(--cite-error-fg);
-}
-
-.chart-builder .data-summary {
-  color: var(--muted);
-}
-
-/* Three fixed columns so the field, type and title controls line up in the
-   same column for X and for Y. An auto-fill grid packed them end to end, which
-   left the two axes' controls staggered against each other. */
-.encode-step {
+/* Before there is data the builder is one column, the paste box alone. Once a
+   table parses, settings sit in a fixed column and the preview takes the
+   rest, so the chart stays in view while the settings are changed. The same
+   wrapper serves both, switched by class: re-mounting the paste box would
+   take focus from someone still typing into it. */
+.chart-layout.has-data {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px 16px;
-  margin-top: 16px;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 24px;
 }
+.chart-side { display: flex; flex-direction: column; gap: 16px; }
 
-/* Mark applies to the whole chart rather than to an axis, so it gets its own
-   row above them. The select is held to one column's width so spanning the row
-   does not stretch a five-item dropdown across the dialog. .caption-row below
-   shares this row's span for the same reason (a full-width control on the
-   grid) but, being a sentence rather than a token, deliberately does NOT cap
-   its own width the way .mark-row select does. */
-.encode-step .mark-row,
-.encode-step .caption-row {
-  grid-column: 1 / -1;
+/* A group is a section heading, then its fields 8px apart. Labels wrap their
+   control, so the 4px label gap is the label's own. */
+.chart-group { display: flex; flex-direction: column; gap: 8px; }
+.chart-builder .builder-section {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
-
-.encode-step .mark-row select {
-  max-width: calc((100% - 32px) / 3);
-}
-
-.encode-step label {
+.chart-group label:not(.builder-section) {
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 13px;
   color: var(--muted);
+}
+.chart-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.chart-pair:empty { display: none; }
+.data-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.data-row button { flex-shrink: 0; }
+
+.chart-builder .field-error {
+  color: var(--cite-error-fg);
+}
+
+/* Sticky inside the dialog, which is the scroll container: a long settings
+   column (an error bar shows every Y control) scrolls past the chart rather
+   than pushing it out of sight. */
+.chart-preview-pane {
+  position: sticky;
+  top: 0;
+  align-self: start;
 }
 
 /* The preview spec asks for a fixed plotting width so the chart is not drawn
@@ -821,16 +810,22 @@ dialog::backdrop { background: var(--backdrop); }
 
 .chart-preview {
   min-height: 240px;
-  margin-top: 16px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--surface);
+  background: var(--bg);
 }
 
 .chart-builder .chart-caption {
   margin-top: 8px;
-  font-size: 0.9em;
-  color: var(--muted-strong);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .chart-layout.has-data { grid-template-columns: minmax(0, 1fr); }
+  .chart-preview-pane { position: static; }
 }
 
 /* Table builder — same dialog shell as the chart builder, sized for a grid. */
