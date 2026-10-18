@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount, unmount, flushSync } from 'svelte'
 import { EditorView, type Command } from '@codemirror/view'
 import { foldCode, forceParsing } from '@codemirror/language'
@@ -680,6 +680,20 @@ describe('Editor citation completion', () => {
 
   it('offers nothing when no bibliography is loaded', async () => {
     expect(await typeAndComplete(() => null)).toBeNull()
+  })
+
+  it('shows each suggestion on two lines: key and author, then title', async () => {
+    const { editor, target, cleanup } = mountEditor({ citations: () => ctx })
+    editor.setContent('[@sm', 'end')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor') as HTMLElement)!
+    startCompletion(view)
+    await vi.waitFor(() => expect(target.querySelector('li.cm-citation-option')).not.toBeNull())
+    const row = target.querySelector('li.cm-citation-option')!
+    expect(row.querySelector('.cm-completionLabel')?.textContent).toBe('smith2020')
+    expect(row.querySelector('.cm-completionDetail')?.textContent).toBe('Smith')
+    expect(row.querySelector('.cm-citation-title')?.textContent).toBe('T')
+    expect(target.querySelector('.cm-completionInfo')).toBeNull()
+    cleanup()
   })
 })
 

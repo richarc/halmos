@@ -11,7 +11,8 @@
   import type { SyntaxNode } from '@lezer/common'
   import { codeHighlightStyleSpecs } from './lib/syntaxTags'
   import { spellcheckExtension } from './lib/spellcheck'
-  import { citationCompletionSource, type CitationContext } from './lib/citationCompletion'
+  import { citationCompletionSource, citationOptionClass, citationOptionTitle, type CitationContext } from './lib/citationCompletion'
+  import { autocompletion } from '@codemirror/autocomplete'
   import { citationHover, unknownKeyMarks, refreshCitationsEffect } from './lib/citationEditor'
   import { openSearchPanel, findNext, findPrevious } from '@codemirror/search'
 
@@ -115,6 +116,49 @@
       border: '1px solid var(--border)',
     },
     '.cm-citation-tooltip': { maxWidth: '32em', padding: '4px 8px' },
+    // The suggestion list. CodeMirror's base draws it in monospace with 1px
+    // rows and a fixed blue selection; here it takes the app's font, room to
+    // breathe and the palette's accent, for code completions too.
+    '.cm-tooltip.cm-tooltip-autocomplete': { borderRadius: '6px', padding: '4px' },
+    '.cm-tooltip.cm-tooltip-autocomplete > ul': {
+      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+      fontSize: '13px',
+      minWidth: '320px',
+      maxWidth: 'min(480px, 95vw)',
+      maxHeight: '20em',
+    },
+    '.cm-tooltip-autocomplete > ul > li': { padding: '4px 8px', lineHeight: 1.4, borderRadius: '6px' },
+    '.cm-tooltip-autocomplete ul li[aria-selected]': { background: 'var(--accent)', color: 'var(--on-accent)' },
+    // A citation suggestion is two lines: the key and its author-year, then
+    // the title. The type icon carries nothing here, so it is hidden.
+    '.cm-tooltip-autocomplete > ul > li.cm-citation-option': {
+      display: 'grid',
+      gridTemplateColumns: 'auto minmax(0, 1fr)',
+      columnGap: '12px',
+      rowGap: '2px',
+    },
+    '.cm-citation-option .cm-completionIcon': { display: 'none' },
+    '.cm-citation-option .cm-completionLabel': {
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+      fontSize: '13px',
+    },
+    '.cm-citation-option .cm-completionDetail': {
+      marginLeft: 0,
+      fontStyle: 'normal',
+      fontSize: '12px',
+      textAlign: 'right',
+      color: 'var(--muted)',
+    },
+    '.cm-citation-title': {
+      gridColumn: '1 / -1',
+      fontSize: '12px',
+      color: 'var(--muted)',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+    },
+    '.cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail, .cm-tooltip-autocomplete ul li[aria-selected] .cm-citation-title':
+      { color: 'var(--on-accent)' },
     '.cm-cite-unknown': { textDecoration: 'underline wavy var(--cite-error-fg)' },
     '.cm-specialChar': { color: 'var(--editor-gutter-fg)' },
     // CodeMirror's base theme hardcodes this pill as #eee on #ddd with #888
@@ -495,6 +539,9 @@
       // basicSetup already installs autocompletion() and its keymap; a source
       // is added through language data so there is only one of each.
       EditorState.languageData.of(() => [{ autocomplete: citationSource }]),
+      // Extra options for that same autocompletion() (its config facet
+      // merges): citation rows get a class and a title line of their own.
+      autocompletion({ optionClass: citationOptionClass, addToOptions: [citationOptionTitle] }),
       citationHover(() => citations?.() ?? null),
       unknownKeyMarks(() => citations?.() ?? null),
       // A clipboard holding an image and no text is a screenshot or a copied

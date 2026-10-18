@@ -14,6 +14,34 @@ export interface CitationContext {
 
 export const MAX_OPTIONS = 100
 
+/** A suggestion carries its entry's title, drawn as the row's second line. */
+interface CitationCompletion extends Completion {
+  title?: string
+}
+
+const CITATION = 'citation'
+
+/** Row class for a citation suggestion, so its two-line layout leaves other completions alone. */
+export function citationOptionClass(c: Completion): string {
+  return c.type === CITATION ? 'cm-citation-option' : ''
+}
+
+/**
+ * The title line of a citation suggestion, for autocompletion's addToOptions.
+ * Position 90 puts it after the label (50) and the author-year detail (80).
+ */
+export const citationOptionTitle = {
+  render(c: Completion): Node | null {
+    const title = c.type === CITATION ? (c as CitationCompletion).title : undefined
+    if (!title) return null
+    const el = document.createElement('span')
+    el.className = 'cm-citation-title'
+    el.textContent = title
+    return el
+  },
+  position: 90,
+}
+
 // The key characters Pandoc allows, plus "." (which can sit inside a key).
 const TYPED_KEY = /@([\w:#$%&\-+?<>~/.]*)$/
 // Same boundary as narrativeRule in citations.ts: a bare "@" must not follow
@@ -116,11 +144,11 @@ export function citationCompletionSource(get: () => CitationContext | null): Com
     }
     ranked.sort((a, b) => a.rank - b.rank)
 
-    const options: Completion[] = ranked.slice(0, MAX_OPTIONS).map(({ entry }) => ({
+    const options: CitationCompletion[] = ranked.slice(0, MAX_OPTIONS).map(({ entry }) => ({
       label: entry.id,
       detail: label(entry),
-      info: entry.title,
-      type: 'text',
+      title: entry.title,
+      type: CITATION,
     }))
     if (options.length === 0) return null
 

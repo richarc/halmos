@@ -46,6 +46,8 @@ const PAIRS: Array<[label: string, fg: string, bg: string, target: number]> = [
   ['side panel text', '--fg', '--panel', 7],
   ['side panel muted', '--muted', '--panel', 4.5],
   ['status bar error', '--cite-error-fg', '--bg', 4.5],
+  // Citation suggestions: the title line, on the suggestion list's ground.
+  ['citation suggestion title', '--muted', '--editor-gutter-bg', 4.5],
   // The chart builder's field error is the last error colour left in the
   // chrome — it sits in a dialog, so it is measured against the dialog's
   // ground. The markers that render on the sheet moved to the document

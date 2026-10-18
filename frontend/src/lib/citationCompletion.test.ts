@@ -1,9 +1,10 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 import { ensureSyntaxTree } from '@codemirror/language'
 import { CompletionContext, type CompletionResult } from '@codemirror/autocomplete'
-import { citationCompletionSource, MAX_OPTIONS, type CitationContext } from './citationCompletion'
+import { citationCompletionSource, citationOptionClass, citationOptionTitle, MAX_OPTIONS, type CitationContext } from './citationCompletion'
 import type { CSLEntry } from './bibliography'
 
 const smith: CSLEntry = {
@@ -37,7 +38,30 @@ describe('citationCompletionSource', () => {
     }
     const o = run('[@|')!.options[0]
     expect(o.detail).toBe('Smith 2020')
-    expect(o.info).toBe('Neural networks for text')
+  })
+
+  // Two lines per suggestion: key and author-year, then the title in the row
+  // itself rather than in a second box beside the list.
+  it('carries the title in the row, not in a side panel', () => {
+    const o = run('[@|')!.options[0]
+    expect(o.type).toBe('citation')
+    expect(o.info).toBeUndefined()
+    const el = citationOptionTitle.render(o)
+    expect(el?.textContent).toBe('Neural networks for text')
+    expect((el as HTMLElement).className).toBe('cm-citation-title')
+    expect(citationOptionClass(o)).toBe('cm-citation-option')
+  })
+
+  it('leaves other completions alone', () => {
+    const other = { label: 'div', type: 'keyword' }
+    expect(citationOptionTitle.render(other)).toBeNull()
+    expect(citationOptionClass(other)).toBe('')
+  })
+
+  it('omits the title line for an entry without a title', () => {
+    const untitled: CSLEntry = { id: 'anon2001', type: 'book', issued: { 'date-parts': [[2001]] } }
+    const o = run('[@|', ctxOf([untitled]))!.options[0]
+    expect(citationOptionTitle.render(o)).toBeNull()
   })
 
   it('filters by key, author and title words', () => {
