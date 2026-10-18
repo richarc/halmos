@@ -1330,14 +1330,7 @@
 
   <main class="panes">
     {#if showOutline}
-      <Outline entries={outline} onjump={jumpToLine} onhide={() => void setOutlineShown(false)} />
-    {:else}
-      <button
-        class="outline-arrow outline-reveal"
-        onclick={() => void setOutlineShown(true)}
-        title="Show outline (⌘⌥O)"
-        aria-label="Show outline">›</button
-      >
+      <Outline entries={outline} onjump={jumpToLine} />
     {/if}
     <section class="editor-pane" style="width: {editorWidth}%">
       <Editor bind:this={editor} citations={() => citationContext} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} onpasteimage={pasteImage} spellcheck={spellCheck} />

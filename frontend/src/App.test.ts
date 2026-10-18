@@ -509,12 +509,13 @@ describe('toolbar', () => {
 })
 
 describe('outline panel', () => {
-  it('is hidden by default, with a reveal arrow in its place', async () => {
+  it('is hidden by default with no reveal arrow', async () => {
     recents.current = []
     const { target } = mountApp()
     await vi.waitFor(() => expect(target.querySelector('.editor-pane')).not.toBeNull())
     expect(target.querySelector('.outline')).toBeNull()
-    expect(target.querySelector('.outline-reveal')).not.toBeNull()
+    expect(target.querySelector('.outline-reveal')).toBeNull()
+    expect(target.querySelector('.outline-arrow')).toBeNull()
   })
 
   it('shows when the setting is on and lists the document headings', async () => {
@@ -522,7 +523,7 @@ describe('outline panel', () => {
     settings.current = { ...DEFAULT_SETTINGS, showOutline: true }
     const { target } = mountApp()
     await vi.waitFor(() => expect(target.querySelector('.outline')).not.toBeNull())
-    expect(target.querySelector('.outline-empty')?.textContent).toContain('No headings')
+    expect(target.querySelector('.outline-heading')?.textContent).toBe('Outline')
 
     listeners['menu:open-recent'] // ensure listeners registered
     // Load a document with headings through the open-recent path.
@@ -539,13 +540,42 @@ describe('outline panel', () => {
     )
   })
 
-  it('retracts through its arrow by writing the setting', async () => {
+  it('says how to add a heading when there are none', async () => {
+    recents.current = []
+    settings.current = { ...DEFAULT_SETTINGS, showOutline: true }
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.outline')).not.toBeNull())
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/papers/plain.md', content: 'Just prose.\n' })
+    listeners['menu:open-recent']({ data: '/papers/plain.md' })
+    await vi.waitFor(() =>
+      expect([...target.querySelectorAll('.outline-empty')].map((p) => p.textContent)).toEqual([
+        'No headings yet.',
+        'Lines that start with # appear here.',
+      ]),
+    )
+  })
+
+  it('marks top-level headings and titles each row with its text', async () => {
+    recents.current = []
+    settings.current = { ...DEFAULT_SETTINGS, showOutline: true }
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.outline')).not.toBeNull())
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: '/papers/p.md', content: '# One\n\n## Two\n' })
+    listeners['menu:open-recent']({ data: '/papers/p.md' })
+    await vi.waitFor(() => expect(target.querySelectorAll('.outline-entry')).toHaveLength(2))
+    const [one, two] = [...target.querySelectorAll<HTMLButtonElement>('.outline-entry')]
+    expect(one.classList.contains('outline-top')).toBe(true)
+    expect(two.classList.contains('outline-top')).toBe(false)
+    expect([one.title, two.title]).toEqual(['One', 'Two'])
+  })
+
+  it('hides through the toolbar button', async () => {
     recents.current = []
     settings.current = { ...DEFAULT_SETTINGS, showOutline: true }
     const { target } = mountApp()
     await vi.waitFor(() => expect(target.querySelector('.outline')).not.toBeNull())
 
-    ;(target.querySelector('.outline-header .outline-arrow') as HTMLButtonElement).click()
+    ;(target.querySelector('.outline-toggle') as HTMLButtonElement).click()
     await vi.waitFor(() => expect(DocumentService.UpdateSettings).toHaveBeenCalled())
     expect(DocumentService.UpdateSettings.mock.calls[0][0].showOutline).toBe(false)
   })
