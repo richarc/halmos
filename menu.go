@@ -32,7 +32,10 @@ func citationStyleClicked(docs *DocumentService, emit func()) {
 // current; the rebuild is dispatched to the main thread by the caller.
 func installMenu(app *application.App, win *application.WebviewWindow, docs *DocumentService) {
 	menu := application.NewMenu()
-	menu.AddRole(application.AppMenu)
+	addAppMenu(menu, app.Config().Name, func() {
+		showWindow(win)
+		app.Event.Emit("menu:account")
+	})
 
 	// Menu events that act on the open document. Closing hides the window
 	// rather than quitting (#17), so these are dropped while it is hidden:
@@ -152,6 +155,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	file.Add("Export HTML…").OnClick(func(*application.Context) {
 		docEmit("menu:export-html")
 	})
+	addPandocExportItems(file, docEmit)
 	file.Add("Print…").SetAccelerator("cmdorctrl+p").OnClick(func(*application.Context) {
 		whenVisible(win.IsVisible(), docs.PrintDocument)
 	})
@@ -631,4 +635,34 @@ func whenVisible(visible bool, act func()) {
 func showWindow(win *application.WebviewWindow) {
 	win.Show()
 	win.Focus()
+}
+
+// addAppMenu builds the application menu by hand, in the order of Wails' own
+// AppMenu role (roles.go, NewAppMenu), with Account… after About: the role
+// is a fixed block that takes no items of its own. Quit is still a role
+// item, which reclaimQuitItem then takes over.
+func addAppMenu(menu *application.Menu, name string, onAccount func()) {
+	appMenu := menu.AddSubmenu(name)
+	appMenu.AddRole(application.About)
+	appMenu.Add("Account…").OnClick(func(*application.Context) { onAccount() })
+	appMenu.AddSeparator()
+	appMenu.AddRole(application.ServicesMenu)
+	appMenu.AddSeparator()
+	appMenu.AddRole(application.Hide)
+	appMenu.AddRole(application.HideOthers)
+	appMenu.AddRole(application.UnHide)
+	appMenu.AddSeparator()
+	appMenu.AddRole(application.Quit)
+}
+
+// addPandocExportItems adds File → Export Word… and Export LaTeX…, which
+// convert through the portal (PortalService.Export). Like Export HTML, the
+// frontend gathers the document, so the menu only asks.
+func addPandocExportItems(file *application.Menu, emit func(name string, data ...any)) {
+	file.Add("Export Word…").OnClick(func(*application.Context) {
+		emit("menu:export-pandoc", "docx")
+	})
+	file.Add("Export LaTeX…").OnClick(func(*application.Context) {
+		emit("menu:export-pandoc", "latex")
+	})
 }

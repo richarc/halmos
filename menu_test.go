@@ -275,3 +275,42 @@ func TestBodyFontMenuValuesMatchFrontend(t *testing.T) {
 		t.Fatalf("menu values %v, frontend values %v", got, want)
 	}
 }
+
+func TestAppMenuHasAccountAfterAbout(t *testing.T) {
+	testApp()
+	menu := application.NewMenu()
+	addAppMenu(menu, "Halmos Editor", func() {})
+	app := menu.ItemAt(0).GetSubmenu()
+	if app == nil {
+		t.Fatal("no app submenu")
+	}
+	if l := app.ItemAt(0).Label(); !strings.HasPrefix(l, "About") {
+		t.Errorf("first item %q, want About", l)
+	}
+	if l := app.ItemAt(1).Label(); l != "Account…" {
+		t.Errorf("second item %q, want Account…", l)
+	}
+	if menu.FindByRole(application.Quit) == nil {
+		t.Error("the hand-built app menu must keep Quit, which reclaimQuitItem takes over")
+	}
+}
+
+func TestPandocExportItemsFollowExportHTML(t *testing.T) {
+	testApp()
+	file := application.NewMenu()
+	var got []any
+	addPandocExportItems(file, func(name string, data ...any) { got = append(got, name, data[0]) })
+	if file.ItemAt(0).Label() != "Export Word…" || file.ItemAt(1).Label() != "Export LaTeX…" {
+		t.Fatalf("items %q, %q", file.ItemAt(0).Label(), file.ItemAt(1).Label())
+	}
+	src, err := os.ReadFile("menu.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := strings.Index(string(src), `file.Add("Export HTML…")`)
+	pandoc := strings.Index(string(src), "addPandocExportItems(file, docEmit)")
+	next := strings.Index(string(src)[html+1:], "file.Add")
+	if html < 0 || pandoc < html || (next >= 0 && html+1+next < pandoc) {
+		t.Error("addPandocExportItems(file, docEmit) must come right after Export HTML…")
+	}
+}
