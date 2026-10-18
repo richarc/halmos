@@ -597,9 +597,10 @@ textarea:focus-visible,
 .divider { width: 4px; cursor: col-resize; background: var(--divider); flex-shrink: 0; }
 
 /* A fixed height, so the bar does not move when the unknown-citations link
-   appears. Unsaved changes read "— Edited", as a Mac window title does. */
+   appears. Unsaved changes read "— Edited", as a Mac window title does.
+   20px at each end keeps the text clear of the window's rounded corners. */
 .status-bar {
-  height: 24px; padding: 0 12px; border-top: 1px solid var(--border);
+  height: 24px; padding: 0 20px; border-top: 1px solid var(--border);
   font-size: 12px; color: var(--muted);
   display: flex; align-items: center; gap: 16px;
 }

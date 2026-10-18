@@ -112,6 +112,13 @@ describe('style.css palette contract', () => {
     expect(css.slice(start, css.indexOf('}', start))).toMatch(/outline-offset: -\d+px/)
   })
 
+  // The window's bottom corners are rounded; 12px put the file name and the
+  // unknown-citations link inside the curve.
+  it('keeps the status bar text clear of the rounded window corners', () => {
+    const rule = CSS.match(/\n\.status-bar \{[^}]*\}/)![0]
+    expect(rule).toMatch(/padding: 0 20px;/)
+  })
+
   it('keeps truncated lines on one line in older WebKit', () => {
     const css = stripComments(CSS)
     for (const selector of ['.outline-entry {', '.welcome-recent-name, .welcome-recent-folder {']) {
