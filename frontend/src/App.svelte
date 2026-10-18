@@ -1352,7 +1352,7 @@
   </main>
 
   <footer class="status-bar">
-    <span>{filename}{dirty ? ' •' : ''}</span>
+    <span class="status-name">{filename}{dirty ? ' — Edited' : ''}</span>
     {#if unknown.length > 0}
       <button class="link-button unknown-count" onclick={() => (unknownOpen = true)}
         >{unknown.length} unknown citation{unknown.length === 1 ? '' : 's'}</button

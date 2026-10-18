@@ -353,7 +353,7 @@ describe('new documents', () => {
     await vi.waitFor(() => expect(editorText(target)).toContain('bibliography: draft.bib'))
     expect(target.querySelector('.welcome')).toBeNull()
     // A document that was just written to disk is not dirty.
-    expect(target.querySelector('.status-bar')?.textContent).not.toContain('•')
+    expect(target.querySelector('.status-bar')?.textContent).not.toContain('Edited')
     expect(target.querySelector('.status-bar')?.textContent).toContain('draft.md')
   })
 
@@ -592,7 +592,7 @@ describe('first launch', () => {
       )
     })
     expect(target.querySelector('.welcome')).toBeNull()
-    expect(target.querySelector('.status-bar')?.textContent).not.toContain('•')
+    expect(target.querySelector('.status-bar')?.textContent).not.toContain('Edited')
   })
 
   it('shows the welcome pane and leaves the document empty when recents exist', async () => {
@@ -1624,7 +1624,7 @@ describe('recovery drafts', () => {
     expect(recoverDialog(target).open).toBe(false)
     expect(target.textContent).toContain('recovered text')
     // The file on disk still holds the old text, so the document is dirty.
-    expect(target.querySelector('.status-bar')!.textContent).toContain('•')
+    expect(target.querySelector('.status-bar')!.textContent).toContain('— Edited')
     expect(DocumentService.DiscardDraft).not.toHaveBeenCalled()
   })
 
@@ -1644,7 +1644,7 @@ describe('recovery drafts', () => {
     await vi.waitFor(() => expect(DocumentService.DiscardDraft).toHaveBeenCalledWith('/tmp/paper.md'))
     expect(target.textContent).toContain('On disk.')
     expect(target.textContent).not.toContain('recovered text')
-    expect(target.querySelector('.status-bar')!.textContent).not.toContain('•')
+    expect(target.querySelector('.status-bar')!.textContent).not.toContain('Edited')
   })
 
   it('offers an untitled draft at launch and restores it into an unsaved buffer', async () => {
@@ -1659,7 +1659,7 @@ describe('recovery drafts', () => {
     flushSync()
 
     expect(target.textContent).toContain('never saved')
-    expect(target.querySelector('.status-bar')!.textContent).toContain('Untitled •')
+    expect(target.querySelector('.status-bar')!.textContent).toContain('Untitled — Edited')
     expect(target.querySelector('.welcome')).toBeNull()
   })
 
@@ -1726,7 +1726,7 @@ describe('recovery drafts', () => {
 
     expect(recoverDialog(target).open).toBe(false)
     expect(target.textContent).not.toContain('never saved')
-    expect(target.querySelector('.status-bar')!.textContent).not.toContain('•')
+    expect(target.querySelector('.status-bar')!.textContent).not.toContain('Edited')
   })
 })
 
@@ -2107,6 +2107,21 @@ describe('unknown citations in the status bar', () => {
       expect(target.querySelector('.status-bar')?.textContent).toContain('1 unknown citation'),
     )
     expect(target.querySelector('.status-bar')?.textContent).not.toContain('citations')
+  })
+
+  it('puts the unknown-citations link last in the bar', async () => {
+    const target = await openWithBib('[@b]')
+    await vi.waitFor(() => expect(target.querySelector('.unknown-count')).not.toBeNull())
+    expect(target.querySelector('.status-bar')!.lastElementChild).toBe(target.querySelector('.unknown-count'))
+  })
+
+  it('says Edited for unsaved changes', async () => {
+    const target = await openWithBib('Prose.')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: 0, to: 0, insert: 'x' } })
+    flushSync()
+    expect(target.querySelector('.status-bar')!.textContent).toContain('paper.md — Edited')
+    expect(target.querySelector('.status-bar')!.textContent).not.toContain('•')
   })
 
   it('pluralises the count', async () => {
