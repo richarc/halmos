@@ -52,7 +52,9 @@ separate, much larger project and is deliberately not part of this.
       produces a notarized draft release. Tick this when a real release has
       gone through it. It notarizes with the Apple ID and an app-specific
       password for now, by choice; `release` already accepts an API key, and
-      switching is a change to the workflow's build step.
+      switching is a change to the workflow's build step. Parked the same
+      day: the workflow is disabled on GitHub and releases are still cut by
+      hand until the secrets are set up.
 - [x] **A documentation site.** Done outside this repository: instead of a
       static site on GitHub Pages, the `hermesportal` application serves
       [halmoseditor.com](https://www.halmoseditor.com) — the landing page, the

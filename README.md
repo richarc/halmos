@@ -141,9 +141,15 @@ Wails v3 uses [Task](https://taskfile.dev) for orchestration, so `wails3 task
 
 ### Cutting a release
 
-Releases are built by the **Release** workflow (`.github/workflows/release.yml`)
-on GitHub's macOS runner. It runs the same `wails3 task release` described
-below, and stops at a draft: publishing and pushing `main` stay with you.
+Releases are currently cut **by hand** on a Mac — see "By hand" below. The
+**Release** workflow (`.github/workflows/release.yml`) is built but parked:
+it is disabled on GitHub (`gh workflow disable release.yml`) until its
+secrets are set up, because otherwise every pushed `v*` tag would start a run
+that fails. To use it, do the one-time setup, then `gh workflow enable
+release.yml`. The steps below are for the workflow.
+
+The workflow runs the same `wails3 task release` on GitHub's macOS runner,
+and stops at a draft: publishing and pushing `main` stay with you.
 
 1. Bump `version` in `build/config.yml` and `updates/latest.json`, and give
    the version its own `## [<version>] - <date>` section in `CHANGELOG.md`,
@@ -210,6 +216,8 @@ revoke the app-specific password at account.apple.com, ask Apple to revoke
 the Developer ID certificate, and delete the environment's secrets.
 
 #### By hand
+
+The current route. Bump the version, feed and changelog in one commit, then:
 
 ```bash
 wails3 task release          # test, build universal, sign, notarize, staple, zip
