@@ -50,7 +50,9 @@ separate, much larger project and is deliberately not part of this.
       on its own.
       *Status 2026-10-18*: the workflow exists (`release.yml`): a `v*` tag
       produces a notarized draft release. Tick this when a real release has
-      gone through it.
+      gone through it. It notarizes with the Apple ID and an app-specific
+      password for now, by choice; `release` already accepts an API key, and
+      switching is a change to the workflow's build step.
 - [x] **A documentation site.** Done outside this repository: instead of a
       static site on GitHub Pages, the `hermesportal` application serves
       [halmoseditor.com](https://www.halmoseditor.com) — the landing page, the

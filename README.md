@@ -188,9 +188,14 @@ The workflow reads five secrets from a GitHub environment named `release`:
 |---|---|
 | `DEVELOPER_ID_P12_BASE64` | The **Developer ID Application** certificate and its private key, exported from Keychain Access as a `.p12`, then `base64 -i cert.p12 \| pbcopy` |
 | `DEVELOPER_ID_P12_PASSWORD` | The password set when exporting the `.p12` |
-| `NOTARY_KEY_BASE64` | An App Store Connect **team** API key with the Developer role (Users and Access → Integrations), `base64 -i AuthKey_<id>.p8 \| pbcopy`. The `.p8` downloads only once |
-| `NOTARY_KEY_ID` | That key's ID |
-| `NOTARY_ISSUER_ID` | The issuer ID shown above the key list |
+| `NOTARY_APPLE_ID` | The Apple ID you notarize with today (the one in `hermes-notary`) |
+| `NOTARY_TEAM_ID` | Your developer team ID (Membership details on developer.apple.com) |
+| `NOTARY_PASSWORD` | An app-specific password for that Apple ID (account.apple.com → Sign-In and Security → App-Specific Passwords). A new one is better than reusing the Mac's, so each can be revoked alone |
+
+An App Store Connect API key would be safer, since it belongs to the team
+rather than your Apple ID and can be revoked on its own. `release` already
+accepts one (`NOTARY_KEY`, `NOTARY_KEY_ID`, `NOTARY_ISSUER`); switching the
+workflow to it changes only its build step.
 
 Then, in the repository settings:
 
@@ -200,10 +205,9 @@ Then, in the repository settings:
 - **Rules → Rulesets → New tag ruleset** targeting `v*`, restricting
   creation, update and deletion to yourself.
 
-Delete the `.p12` and `.p8` from your Mac once they are stored. If either
-leaks: revoke the API key in App Store Connect (it can be revoked on its
-own), ask Apple to revoke the Developer ID certificate, and delete the
-environment's secrets.
+Delete the `.p12` from your Mac once it is stored. If a secret leaks:
+revoke the app-specific password at account.apple.com, ask Apple to revoke
+the Developer ID certificate, and delete the environment's secrets.
 
 #### By hand
 

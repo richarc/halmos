@@ -143,6 +143,8 @@ tasks:
       Or notarize with an App Store Connect API key instead of the keychain
       profile, which is how the Release workflow runs it:
         wails3 task release NOTARY_KEY=AuthKey.p8 NOTARY_KEY_ID=... NOTARY_ISSUER=...
+      or with an Apple ID and app-specific password, as the workflow does:
+        NOTARY_PASSWORD=... wails3 task release NOTARY_APPLE_ID=... NOTARY_TEAM_ID=...
     vars:
       IDENTITY: '{{.IDENTITY | default "Developer ID Application"}}'
       NOTARY_PROFILE: '{{.NOTARY_PROFILE | default "hermes-notary"}}'
@@ -226,6 +228,8 @@ tasks:
           NOTARY_KEY: '{{.NOTARY_KEY}}'
           NOTARY_KEY_ID: '{{.NOTARY_KEY_ID}}'
           NOTARY_ISSUER: '{{.NOTARY_ISSUER}}'
+          NOTARY_APPLE_ID: '{{.NOTARY_APPLE_ID}}'
+          NOTARY_TEAM_ID: '{{.NOTARY_TEAM_ID}}'
       # Staples the ticket into the bundle so it launches on a machine that
       # cannot reach Apple to ask.
       - xcrun stapler staple "{{.APP}}"
@@ -238,15 +242,21 @@ tasks:
     summary: Submits a release zip to Apple's notary service and waits for the answer
     platforms: [darwin]
     desc: |
-      Called by release. With NOTARY_KEY set it authenticates with an App
-      Store Connect API key (the .p8 file, its key ID and the issuer ID);
-      otherwise with the keychain profile stored by `notarytool
-      store-credentials`. The API key is what CI uses: it is not tied to a
-      personal Apple ID and can be revoked on its own.
+      Called by release. Three ways to authenticate, first match wins:
+        NOTARY_KEY      an App Store Connect API key (the .p8 file, its key
+                        ID and the issuer ID). Not tied to a personal Apple
+                        ID and revocable on its own; the better choice.
+        NOTARY_APPLE_ID the Apple ID and team ID, with the app-specific
+                        password in the NOTARY_PASSWORD environment
+                        variable. What the Release workflow uses today.
+                        The password is a shell variable, not a Task var,
+                        because Task echoes every command it runs.
+        (neither)       the keychain profile stored by `notarytool
+                        store-credentials`, for releases from a Mac.
     vars:
       NOTARY_PROFILE: '{{.NOTARY_PROFILE | default "hermes-notary"}}'
       AUTH: >-
-        {{if .NOTARY_KEY}}--key "{{.NOTARY_KEY}}" --key-id "{{.NOTARY_KEY_ID}}" --issuer "{{.NOTARY_ISSUER}}"{{else}}--keychain-profile "{{.NOTARY_PROFILE}}"{{end}}
+        {{if .NOTARY_KEY}}--key "{{.NOTARY_KEY}}" --key-id "{{.NOTARY_KEY_ID}}" --issuer "{{.NOTARY_ISSUER}}"{{else if .NOTARY_APPLE_ID}}--apple-id "{{.NOTARY_APPLE_ID}}" --team-id "{{.NOTARY_TEAM_ID}}" --password "$NOTARY_PASSWORD"{{else}}--keychain-profile "{{.NOTARY_PROFILE}}"{{end}}
     requires:
       vars: [ZIP]
     cmds:

@@ -208,6 +208,36 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		}
 	})
 
+	// Notarization uses the Apple ID and an app-specific password. The
+	// password reaches notarytool as a shell variable, so neither the
+	// workflow nor Task's command echo ever carries its value.
+	t.Run("apple id notarization", func(t *testing.T) {
+		for _, want := range []string{
+			"NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}",
+			"NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}",
+			"NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}",
+			`NOTARY_APPLE_ID="$NOTARY_APPLE_ID"`,
+		} {
+			if !strings.Contains(src, want) {
+				t.Errorf("workflow lacks %q", want)
+			}
+		}
+		if strings.Contains(src, "--password") || strings.Contains(src, "NOTARY_PASSWORD=") {
+			t.Error("the password must reach notarytool through the environment, not as an argument")
+		}
+		b, err := os.ReadFile("Taskfile.yml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		task := string(b)
+		if !strings.Contains(task, `--password "$NOTARY_PASSWORD"`) {
+			t.Error(`release:notarize must pass --password "$NOTARY_PASSWORD" (a shell variable, not a template value)`)
+		}
+		if strings.Contains(task, "{{.NOTARY_PASSWORD}}") {
+			t.Error("Task echoes templated commands; the password must not be a template value")
+		}
+	})
+
 	t.Run("wails pin", func(t *testing.T) {
 		mod, err := os.ReadFile("go.mod")
 		if err != nil {
