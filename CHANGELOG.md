@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The chart and table builders follow the design system. The chart builder
+  shows its preview beside the settings, groups them under headings, and
+  uses plain names (Number, Date, Category; Average, Total) instead of
+  Vega-Lite's. The table builder is one joined grid with alignment and
+  remove buttons in each column's header.
 - Dialogs follow the new design system: each shows its title, text is the
   same size as the rest of the app, paragraphs are spaced, and the
   alternative button (Don't Save, Discard Draft) sits on the left as in
