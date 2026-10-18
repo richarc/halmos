@@ -186,6 +186,28 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		t.Error("no if: always() step deletes the keychain and the key files under $RUNNER_TEMP")
 	})
 
+	// main.go embeds frontend/dist, which is git-ignored, so a fresh checkout
+	// does not compile until the frontend is built. The release task's own
+	// first step is `go test ./.`, so it builds the frontend before that —
+	// which also stops a local release testing against a stale dist.
+	t.Run("frontend built before go test", func(t *testing.T) {
+		b, err := os.ReadFile("Taskfile.yml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		task := string(b)
+		start := strings.Index(task, "\n  release:\n")
+		if start < 0 {
+			t.Fatal("no release task in Taskfile.yml")
+		}
+		task = task[start:]
+		build := strings.Index(task, "--prefix frontend run build")
+		test := strings.Index(task, "- go test ./.")
+		if build < 0 || test < 0 || build > test {
+			t.Errorf("release must build the frontend before go test ./. (build at %d, test at %d)", build, test)
+		}
+	})
+
 	t.Run("wails pin", func(t *testing.T) {
 		mod, err := os.ReadFile("go.mod")
 		if err != nil {

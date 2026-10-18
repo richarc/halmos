@@ -182,6 +182,10 @@ tasks:
       # A release must not ship what the tests reject. CI gates main, but a
       # tag is cut from a working tree, and the working tree is what is about
       # to be built.
+      # main.go embeds frontend/dist, which is git-ignored: a fresh checkout
+      # (the Release workflow's) does not compile without it, and a local
+      # one would test against whatever dist was left by the last build.
+      - '{{.PACKAGE_MANAGER}} --prefix frontend run build'
       - go test ./.
       - '{{.PACKAGE_MANAGER}} --prefix frontend test'
       - task: quicklook:test
