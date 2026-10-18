@@ -139,6 +139,10 @@ tasks:
 
       Override the defaults with:
         wails3 task release IDENTITY="Developer ID Application: ..." NOTARY_PROFILE=other
+
+      Or notarize with an App Store Connect API key instead of the keychain
+      profile, which is how the Release workflow runs it:
+        wails3 task release NOTARY_KEY=AuthKey.p8 NOTARY_KEY_ID=... NOTARY_ISSUER=...
     vars:
       IDENTITY: '{{.IDENTITY | default "Developer ID Application"}}'
       NOTARY_PROFILE: '{{.NOTARY_PROFILE | default "hermes-notary"}}'
@@ -211,10 +215,13 @@ tasks:
       - codesign --force --options runtime --timestamp --sign "{{.IDENTITY}}" "{{.APP}}"
       - codesign --verify --strict --verbose=2 "{{.APP}}"
       - ditto -c -k --keepParent "{{.APP}}" "{{.ZIP}}"
-      # --wait blocks until Apple has an answer, usually a few minutes. On
-      # "Invalid", the reason is not printed here — fetch it with:
-      #   xcrun notarytool log <submission-id> --keychain-profile {{.NOTARY_PROFILE}}
-      - xcrun notarytool submit "{{.ZIP}}" --keychain-profile "{{.NOTARY_PROFILE}}" --wait
+      - task: release:notarize
+        vars:
+          ZIP: '{{.ZIP}}'
+          NOTARY_PROFILE: '{{.NOTARY_PROFILE}}'
+          NOTARY_KEY: '{{.NOTARY_KEY}}'
+          NOTARY_KEY_ID: '{{.NOTARY_KEY_ID}}'
+          NOTARY_ISSUER: '{{.NOTARY_ISSUER}}'
       # Staples the ticket into the bundle so it launches on a machine that
       # cannot reach Apple to ask.
       - xcrun stapler staple "{{.APP}}"
@@ -222,6 +229,66 @@ tasks:
       - ditto -c -k --keepParent "{{.APP}}" "{{.ZIP}}"
       - task: release:verify
       - 'echo "Release artefact: {{.ZIP}}"'
+
+  release:notarize:
+    summary: Submits a release zip to Apple's notary service and waits for the answer
+    platforms: [darwin]
+    desc: |
+      Called by release. With NOTARY_KEY set it authenticates with an App
+      Store Connect API key (the .p8 file, its key ID and the issuer ID);
+      otherwise with the keychain profile stored by `notarytool
+      store-credentials`. The API key is what CI uses: it is not tied to a
+      personal Apple ID and can be revoked on its own.
+    vars:
+      NOTARY_PROFILE: '{{.NOTARY_PROFILE | default "hermes-notary"}}'
+      AUTH: >-
+        {{if .NOTARY_KEY}}--key "{{.NOTARY_KEY}}" --key-id "{{.NOTARY_KEY_ID}}" --issuer "{{.NOTARY_ISSUER}}"{{else}}--keychain-profile "{{.NOTARY_PROFILE}}"{{end}}
+    requires:
+      vars: [ZIP]
+    cmds:
+      # --wait blocks until Apple has an answer, usually a few minutes. On
+      # "Invalid", the reason is not printed here — fetch it with the same
+      # credentials:
+      #   xcrun notarytool log <submission-id> --keychain-profile {{.NOTARY_PROFILE}}
+      #   xcrun notarytool log <submission-id> --key <p8> --key-id <id> --issuer <uuid>
+      - xcrun notarytool submit "{{.ZIP}}" {{.AUTH}} --wait
+
+  release:check-tag:
+    summary: Fails unless TAG is v followed by the version in build/config.yml
+    platforms: [darwin]
+    desc: |
+      The Release workflow runs this before anything is signed. The app
+      derives its release page from the tag name, so a tag that disagrees
+      with the bundle's version would send users to the wrong page.
+    vars:
+      VERSION:
+        sh: awk '/^  version:/ {gsub(/"/, "", $2); print $2}' build/config.yml
+    requires:
+      vars: [TAG]
+    preconditions:
+      - sh: 'test "{{.TAG}}" = "v{{.VERSION}}"'
+        msg: 'Tag {{.TAG}} does not match build/config.yml version {{.VERSION}}; expected v{{.VERSION}}.'
+    cmds:
+      - 'echo "Tag {{.TAG}} matches version {{.VERSION}}."'
+
+  release:notes:
+    summary: Writes this version's CHANGELOG section to OUT, for the GitHub release
+    platforms: [darwin]
+    desc: |
+      Takes everything under "## [<version>]" up to the next "## " heading,
+      without the heading itself. Fails if the section is missing or empty,
+      so a release is never created with blank notes.
+    vars:
+      VERSION:
+        sh: awk '/^  version:/ {gsub(/"/, "", $2); print $2}' build/config.yml
+      CHANGELOG: '{{.CHANGELOG | default "CHANGELOG.md"}}'
+    requires:
+      vars: [OUT]
+    cmds:
+      - |
+        awk -v h="## [{{.VERSION}}]" 'index($0, h) == 1 {on=1; next} on && /^## / {exit} on' "{{.CHANGELOG}}" > "{{.OUT}}"
+      - 'test -n "$(tr -d "[:space:]" < "{{.OUT}}")" || { echo "{{.CHANGELOG}} has no notes under ## [{{.VERSION}}]."; exit 1; }'
+      - 'echo "Release notes for {{.VERSION}} written to {{.OUT}}."'
 
   release:verify:
     summary: Checks a built .app the way Gatekeeper will
