@@ -103,6 +103,15 @@ describe('style.css palette contract', () => {
     expect(css.slice(start, css.indexOf('}', start))).toContain('overflow-wrap: anywhere')
   })
 
+  // The group clips its buttons to round its corners, which also clips a
+  // focus ring drawn outside them; only an inset ring survives.
+  it('draws the alignment buttons focus ring inside the clipped group', () => {
+    const css = stripComments(CSS)
+    const start = css.indexOf('.align-group .align:focus-visible {')
+    expect(start).toBeGreaterThan(-1)
+    expect(css.slice(start, css.indexOf('}', start))).toMatch(/outline-offset: -\d+px/)
+  })
+
   it('keeps truncated lines on one line in older WebKit', () => {
     const css = stripComments(CSS)
     for (const selector of ['.outline-entry {', '.welcome-recent-name, .welcome-recent-folder {']) {

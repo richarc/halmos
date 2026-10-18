@@ -907,6 +907,11 @@ dialog::backdrop { background: var(--backdrop); }
 .align-group .align:not(:disabled):hover { border-color: var(--border); color: var(--fg); }
 .align-group .align[aria-pressed="true"]:not(:disabled):hover { color: var(--on-accent); }
 .align-group .align[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+/* overflow: hidden on the group clips a ring drawn outside the button, so
+   the ring goes inside; on the pressed button, whose fill is the accent, it
+   takes the icon colour to stay visible. */
+.align-group .align:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.align-group .align[aria-pressed="true"]:focus-visible { outline-color: var(--on-accent); }
 
 /* Remove buttons are quiet until pointed at: they sit beside every column
    and row, and full buttons there outweighed the table itself. */
