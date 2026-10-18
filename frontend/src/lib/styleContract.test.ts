@@ -152,6 +152,15 @@ describe('style.css palette contract', () => {
     }
   })
 
+  // The list scrolls, so it clips anything outside a row: the global ring at
+  // a 2px offset lost its sides on every row.
+  it('draws the unknown-citation rows focus ring inside the scrolling list', () => {
+    const css = stripComments(CSS)
+    const start = css.indexOf('.unknown-list button.unknown-entry:focus-visible {')
+    expect(start).toBeGreaterThan(-1)
+    expect(css.slice(start, css.indexOf('}', start))).toMatch(/outline-offset: -\d+px/)
+  })
+
   it('keeps truncated lines on one line in older WebKit', () => {
     const css = stripComments(CSS)
     for (const selector of ['.outline-entry {', '.welcome-recent-name, .welcome-recent-folder {']) {

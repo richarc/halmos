@@ -618,6 +618,8 @@ textarea:focus-visible,
   background: none; text-align: left;
 }
 .unknown-list button.unknown-entry:not(:disabled):hover { background: var(--surface); }
+/* The list scrolls and clips outside its rows, so the ring goes inside. */
+.unknown-list button.unknown-entry:focus-visible { outline-offset: -2px; }
 .unknown-key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
 .unknown-line { font-size: 12px; color: var(--muted); }
 
