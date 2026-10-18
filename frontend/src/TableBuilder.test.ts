@@ -41,16 +41,16 @@ describe('TableBuilder', () => {
     expect(headers(target).map((i) => i.value)).toEqual(['Column 1', 'Column 2', 'Column 3'])
     expect(cells(target)).toHaveLength(6)
     // The default headers are text, so this is a committable skeleton.
-    expect(button(target, 'Insert table').disabled).toBe(false)
+    expect(button(target, 'Insert').disabled).toBe(false)
     cleanup()
   })
 
   it('disables commit only once every cell, header included, is empty', () => {
     const { target, cleanup } = mountBuilder()
     for (const input of headers(target)) type(input, '')
-    expect(button(target, 'Insert table').disabled).toBe(true)
+    expect(button(target, 'Insert').disabled).toBe(true)
     type(cells(target)[4], 'x')
-    expect(button(target, 'Insert table').disabled).toBe(false)
+    expect(button(target, 'Insert').disabled).toBe(false)
     cleanup()
   })
 
@@ -65,7 +65,7 @@ describe('TableBuilder', () => {
     type(headers(target)[0], 'Name')
     type(cells(target)[0], 'Alice')
     type(cells(target)[3], 'Bob')
-    button(target, 'Insert table').click()
+    button(target, 'Insert').click()
     expect(oncommit).toHaveBeenCalledWith({
       header: ['Name', 'Column 2', 'Column 3'],
       align: [null, null, null],
@@ -79,7 +79,7 @@ describe('TableBuilder', () => {
     const { target, cleanup } = mountBuilder(initial)
     expect(headers(target).map((i) => i.value)).toEqual(['a', 'b'])
     expect(cells(target).map((i) => i.value)).toEqual(['1', '2'])
-    expect(button(target, 'Update table').disabled).toBe(false)
+    expect(button(target, 'Update').disabled).toBe(false)
     expect(target.querySelector('button.align[data-col="0"][data-align="right"]')?.getAttribute('aria-pressed')).toBe('true')
     cleanup()
   })
@@ -94,10 +94,10 @@ describe('TableBuilder', () => {
 
   it('adds and removes rows and columns, never removing the last column', () => {
     const { target, cleanup } = mountBuilder()
-    button(target, '+ Row').click()
+    button(target, 'Add Row').click()
     flushSync()
     expect(cells(target)).toHaveLength(9)
-    button(target, '+ Column').click()
+    button(target, 'Add Column').click()
     flushSync()
     expect(headers(target).map((i) => i.value)).toEqual(['Column 1', 'Column 2', 'Column 3', 'Column 4'])
     expect(cells(target)).toHaveLength(12)
@@ -120,7 +120,7 @@ describe('TableBuilder', () => {
     type(cells(target)[0], 'x')
     target.querySelector<HTMLButtonElement>('button.align[data-col="1"][data-align="center"]')!.click()
     flushSync()
-    button(target, 'Insert table').click()
+    button(target, 'Insert').click()
     expect(oncommit.mock.calls[0][0].align).toEqual([null, 'center', null])
     cleanup()
   })
@@ -138,7 +138,7 @@ describe('TableBuilder', () => {
 
   it('imports delimited text, replacing the grid', () => {
     const { target, oncommit, cleanup } = mountBuilder()
-    button(target, 'Import').click()
+    button(target, 'Paste Data…').click()
     flushSync()
     const box = target.querySelector<HTMLTextAreaElement>('#table-import')!
     box.value = 'dose,response\n0,1\n5,2\n'
@@ -146,21 +146,21 @@ describe('TableBuilder', () => {
     flushSync()
     expect(headers(target).map((i) => i.value)).toEqual(['dose', 'response'])
     expect(cells(target).map((i) => i.value)).toEqual(['0', '1', '5', '2'])
-    button(target, 'Insert table').click()
+    button(target, 'Insert').click()
     expect(oncommit.mock.calls[0][0].rows).toEqual([['0', '1'], ['5', '2']])
     cleanup()
   })
 
   it('imports numeric-looking cells verbatim, without reformatting them', () => {
     const { target, oncommit, cleanup } = mountBuilder()
-    button(target, 'Import').click()
+    button(target, 'Paste Data…').click()
     flushSync()
     const box = target.querySelector<HTMLTextAreaElement>('#table-import')!
     box.value = 'id,amount\n007,1.50\n'
     box.dispatchEvent(new Event('input', { bubbles: true }))
     flushSync()
     expect(cells(target).map((i) => i.value)).toEqual(['007', '1.50'])
-    button(target, 'Insert table').click()
+    button(target, 'Insert').click()
     expect(oncommit.mock.calls[0][0].rows).toEqual([['007', '1.50']])
     cleanup()
   })
@@ -168,7 +168,7 @@ describe('TableBuilder', () => {
   it('reports import text that does not parse and leaves the grid alone', () => {
     const { target, cleanup } = mountBuilder()
     type(cells(target)[0], 'keep')
-    button(target, 'Import').click()
+    button(target, 'Paste Data…').click()
     flushSync()
     const box = target.querySelector<HTMLTextAreaElement>('#table-import')!
     box.value = 'only a header'
@@ -183,6 +183,71 @@ describe('TableBuilder', () => {
     const { target, oncancel, cleanup } = mountBuilder()
     button(target, 'Cancel').click()
     expect(oncancel).toHaveBeenCalled()
+    cleanup()
+  })
+})
+
+describe('table builder design', () => {
+  const primary = (root: HTMLElement) => root.querySelector<HTMLButtonElement>('.modal-buttons .primary')!
+
+  it('titles a new table Insert table and an existing one Edit table', () => {
+    const fresh = mountBuilder()
+    expect(fresh.target.querySelector('h2.dialog-title')?.textContent).toBe('Insert table')
+    expect(fresh.target.querySelector('dialog')?.getAttribute('aria-label')).toBe('Insert table')
+    expect(primary(fresh.target).textContent?.trim()).toBe('Insert')
+    fresh.cleanup()
+    const edit = mountBuilder({ header: ['a'], align: [null], rows: [['1']] })
+    expect(edit.target.querySelector('h2.dialog-title')?.textContent).toBe('Edit table')
+    expect(edit.target.querySelector('dialog')?.getAttribute('aria-label')).toBe('Edit table')
+    expect(primary(edit.target).textContent?.trim()).toBe('Update')
+    edit.cleanup()
+  })
+
+  it("puts each column's alignment and remove buttons in its header cell", () => {
+    const { target, cleanup } = mountBuilder()
+    const th = target.querySelectorAll('thead th')[0]
+    expect(th.querySelector('.align-group')).not.toBeNull()
+    expect(th.querySelector('button.remove-col[data-col="0"]')).not.toBeNull()
+    expect(th.querySelector('input.th-cell')).not.toBeNull()
+    expect(target.querySelector('tr.remove-col-row')).toBeNull()
+    cleanup()
+  })
+
+  it('alignment buttons show icons, not arrow characters', () => {
+    const { target, cleanup } = mountBuilder()
+    const buttons = [...target.querySelectorAll('button.align')]
+    expect(buttons).toHaveLength(12)
+    for (const b of buttons) {
+      expect(b.querySelector('svg')).not.toBeNull()
+      expect(b.textContent?.trim()).toBe('')
+    }
+    cleanup()
+  })
+
+  it('names the paste toggle by its state', () => {
+    const { target, cleanup } = mountBuilder()
+    const toggle = button(target, 'Paste Data…')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    toggle.click()
+    flushSync()
+    expect(toggle.textContent?.trim()).toBe('Hide Paste Box')
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(target.querySelector('label[for="table-import"]')?.textContent).toBe('Paste data')
+    expect(target.textContent).toContain('It replaces the table above.')
+    cleanup()
+  })
+
+  it('marks the paste box when its text is invalid', () => {
+    const { target, cleanup } = mountBuilder()
+    button(target, 'Paste Data…').click()
+    flushSync()
+    const box = target.querySelector<HTMLTextAreaElement>('#table-import')!
+    expect(box.getAttribute('aria-invalid')).not.toBe('true')
+    box.value = 'only a header'
+    box.dispatchEvent(new Event('input', { bubbles: true }))
+    flushSync()
+    expect(box.getAttribute('aria-invalid')).toBe('true')
+    expect(box.nextElementSibling?.classList.contains('field-error')).toBe(true)
     cleanup()
   })
 })

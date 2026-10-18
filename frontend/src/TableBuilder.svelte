@@ -26,12 +26,16 @@
   let align = $state<Alignment[]>(seed.align)
   let rows = $state<string[][]>(seed.rows)
 
-  const ALIGNMENTS: { value: Alignment; label: string; title: string }[] = [
-    { value: null, label: '–', title: 'No alignment' },
-    { value: 'left', label: '⟸', title: 'Align left' },
-    { value: 'center', label: '⟺', title: 'Centre' },
-    { value: 'right', label: '⟹', title: 'Align right' },
+  // Each icon is three text lines drawn the way the alignment sets them; the
+  // dashed one is "no alignment", which leaves it to the renderer.
+  const ALIGNMENTS: { value: Alignment; path: string; dashed?: boolean; title: string }[] = [
+    { value: null, path: 'M2 5h10', dashed: true, title: 'No alignment' },
+    { value: 'left', path: 'M1 1h12M1 5h8M1 9h10', title: 'Align left' },
+    { value: 'center', path: 'M1 1h12M3 5h8M2 9h10', title: 'Centre' },
+    { value: 'right', path: 'M1 1h12M5 5h8M3 9h10', title: 'Align right' },
   ]
+
+  const title = untrack(() => (initial ? 'Edit table' : 'Insert table'))
 
   const empty = $derived(header.every((h) => h.trim() === '') && rows.every((r) => r.every((c) => c.trim() === '')))
 
@@ -128,35 +132,34 @@
   })
 </script>
 
-<Dialog open label="Table builder" class="table-builder" onclose={oncancel}>
-  <h2>Table</h2>
-
+<Dialog open label={title} {title} class="table-builder" onclose={oncancel}>
   <div class="table-grid" bind:this={grid}>
     <table>
       <thead>
-        <tr class="align-row">
-          {#each header as _, c (c)}
-            <td>
-              <div class="align-group" role="group" aria-label={`Alignment for column ${c + 1}`}>
-                {#each ALIGNMENTS as a (a.value ?? 'none')}
-                  <button
-                    type="button"
-                    class="align"
-                    data-col={c}
-                    data-align={a.value ?? 'none'}
-                    aria-pressed={align[c] === a.value ? 'true' : 'false'}
-                    aria-label={a.title}
-                    title={a.title}
-                    onclick={() => setAlign(c, a.value)}>{a.label}</button>
-                {/each}
-              </div>
-            </td>
-          {/each}
-          <td></td>
-        </tr>
         <tr>
           {#each header as h, c (c)}
             <th>
+              <div class="col-controls">
+                <div class="align-group" role="group" aria-label={`Alignment for column ${c + 1}`}>
+                  {#each ALIGNMENTS as a (a.value ?? 'none')}
+                    <button
+                      type="button"
+                      class="align"
+                      data-col={c}
+                      data-align={a.value ?? 'none'}
+                      aria-pressed={align[c] === a.value ? 'true' : 'false'}
+                      aria-label={a.title}
+                      title={a.title}
+                      onclick={() => setAlign(c, a.value)}
+                    ><svg width="14" height="10" viewBox="0 0 14 10" aria-hidden="true"
+                      ><path d={a.path} stroke="currentColor" stroke-width="1.4" stroke-dasharray={a.dashed ? '2 2' : undefined} /></svg
+                    ></button>
+                  {/each}
+                </div>
+                <button type="button" class="remove-col" data-col={c} title="Remove column"
+                  aria-label={`Remove column ${c + 1}`} disabled={header.length <= 1}
+                  onclick={() => removeColumn(c)}>✕</button>
+              </div>
               {#if c === 0}
                 <input class="th-cell" bind:this={firstHeader} value={h} aria-label={`Header ${c + 1}`}
                   oninput={(e) => (header[c] = (e.currentTarget as HTMLInputElement).value)} />
@@ -166,7 +169,7 @@
               {/if}
             </th>
           {/each}
-          <th></th>
+          <th class="row-controls"></th>
         </tr>
       </thead>
       <tbody>
@@ -175,51 +178,46 @@
             {#each row as cell, c (c)}
               <td>
                 <input class="td-cell" data-row={r} data-col={c} value={cell}
+                  style:text-align={align[c] ?? undefined}
                   aria-label={`Row ${r + 1}, column ${c + 1}`}
                   oninput={(e) => (rows[r][c] = (e.currentTarget as HTMLInputElement).value)}
                   onkeydown={(e) => onCellKey(e, r, c)} />
               </td>
             {/each}
-            <td>
+            <td class="row-controls">
               <button type="button" class="remove-row" data-row={r} title="Remove row" aria-label={`Remove row ${r + 1}`}
                 onclick={() => removeRow(r)}>✕</button>
             </td>
           </tr>
         {/each}
-        <tr class="remove-col-row">
-          {#each header as _, c (c)}
-            <td>
-              <button type="button" class="remove-col" data-col={c} title="Remove column"
-                aria-label={`Remove column ${c + 1}`} disabled={header.length <= 1}
-                onclick={() => removeColumn(c)}>✕</button>
-            </td>
-          {/each}
-          <td></td>
-        </tr>
       </tbody>
     </table>
   </div>
 
   <div class="table-actions">
-    <button type="button" onclick={addRow}>+ Row</button>
-    <button type="button" onclick={addColumn}>+ Column</button>
-    <button type="button" class="link-button" aria-expanded={importOpen} onclick={() => (importOpen = !importOpen)}>Import</button>
+    <button type="button" onclick={addRow}>Add Row</button>
+    <button type="button" onclick={addColumn}>Add Column</button>
+    <button type="button" class="paste-toggle" aria-expanded={importOpen} onclick={() => (importOpen = !importOpen)}>
+      {importOpen ? 'Hide Paste Box' : 'Paste Data…'}
+    </button>
   </div>
+  <p class="dialog-hint table-hint">Return moves to the next row. The buttons above each column set its alignment.</p>
 
   {#if importOpen}
     <section class="table-import">
-      <label for="table-import">Paste comma- or tab-separated text with a header row; it replaces the grid</label>
-      <textarea id="table-import" rows="5" oninput={onImport}></textarea>
+      <label for="table-import">Paste data</label>
+      <textarea id="table-import" rows="4" aria-invalid={importError ? 'true' : undefined} oninput={onImport}></textarea>
       {#if importError}
         <p class="field-error" role="alert">{importError}</p>
       {/if}
+      <p class="dialog-hint">Comma- or tab-separated, with a header row. It replaces the table above.</p>
     </section>
   {/if}
 
   {#snippet footer()}
     <button onclick={oncancel}>Cancel</button>
     <button class="primary" disabled={empty} onclick={commit}>
-      {initial ? 'Update table' : 'Insert table'}
+      {initial ? 'Update' : 'Insert'}
     </button>
   {/snippet}
 </Dialog>

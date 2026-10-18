@@ -834,28 +834,105 @@ dialog::backdrop { background: var(--backdrop); }
   max-width: min(56rem, 90vw);
   text-align: left;
 }
-.table-builder h2 { margin-bottom: 16px; }
-.table-grid { overflow-x: auto; margin-bottom: 12px; }
+
+/* One joined grid: a single rounded border round the table and hairlines
+   between cells, rather than a rounded box per cell. The box scrolls on its
+   own, so a wide table never widens the dialog. */
+.table-grid {
+  overflow-x: auto;
+  max-width: 100%;
+  width: fit-content;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+}
 .table-grid table { border-collapse: collapse; }
-.table-grid th, .table-grid td { padding: 2px; }
+.table-grid th, .table-grid td {
+  padding: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.table-grid tr > :last-child { border-right: 0; }
+.table-grid tbody tr:last-child td { border-bottom: 0; }
+.table-grid thead th { background: var(--surface); font-weight: 600; text-align: left; }
+
+/* Cells are plain text in the grid, not fields with their own frame; the
+   focus ring is drawn inside the cell so neighbours do not cover it. */
 .table-grid input {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
   min-width: 8rem;
-  padding: 4px 6px;
-  border: 1px solid var(--border);
-  background: var(--bg);
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--fg);
   font: inherit;
 }
+.table-grid input:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .table-grid input.th-cell { font-weight: 600; }
-.align-group { display: flex; gap: 2px; }
-.align-group .align { padding: 0 6px; font-size: 12px; }
+
+.col-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Segmented control: four joined buttons, the pressed one filled. */
+.align-group {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.align-group .align {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--overlay-bg);
+  color: var(--muted);
+}
+.align-group .align:last-child { border-right: 0; }
+/* The global button hover darkens the border; here that would draw one
+   dark divider inside the control. Hover darkens the icon instead. */
+.align-group .align:not(:disabled):hover { border-color: var(--border); color: var(--fg); }
+.align-group .align[aria-pressed="true"]:not(:disabled):hover { color: var(--on-accent); }
 .align-group .align[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
-.table-grid .remove-row, .table-grid .remove-col { padding: 0 6px; font-size: 12px; color: var(--muted); }
-.table-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+
+/* Remove buttons are quiet until pointed at: they sit beside every column
+   and row, and full buttons there outweighed the table itself. */
+.table-grid .remove-row, .table-grid .remove-col {
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+}
+.table-grid .remove-row:not(:disabled):hover,
+.table-grid .remove-col:not(:disabled):hover { background: var(--border); color: var(--fg); }
+.table-grid .row-controls { width: 28px; text-align: center; background: var(--overlay-bg); }
+
+.table-actions { display: flex; gap: 8px; margin-top: 12px; }
+.table-actions .paste-toggle { margin-left: auto; }
+.table-hint { margin-top: 8px; }
+
+.table-import { margin-top: 16px; }
 .table-import label { display: block; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
-.table-import textarea { width: 100%; font-family: monospace; }
-.table-builder .field-error { color: var(--cite-error-fg); margin-top: 8px; }
+.table-import textarea { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
+.table-import textarea[aria-invalid="true"] { border-color: var(--cite-error-fg); }
+.table-import .field-error { color: var(--cite-error-fg); margin-top: 4px; }
+.table-import .dialog-hint { margin-top: 4px; }
 
 .toast {
   position: fixed; bottom: 16px; right: 16px;
