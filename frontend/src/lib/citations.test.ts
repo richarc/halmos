@@ -371,3 +371,17 @@ describe('STYLE_CHOICES', () => {
     expect(STYLE_CHOICES.map((c) => c.label)).toEqual(['APA', 'Chicago (author-date)', 'Harvard', 'IEEE', 'Vancouver'])
   })
 })
+
+describe('loadStyleXml', () => {
+  it('returns a bundled style as XML, for sending to the export service', async () => {
+    const { loadStyleXml } = await import('./citations')
+    const xml = await loadStyleXml('apa')
+    expect(xml?.startsWith('<?xml')).toBe(true)
+    expect(xml).toContain('<style')
+  })
+
+  it('returns null for an id that is not bundled', async () => {
+    const { loadStyleXml } = await import('./citations')
+    expect(await loadStyleXml('nature')).toBeNull()
+  })
+})

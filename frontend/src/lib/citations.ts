@@ -30,6 +30,14 @@ const STYLE_LOADERS: Record<string, () => Promise<{ default: string }>> = {
   harvard: () => import('../assets/csl/harvard-cite-them-right.csl?raw'),
 }
 
+// loadStyleXml returns a bundled style's XML, or null for an id that is not
+// bundled. Word and LaTeX export send the style itself, never its id: the
+// export service has no copy of the editor's styles.
+export async function loadStyleXml(id: string): Promise<string | null> {
+  const load = STYLE_LOADERS[id]
+  return load ? (await load()).default : null
+}
+
 // Static, so a caller can validate a document's `csl:` value without loading
 // anything at all.
 export const STYLE_IDS = Object.keys(STYLE_LOADERS) as readonly string[]
