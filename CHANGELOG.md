@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The toolbar, outline and status bar follow the design system. The
+  toolbar groups its buttons, adds "…" where a dialog follows, and gains
+  an Outline button that shows and hides the outline. The outline's arrows
+  are gone, its rows match the start screen's lists, and an empty outline
+  says how to add a heading. The status bar says "Edited" instead of
+  showing a dot, and unknown citations show at its right in red.
 - The chart and table builders follow the design system. The chart builder
   shows its preview beside the settings, groups them under headings, and
   uses plain names (Number, Date, Category; Average, Total) instead of

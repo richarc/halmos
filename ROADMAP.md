@@ -91,8 +91,11 @@ separate, much larger project and is deliberately not part of this.
       (titles, 13px text, macOS button order, New document's style names
       and grey hints). The chart and table builders followed on
       2026-10-18 (preview beside the settings, plain names for chart
-      choices, one joined table grid). Next: the toolbar, status bar and
-      outline.
+      choices, one joined table grid). The toolbar, outline and status bar
+      followed the same day (button groups and an Outline toggle, outline
+      rows like the start screen's, "Edited" and a red unknown-citations
+      link). Left: toast text size, the start screen's button sizes, and
+      the spacing scale.
 - [ ] Windows and Linux stay in the backlog. Decide before v1.1.0 whether
       Windows comes before the first paid release: many academics use it,
       and a Mac-only product limits who can pay.
