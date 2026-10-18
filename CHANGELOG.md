@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export to Word and LaTeX (File → Export Word…, Export LaTeX…), converted
+  by Pandoc on halmoseditor.com with the document's citation style. Needs a
+  Halmos account: the first export connects this Mac to it, and
+  Account… in the app menu shows the connection and the subscription.
+
 ### Fixed
 
 - Quitting from the Dock menu, or logging out or restarting, with unsaved
