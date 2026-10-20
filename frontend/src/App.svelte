@@ -1,8 +1,19 @@
 <script lang="ts">
   import { onMount, untrack, flushSync } from 'svelte'
   import { Events, Browser } from '@wailsio/runtime'
-  import { DocumentService, DemoService } from '../bindings/hermes'
-  import type { Settings, Draft, UpdateResult, WelcomeInfo } from '../bindings/hermes/models'
+  import { DocumentService, DemoService, PortalService } from '../bindings/hermes'
+  import type {
+    Settings, Draft, UpdateResult, WelcomeInfo, AccountInfo, PortalError, ConvertRequest,
+  } from '../bindings/hermes/models'
+  import ConnectDialog, { type ConnectState } from './ConnectDialog.svelte'
+  import AccountDialog from './AccountDialog.svelte'
+  import {
+    planImages, finalizeImages, checkRequest, buildBibliography, withReferencesHeading,
+    type ExportFormat, type ResolvedImage, type ConvertBody,
+  } from './lib/exportRequest'
+  import { diagramImages, replaceDiagramFences } from './lib/exportDiagrams'
+  import { toPng } from './lib/rasterise'
+  import { messageFor, problemMessage } from './lib/portalMessages'
   import Editor from './Editor.svelte'
   import Preview from './Preview.svelte'
   import { bodyFontStack } from './lib/bodyFont'
@@ -26,7 +37,7 @@
   import { parseBib, type CSLEntry } from './lib/bibliography'
   import type { CitationContext } from './lib/citationCompletion'
   import { resolveTheme, applyTheme, type ThemeSetting } from './lib/theme'
-  import { createCitationFormatter, isStyleFile, STYLE_IDS, type CitationFormatter } from './lib/citations'
+  import { createCitationFormatter, isStyleFile, loadStyleXml, STYLE_IDS, type CitationFormatter } from './lib/citations'
   import {
     unresolvedInsertionMessage,
     unsavedBibliographyMessage,
@@ -73,6 +84,16 @@
   let pendingRecentPath = $state<string | null>(null)
   let welcomeDismissed = $state(false)
   let toastMsg = $state('')
+  // A toast may carry one button, such as Show in Finder after an export.
+  let toastAction = $state<{ label: string; run: () => void } | null>(null)
+  // Connecting to the Halmos portal and exporting through it. pendingExport
+  // is the export a connection was started for, resumed once it is approved.
+  let connectState = $state<ConnectState | null>(null)
+  let pendingExport = $state<ExportFormat | null>(null)
+  let accountOpen = $state(false)
+  let account = $state<AccountInfo | null>(null)
+  let accountProblem = $state('')
+  let portalAlert = $state<{ text: string; button: string; url: string } | null>(null)
   let editorWidth = $state(50)
   let editor: ReturnType<typeof Editor>
   let preview: ReturnType<typeof Preview>
@@ -253,10 +274,15 @@
     !welcomeDismissed && path === null && content === '' && recents.length > 0,
   )
 
-  function toast(msg: string) {
+  function toast(msg: string, action: { label: string; run: () => void } | null = null) {
     toastMsg = msg
+    toastAction = action
     clearTimeout(toastTimer)
-    toastTimer = setTimeout(() => (toastMsg = ''), 4000)
+    // Longer with a button, so there is time to reach it.
+    toastTimer = setTimeout(() => {
+      toastMsg = ''
+      toastAction = null
+    }, action ? 8000 : 4000)
   }
 
   // Reload the bibliography when the document's frontmatter changes it,
@@ -623,6 +649,186 @@
     } catch (e) {
       toast(`Could not export HTML: ${e}`)
     }
+  }
+
+  // File → Export Word… / Export LaTeX…. The document is converted by Pandoc
+  // on the Halmos portal (PortalService.Export); everything sent is built
+  // here from what the editor holds, and checked first, because a refusal
+  // the document caused is charged to the person's seat. The first export on
+  // a Mac that is not connected asks to connect, then carries on.
+  async function exportPandoc(format: ExportFormat) {
+    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    const acct = await PortalService.Account()
+    if (!acct.signedIn) {
+      if (acct.error) {
+        toast(messageFor(acct.error, format).text)
+        return
+      }
+      pendingExport = format
+      connectState = { kind: 'ask' }
+      return
+    }
+    await runExport(format)
+  }
+
+  const formatName = (format: ExportFormat) => (format === 'docx' ? 'Word' : 'LaTeX')
+
+  async function runExport(format: ExportFormat) {
+    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    const docPath = path ?? ''
+    const source = content
+    try {
+      const target = await PortalService.ChooseExportPath(format, docPath)
+      if (!target) return
+      // As exportHTML: the panel is not modal to the webview.
+      // Unlike the HTML page, the request is built from the text, matched
+      // against what the preview drew, so an edit made meanwhile cancels too.
+      const moved = () =>
+        (path ?? '') !== docPath || content !== source || showWelcome || chartOpen || tableOpen || newOpen
+      if (moved()) {
+        toast('Export cancelled: the document changed')
+        return
+      }
+      const body = await buildConvertBody(format, docPath, source)
+      if (moved()) {
+        toast('Export cancelled: the document changed')
+        return
+      }
+      const problem = checkRequest(body)
+      if (problem) {
+        toast(problemMessage(problem))
+        return
+      }
+      toast(`Exporting to ${formatName(format)}…`)
+      const err = await PortalService.Export(target, body as ConvertRequest)
+      if (err) {
+        handlePortalError(err, format)
+        return
+      }
+      toast(`Exported ${target.split('/').pop()}`, {
+        label: 'Show in Finder',
+        run: () => void PortalService.RevealExport(target),
+      })
+    } catch (e) {
+      toast(`Could not export to ${formatName(format)}: ${e}`)
+    }
+  }
+
+  // buildConvertBody gathers the request: for Word, charts and diagrams as
+  // the preview drew them and each local image read beside the document
+  // (anything not PNG, JPEG or GIF redrawn as PNG); the citation style's XML;
+  // and only the cited part of the bibliography.
+  async function buildConvertBody(format: ExportFormat, docPath: string, source: string): Promise<ConvertBody> {
+    let markdown = source
+    const images: Record<string, string> = {}
+    if (format === 'docx') {
+      const root = await preview.exportRoot()
+      const diagrams = replaceDiagramFences(markdown, await diagramImages(root))
+      markdown = diagrams.markdown
+      Object.assign(images, diagrams.images)
+    }
+    const plan = planImages(markdown, format, docPath !== '')
+    const resolved: ResolvedImage[] = []
+    for (const ref of plan.refs) {
+      const img = await PortalService.ReadExportImage(docPath, ref.src)
+      let ext: ResolvedImage['ext'] = null
+      let data = img.base64
+      if (!img.error) {
+        if (img.mime === 'image/png') ext = 'png'
+        else if (img.mime === 'image/jpeg') ext = 'jpg'
+        else if (img.mime === 'image/gif') ext = 'gif'
+        else {
+          // At its own size: a photo doubled would pass the 8 MB limit.
+          data = await toPng(`data:${img.mime};base64,${img.base64}`, 1).catch(() => '')
+          if (data) ext = 'png'
+        }
+      }
+      if (ext) images[`${ref.key}.${ext}`] = data
+      resolved.push({ key: ref.key, src: ref.src, ext })
+    }
+    markdown = finalizeImages(plan.markdown, resolved)
+    const csl =
+      fmCsl && isStyleFile(fmCsl)
+        ? await DocumentService.ReadCitationStyle(fmCsl, docPath).catch(() => undefined)
+        : ((await loadStyleXml(fmCsl ?? 'apa')) ?? (await loadStyleXml('apa')) ?? undefined)
+    const bibText =
+      fmBibliography && path ? await DocumentService.ReadBibliography(fmBibliography, path).catch(() => '') : ''
+    const bibliography = buildBibliography(markdown, bibText)
+    if (bibliography) markdown = withReferencesHeading(markdown)
+    const body: ConvertBody = { format, markdown, csl, bibliography }
+    if (format === 'docx' && Object.keys(images).length) body.images = images
+    return body
+  }
+
+  function handlePortalError(err: PortalError, format: ExportFormat) {
+    const m = messageFor(err, format)
+    if (m.action === 'connect') {
+      pendingExport = format
+      connectState = { kind: 'ask' }
+    } else if ((m.action === 'pricing' || m.action === 'billing') && err.pricingURL) {
+      portalAlert = { text: m.text, button: m.action === 'pricing' ? 'See Plans' : 'Open Billing', url: err.pricingURL }
+    } else {
+      toast(m.text)
+    }
+  }
+
+  async function startConnect() {
+    if (connectState?.kind === 'starting' || connectState?.kind === 'waiting') return
+    connectState = { kind: 'starting' }
+    const info = await PortalService.StartPairing()
+    // Cancelled while the code was asked for: Go has already dropped it.
+    if (connectState?.kind !== 'starting') return
+    if (info.error) {
+      connectState = { kind: 'failed', message: messageFor(info.error, pendingExport ?? 'docx').text }
+      return
+    }
+    connectState = { kind: 'waiting', code: info.userCode, url: info.verificationURL }
+  }
+
+  function cancelConnect() {
+    if (connectState?.kind === 'waiting' || connectState?.kind === 'starting') void PortalService.CancelPairing()
+    connectState = null
+    pendingExport = null
+  }
+
+  function onPairing(ev: { state: string; email?: string; error?: PortalError | null }) {
+    if (connectState?.kind !== 'waiting') return
+    if (ev.state === 'approved') {
+      const resume = pendingExport
+      pendingExport = null
+      if (resume) {
+        connectState = null
+        toast(`Connected as ${ev.email || 'your Halmos account'} · a confirmation email was sent`)
+        void runExport(resume)
+      } else {
+        connectState = { kind: 'connected', email: ev.email ?? '' }
+      }
+    } else if (ev.state === 'denied') {
+      connectState = { kind: 'failed', message: 'The request was denied.' }
+    } else if (ev.state === 'expired') {
+      connectState = { kind: 'failed', message: 'The code expired before it was approved.' }
+    } else {
+      connectState = {
+        kind: 'failed',
+        message: ev.error ? messageFor(ev.error, 'docx').text : 'Something went wrong while connecting.',
+      }
+    }
+  }
+
+  // App menu → Account…: who this Mac is connected as, read fresh each time.
+  async function openAccount() {
+    accountOpen = true
+    account = null
+    accountProblem = ''
+    const info = await PortalService.Account()
+    account = info
+    accountProblem = info.error ? messageFor(info.error, 'docx').text : ''
+  }
+
+  async function signOut() {
+    await PortalService.SignOut()
+    account = { ...(account as AccountInfo), signedIn: false, email: '', seatSource: '', seatStatus: '', error: null }
+    accountProblem = ''
   }
 
   // Format → Citation Style. Writes `csl:` through the editor so it is one
@@ -1217,6 +1423,13 @@
       void DocumentService.ExportPDF(path ?? '').catch((e) => toast(String(e)))
     })
     Events.On('menu:export-html', () => void exportHTML())
+    Events.On('menu:export-pandoc', (ev: { data: unknown }) => {
+      if (ev.data === 'docx' || ev.data === 'latex') void exportPandoc(ev.data)
+    })
+    Events.On('menu:account', () => void openAccount())
+    Events.On('portal:pairing', (ev: { data: unknown }) => {
+      if (ev.data && typeof ev.data === 'object') onPairing(ev.data as { state: string; email?: string })
+    })
     Events.On('menu:insert-chart', () => openChartBuilder())
     Events.On('menu:insert-table', () => openTableBuilder())
     Events.On('menu:insert-code', (ev: { data: unknown }) => {
@@ -1517,7 +1730,53 @@
     {/snippet}
   </Dialog>
 
+  <ConnectDialog
+    state={connectState}
+    purpose={pendingExport}
+    onconnect={() => void startConnect()}
+    onreopen={(url) => void PortalService.OpenPortalURL(url)}
+    oncancel={cancelConnect}
+    ondone={() => (connectState = null)}
+  />
+
+  <AccountDialog
+    open={accountOpen}
+    {account}
+    problem={accountProblem}
+    onconnect={() => {
+      accountOpen = false
+      pendingExport = null
+      connectState = { kind: 'ask' }
+    }}
+    onsignout={() => void signOut()}
+    onplans={(url) => void PortalService.OpenPortalURL(url)}
+    onclose={() => (accountOpen = false)}
+  />
+
+  <Dialog
+    open={portalAlert !== null}
+    label="Halmos subscription"
+    title="Halmos subscription"
+    role="alertdialog"
+    onclose={() => (portalAlert = null)}
+  >
+    {#if portalAlert}<p>{portalAlert.text}</p>{/if}
+    {#snippet footer()}
+      <button onclick={() => (portalAlert = null)}>Close</button>
+      <button
+        class="primary"
+        onclick={() => {
+          if (portalAlert) void PortalService.OpenPortalURL(portalAlert.url)
+          portalAlert = null
+        }}>{portalAlert?.button ?? 'See Plans'}</button
+      >
+    {/snippet}
+  </Dialog>
+
   {#if toastMsg}
-    <div class="toast" role="status">{toastMsg}</div>
+    <div class="toast" role="status">{toastMsg}{#if toastAction}<button
+          class="link-button toast-action"
+          onclick={() => toastAction?.run()}>{toastAction.label}</button
+        >{/if}</div>
   {/if}
 </div>

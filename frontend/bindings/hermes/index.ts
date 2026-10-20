@@ -3,15 +3,22 @@
 
 import * as DemoService from "./demoservice.js";
 import * as DocumentService from "./documentservice.js";
+import * as PortalService from "./portalservice.js";
 export {
     DemoService,
-    DocumentService
+    DocumentService,
+    PortalService
 };
 
 export type {
+    AccountInfo,
+    ConvertRequest,
     DemoStep,
     Document,
     Draft,
+    ExportImage,
+    PairingInfo,
+    PortalError,
     Settings,
     UpdateResult,
     WelcomeInfo

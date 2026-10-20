@@ -417,6 +417,15 @@ when a key inserts but will not resolve — is in
 charts, and the References section. Page orientation is set under **File → PDF
 Orientation** and is remembered between sessions.
 
+## Exporting to Word and LaTeX
+
+**File → Export Word…** and **File → Export LaTeX…** send the document to
+halmoseditor.com, where Pandoc converts it with the document's citation style;
+nothing is installed on the Mac. They need a Halmos account: the first export
+connects this Mac to it through the browser, and **Halmos Editor → Account…**
+shows the connection and the subscription. The sign-in is kept in the macOS
+Keychain. The document is processed and not kept on the server.
+
 ---
 
 ## Keyboard shortcuts

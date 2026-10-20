@@ -67,6 +67,9 @@ func main() {
 	// records the window (demo.go). Inert unless the variable is set. The
 	// window is attached once it exists, below.
 	demo := NewDemoService(nil)
+	// Connecting to the Halmos portal and exporting to Word or LaTeX
+	// through it (portalservice.go).
+	portal := NewPortalService()
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -80,7 +83,7 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "Halmos Editor",
 		Description: "Academic markdown editor",
-		Services:    []application.Service{application.NewService(docs), application.NewService(demo)},
+		Services:    []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal)},
 		// A recording the script left running is stopped so the file on disk
 		// is closed, whichever way the app ends.
 		OnShutdown: demo.shutdown,

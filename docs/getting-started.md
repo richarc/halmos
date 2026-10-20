@@ -358,6 +358,20 @@ theme on a white page, in the body font you chose. The save panel opens in the
 document's folder, and export waits for charts to finish drawing. Large
 images make a large file.
 
+**File → Export Word…** and **File → Export LaTeX…** convert the document
+with Pandoc on halmoseditor.com, with citations and the reference list in the
+document's citation style. They need a Halmos account with a subscription: the
+first time, Halmos shows a code and opens halmoseditor.com in your browser,
+where you sign in and approve this Mac. **Halmos Editor → Account…** shows
+which account this Mac is connected to.
+
+- The document, the cited part of its bibliography, its citation style and,
+  for Word, its images are sent to halmoseditor.com, converted, and not kept.
+- Word gets charts and diagrams as pictures, as the preview draws them.
+- LaTeX gets no images: the `.tex` names them by their paths, so save it in
+  the document's folder, beside them.
+- Raw HTML and raw LaTeX in the document come out as text.
+
 **File → Print…** (⌘P) opens the system print panel.
 
 ### Quick Look in Finder

@@ -93,15 +93,17 @@ on 2026-10-12. Pandoc export moved here from v0.10.0: the dependency
 question it turns on below — shell out to a user-installed Pandoc, or bundle
 one — dissolves when the conversion runs on a server Halmos controls.
 
-- [ ] **Accounts and sign-in from the desktop app.** The app learns which
+- [x] **Accounts and sign-in from the desktop app.** The app learns which
       paid features the user has. Sign-in tokens kept in the macOS Keychain.
       Payment, the privacy policy and terms, and the name clearance are
       product work outside this repository: see the M1.1 milestone.
+      *Done 2026-10-20*: Connect pairs the Mac with the portal, Account…
+      in the app menu shows the connection and the subscription.
 - [ ] **Contributor licence agreement** before accepting outside pull
       requests. Today every commit is the author's, so the licence of future
       versions can still be changed; outside contributions without an
       agreement would remove that option.
-- [ ] Export to DOCX and LaTeX through Pandoc. Halmos already builds toward
+- [x] Export to DOCX and LaTeX through Pandoc. Halmos already builds toward
       Pandoc without collecting the payoff: `![caption](img)` was chosen
       because it is exactly Pandoc's figure convention, citations are `[@key]`,
       and the figures design argues captions live in each format's native home
@@ -112,6 +114,11 @@ one — dissolves when the conversion runs on a server Halmos controls.
       thought — Pandoc can resolve citations itself from the same `.bib`,
       which may mean handing it the raw markdown rather than anything Halmos
       has already rendered.
+      *Done 2026-10-20*: File → Export Word… and Export LaTeX… send the
+      raw markdown, the cited part of the `.bib` and the style's CSL XML;
+      Pandoc resolves the citations. Charts, diagrams and SVG go as PNG.
+      Citations in the `.docx` are plain text, not live fields: that is
+      the separate item below.
 - [ ] **DOI lookup.** Paste a DOI or article URL and get a `.bib` entry added
       to the document's bibliography (Crossref).
 - [ ] **Reference check.** Flags duplicate entries, missing fields, and
