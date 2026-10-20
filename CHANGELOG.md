@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes now asks whether to save, as ⌘Q does. Before, the changes were
   lost. Logging out stops while the question is open; log out again after
   answering.
+- markdown-it updated to 14.3.2: a paragraph with many unmatched closing
+  quotes could make the preview very slow (GHSA-r7fv-28h4-cvq7).
 
 ### Changed
 
