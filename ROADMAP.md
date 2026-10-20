@@ -9,25 +9,18 @@ for each release.
 
 ## Direction
 
-Agreed 2026-10-12. These rules decide what goes into each release below.
-
-- **The desktop editor stays free, and so do citations.** Citations are
-  Halmos's main strength and the reason to choose it, so making them
-  seamless comes first and is never behind a payment.
-- **Halmos earns money from a hosted back end.** Paid features are the ones
-  that cost money to run: Pandoc conversion on a server, reference lookups
-  and AI calls. A subscription matches that ongoing cost.
-- **AI removes routine work; it does not write the paper.** Acceptable:
-  equations, charts, tables, formatting, conversion, reference clean-up and
-  finding sources in the user's own library. Not offered: writing the
-  user's paragraphs, arguments or conclusions. Halmos keeps a record of what
-  the AI did in each document and can produce the AI-use disclosure
-  statement journals ask for.
-- **Order:** citation improvements, then v1.0.0, then the back end and
-  payment with export and citation services as the first paid features,
-  then AI for routine work, then AI limited to the user's own sources.
+The product direction, agreed 2026-10-12, and the order of releases are set
+in the Halmos product roadmap, which also covers the hosted back end at
+halmoseditor.com. Its milestones are named after the editor releases here:
+M1.1 is v1.1.0. Each release section below opens with the milestone it
+serves, and lists the editor's own work for it. In short: the editor and
+citations stay free; the paid features are the hosted services that cost
+money to run (conversion, reference lookups, AI); and AI removes routine
+work but does not write the paper.
 
 ## v1.0.0 — Production
+
+Serves: M1.0
 
 Distribution is step 1 of the website work: GitHub Releases for the binary and
 a static documentation site, with no server to run and no ongoing cost beyond
@@ -71,10 +64,6 @@ separate, much larger project and is deliberately not part of this.
       Help → Acknowledgements to open it. Also correct NOTICE, which says
       these dependencies "are credited in README.md": a credit is not the
       licence text.
-- [ ] **Pricing page on halmoseditor.com**, ready for v1.1.0. The site
-      states what is free (the editor and citations) and what the
-      subscription adds. *Status 2026-10-17*: being completed in the
-      `hermesportal` repository and ready to go live.
 - [x] **A better start screen.** Redesign the screen with the recent files
       list and the New and Open buttons so it looks more professional and
       is easier to read. Produce three alternative designs to assess
@@ -97,6 +86,8 @@ separate, much larger project and is deliberately not part of this.
 
 ## v1.1.0 — Back end, payment and first paid services
 
+Serves: M1.1
+
 The hosted back end, decided 2026-08-28 and given its first paid features
 on 2026-10-12. Pandoc export moved here from v0.10.0: the dependency
 question it turns on below — shell out to a user-installed Pandoc, or bundle
@@ -104,20 +95,8 @@ one — dissolves when the conversion runs on a server Halmos controls.
 
 - [ ] **Accounts and sign-in from the desktop app.** The app learns which
       paid features the user has. Sign-in tokens kept in the macOS Keychain.
-- [ ] **Payment.** A subscription through a merchant of record (Paddle or
-      similar), which handles VAT and sales tax worldwide. Decide whether a
-      free allowance of conversions and lookups is included.
-- [ ] **Hosting, privacy policy and terms.** Documents sent for conversion
-      are processed and not kept. Say so in the policy and design the server
-      so it is true.
-- [ ] **Licence and name.** Decided 2026-10-13: the desktop app stays
-      Apache-2.0 and the server code stays private. The product was renamed
-      from Hermes Editor to Halmos Editor in v0.13.0, because "Hermes" is a
-      crowded name in software. Before charging: run a clearance search for
-      "Halmos Editor" in classes 9 and 42 (note a16z's unrelated `halmos`
-      smart-contract testing tool) and register the name and the HE logo
-      (Apache-2.0 grants no trademark rights), and have a lawyer review the
-      licence, trademark and terms together.
+      Payment, the privacy policy and terms, and the name clearance are
+      product work outside this repository: see the M1.1 milestone.
 - [ ] **Contributor licence agreement** before accepting outside pull
       requests. Today every commit is the author's, so the licence of future
       versions can still be changed; outside contributions without an
@@ -141,6 +120,8 @@ one — dissolves when the conversion runs on a server Halmos controls.
       `.docx` without breaking references.
 
 ## v1.2.0 — AI for routine work
+
+Serves: M1.2
 
 Paid, through the v1.1.0 back end. Every result is shown before it is
 inserted, and nothing is written into the document without the user
@@ -176,6 +157,8 @@ accepting it.
       macOS-focused.
 
 ## v1.3.0 — AI limited to the user's own sources
+
+Serves: M1.3
 
 Paid. The AI only ever cites what is in the user's `.bib` file or Zotero
 library, so it cannot invent a reference.
