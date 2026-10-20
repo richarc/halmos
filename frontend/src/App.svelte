@@ -8,7 +8,7 @@
   import ConnectDialog, { type ConnectState } from './ConnectDialog.svelte'
   import AccountDialog from './AccountDialog.svelte'
   import {
-    planImages, finalizeImages, checkRequest, buildBibliography,
+    planImages, finalizeImages, checkRequest, buildBibliography, withReferencesHeading,
     type ExportFormat, type ResolvedImage, type ConvertBody,
   } from './lib/exportRequest'
   import { diagramImages, replaceDiagramFences } from './lib/exportDiagrams'
@@ -753,7 +753,9 @@
         : ((await loadStyleXml(fmCsl ?? 'apa')) ?? (await loadStyleXml('apa')) ?? undefined)
     const bibText =
       fmBibliography && path ? await DocumentService.ReadBibliography(fmBibliography, path).catch(() => '') : ''
-    const body: ConvertBody = { format, markdown, csl, bibliography: buildBibliography(markdown, bibText) }
+    const bibliography = buildBibliography(markdown, bibText)
+    if (bibliography) markdown = withReferencesHeading(markdown)
+    const body: ConvertBody = { format, markdown, csl, bibliography }
     if (format === 'docx' && Object.keys(images).length) body.images = images
     return body
   }

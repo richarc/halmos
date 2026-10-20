@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  planImages, finalizeImages, bracketDepthProblem, checkRequest, buildBibliography,
+  planImages, finalizeImages, bracketDepthProblem, checkRequest, buildBibliography, withReferencesHeading,
 } from './exportRequest'
 
 const MiB = 1024 * 1024
@@ -150,5 +150,18 @@ describe('buildBibliography', () => {
   it('sends nothing when there is no bibliography or no citation', () => {
     expect(buildBibliography('As shown [@a].', '')).toBeUndefined()
     expect(buildBibliography('No citations.', bib)).toBeUndefined()
+  })
+})
+
+describe('withReferencesHeading', () => {
+  it('ends the document with an unnumbered References heading', () => {
+    expect(withReferencesHeading('# T\n\nAs shown [@a].\n\n\n')).toBe(
+      '# T\n\nAs shown [@a].\n\n## References {.unnumbered}\n',
+    )
+  })
+
+  it('leaves a document that places the list with a refs div alone', () => {
+    const md = 'As shown [@a].\n\n# Sources\n\n::: {#refs}\n:::\n\n# Appendix\n'
+    expect(withReferencesHeading(md)).toBe(md)
   })
 })

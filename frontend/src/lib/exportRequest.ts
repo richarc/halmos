@@ -208,3 +208,14 @@ export function buildBibliography(markdown: string, bibText: string): string | u
   const trimmed = trimBibliography(bibText, keys)
   return trimmed || undefined
 }
+
+/**
+ * withReferencesHeading ends the document with the References heading the
+ * preview draws: Pandoc puts the reference list at the end with no heading
+ * of its own. A document that places the list itself with a `{#refs}` div
+ * is left alone, since Pandoc fills that div instead.
+ */
+export function withReferencesHeading(markdown: string): string {
+  if (/\{\s*#refs\s*\}/.test(markdown)) return markdown
+  return `${markdown.replace(/\s*$/, '')}\n\n## References {.unnumbered}\n`
+}
