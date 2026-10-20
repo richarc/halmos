@@ -31,7 +31,7 @@
     "citeproc": "^2.4.63",
     "codemirror": "^6.0.2",
     "katex": "^0.16.47",
-    "markdown-it": "^14.3.0",
+    "markdown-it": "^14.3.2",
     "markdown-it-footnote": "^4.0.0",
     "mermaid": "^11.16.1",
     "vega": "^6.3.1",
