@@ -427,14 +427,15 @@ textarea:focus-visible,
    the sheet stops at 210mm while the percentage keeps growing with the pane,
    so a wide split drew ~40mm margins around a measure the PDF never uses: the
    sheet stayed A4-shaped and quietly stopped agreeing with the export.
-   min() of the two picks the right one in each regime — the absolute 25mm
+   min() of the two picks the right one in each regime — the absolute margin
    when the pane is at least paper-wide, the proportional percentage when the
    sheet has been shrunk below true size. Do not "simplify" this back to the
-   single percentage; that is the bug it was written to fix. */
+   single percentage; that is the bug it was written to fix. The top and
+   bottom margins differ from the sides; lib/paper.ts says why. */
 .sheet {
   width: min(var(--sheet-width), 100%);
   margin: 0 auto;
-  padding: min(var(--sheet-margin), var(--sheet-margin-max));
+  padding: min(var(--sheet-margin-y), var(--sheet-margin-y-max)) min(var(--sheet-margin-x), var(--sheet-margin-x-max));
   background: var(--sheet-paper);
   color: var(--doc-fg);
   font-family: var(--doc-font-body);
@@ -1046,6 +1047,8 @@ dialog::backdrop { background: var(--backdrop); }
   /* Printing drops background colours by default; the alert tint is one. */
   .sheet .markdown-alert { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   h1, h2, h3 { break-after: avoid; }
+  /* For the HTML export, printed by a browser. The app's own PDF export
+     uses the margins Preview.svelte adds after this (lib/paper.ts). */
   @page { margin: 25mm; }
 }
 .preview-pane .footnotes { font-size: 0.9em; }

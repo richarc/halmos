@@ -107,11 +107,32 @@ describe('Preview figure alignment', () => {
     })
     const sheet = container.querySelector('.sheet') as HTMLElement
     expect(sheet.style.getPropertyValue('--sheet-width')).toBe('210mm')
-    expect(sheet.style.getPropertyValue('--sheet-margin')).toBe('11.905%')
+    expect(sheet.style.getPropertyValue('--sheet-margin-x')).toBe('11.905%')
     // The absolute cap travels with the percentage: percentage padding
     // resolves against the PANE, so on a pane wider than the paper the
     // percentage alone drew margins that grew with the window. See paper.ts.
-    expect(sheet.style.getPropertyValue('--sheet-margin-max')).toBe('25mm')
+    expect(sheet.style.getPropertyValue('--sheet-margin-x-max')).toBe('25mm')
+    // Top and bottom scale with the paper's shape (WebKit, see paper.ts).
+    expect(sheet.style.getPropertyValue('--sheet-margin-y-max')).toBe('35.357mm')
+  })
+
+  it('prints with the same margins the sheet draws', () => {
+    // The app's PDF export reads this @page rule; style.css's own 25mm one is
+    // for the HTML export. It must follow the paper settings like the sheet.
+    // Other tests here leave previews mounted, so count rather than assume
+    // this preview's rule is the only one in the head.
+    const rules = () => [...document.head.querySelectorAll('#page-margins')]
+    const before = rules().length
+    const a4 = render(Preview, { props: { html: '', paperSize: 'a4', orientation: 'portrait' } })
+    expect(rules()).toHaveLength(before + 1)
+    expect(rules().at(-1)?.textContent).toBe('@media print { @page { margin: 35.357mm 25mm; } }')
+    a4.cleanup()
+    expect(rules()).toHaveLength(before)
+    const letter = render(Preview, {
+      props: { html: '', paperSize: 'letter', orientation: 'landscape' },
+    })
+    expect(rules().at(-1)?.textContent).toBe('@media print { @page { margin: 25mm 32.353mm; } }')
+    letter.cleanup()
   })
 
   it('resizes the sheet for landscape', () => {
@@ -120,11 +141,11 @@ describe('Preview figure alignment', () => {
     })
     const sheet = container.querySelector('.sheet') as HTMLElement
     expect(sheet.style.getPropertyValue('--sheet-width')).toBe('297mm')
-    // Not the portrait percentage: a fixed one would print 25mm and draw 35mm.
-    expect(sheet.style.getPropertyValue('--sheet-margin')).toBe('8.418%')
-    // The cap does not vary with paper or orientation — it is the page
-    // margin itself, which is one number for all four combinations.
-    expect(sheet.style.getPropertyValue('--sheet-margin-max')).toBe('25mm')
+    // In landscape the short edge runs top to bottom, so top and bottom keep
+    // the page margin and the sides are the scaled pair.
+    expect(sheet.style.getPropertyValue('--sheet-margin-y')).toBe('8.418%')
+    expect(sheet.style.getPropertyValue('--sheet-margin-y-max')).toBe('25mm')
+    expect(sheet.style.getPropertyValue('--sheet-margin-x-max')).toBe('35.357mm')
   })
 
   it('keeps the alignment attribute on the pane, not the sheet', () => {

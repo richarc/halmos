@@ -185,8 +185,10 @@ describe('style.css palette contract', () => {
     // though the rules that read them are entirely legitimate.
     const RUNTIME_VARIABLES = new Set([
       '--sheet-width',
-      '--sheet-margin',
-      '--sheet-margin-max',
+      '--sheet-margin-x',
+      '--sheet-margin-x-max',
+      '--sheet-margin-y',
+      '--sheet-margin-y-max',
     ])
     const used = new Set(
       [...CSS.matchAll(/var\((--[a-z0-9-]+)\)/g)].map((m) => m[1]),
@@ -400,7 +402,7 @@ describe('sheet geometry', () => {
       .filter((rule) => rule.includes('width: min(var(--sheet-width)'))
     expect(geometry).toHaveLength(1)
     expect(geometry[0]).toContain(
-      'padding: min(var(--sheet-margin), var(--sheet-margin-max))',
+      'padding: min(var(--sheet-margin-y), var(--sheet-margin-y-max)) min(var(--sheet-margin-x), var(--sheet-margin-x-max))',
     )
   })
 })

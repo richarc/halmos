@@ -13,6 +13,7 @@
   import { waitForLatest } from './lib/settle'
   import {
     sheetStyle,
+    pageRule,
     DEFAULT_PAPER_SIZE,
     DEFAULT_ORIENTATION,
     type PaperSize,
@@ -237,6 +238,10 @@
     }
   }
 </script>
+
+<svelte:head>
+  {@html `<style id="page-margins">@media print { ${pageRule(paperSize, orientation)} }</style>`}
+</svelte:head>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -- link delegation only, not a keyboard-interactive control -->
 <!-- svelte-ignore a11y_no_static_element_interactions -- rendered content is read-only markdown output -->

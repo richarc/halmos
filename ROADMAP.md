@@ -76,7 +76,7 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       *Done 2026-10-22*: Export sits after File, with PDF (⌘E) and HTML,
       a separator, then Word and LaTeX (`addExportMenu`). Paper Size, PDF
       Orientation and Print… stay in File.
-- [ ] **Bug (to confirm): large white space at the top of each page in an
+- [x] **Bug (to confirm): large white space at the top of each page in an
       exported PDF.** Reported 2026-10-22. Reproduce first with a
       multi-page document on A4 and US Letter, portrait and landscape, and
       measure the top margin against the 25mm the sheet is meant to have.
@@ -87,6 +87,12 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       path Export PDF… takes. Also check for leftover spacing from the
       preview (the sheet's padding, the first element's top margin) that
       the print CSS does not reset.
+      *Done 2026-10-22*: confirmed, 46mm instead of 25mm on every page.
+      WebKit ignores the @page top margin, sizes each page from the text
+      width and the paper's ratio, and draws it against the bottom margin.
+      Top and bottom margins now scale with the paper's shape (`pageRule`
+      in `lib/paper.ts`; A4 portrait 25mm × 35.4mm), and the sheet draws
+      the same. Print… (30pt margins, the panel's paper) is not changed.
 - [ ] **Chart builder improvements.** Scope to follow. Candidates already
       recorded: layered charts (Backlog) and the builder left open when the
       window closes (v0.11.4 leftovers).

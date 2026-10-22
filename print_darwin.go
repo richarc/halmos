@@ -96,10 +96,11 @@ static int hermesPrintWebView(int landscape) {
 // the paper comes from the Paper Size setting the preview's sheet is already
 // drawn at, and no dialog stands between that and the pagination.
 //
-// Margins are zero on purpose. The CSS @page rule supplies the 25mm page
-// margin, and NSPrintInfo's margins compound with it rather than replacing
-// it — a non-zero value here would be added to the CSS margin and every
-// export would come out with margins roughly double what the sheet drew.
+// Margins are zero on purpose. The CSS @page rule supplies the page margins
+// (lib/paper.ts's pageRule, added by Preview.svelte), and NSPrintInfo's
+// margins do not add a margin here: measured, they crop the page instead.
+// WebKit does not honour the @page top margin either; paper.ts explains why
+// the top and bottom margins are scaled to the paper's shape.
 //
 // Returns 0 if the webview could not be located.
 static int hermesExportWebViewPDF(const char *path, const char *paperName,

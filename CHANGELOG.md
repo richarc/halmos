@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Exported PDFs had about 21mm of blank space above the text on every page:
+  WebKit ignored the top page margin and sized each page from the text
+  width. Top and bottom margins now follow the paper's shape, so the text
+  fills the page: on A4 portrait 25mm at the sides and 35mm at top and
+  bottom (US Letter 32mm); in landscape 25mm at top and bottom and wider
+  sides. The preview draws the same margins.
 - A recovery draft was deleted when another program wrote the document
   after the draft and Halmos then crashed. Drafts now go only when the file
   holds the same text or Halmos saved over them, and the restore question
