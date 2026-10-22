@@ -144,21 +144,11 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 			}
 		})
 	}
-	// Export goes through an event rather than calling the service directly:
-	// the save dialog offers a filename derived from the document's own path,
-	// and only the frontend knows what that path currently is.
-	file.Add("Export PDF…").SetAccelerator("cmdorctrl+e").OnClick(func(*application.Context) {
-		docEmit("menu:export-pdf")
-	})
-	// Same reason as Export PDF, and more: the page is built from the
-	// rendered preview, which only the frontend has.
-	file.Add("Export HTML…").OnClick(func(*application.Context) {
-		docEmit("menu:export-html")
-	})
-	addPandocExportItems(file, docEmit)
 	file.Add("Print…").SetAccelerator("cmdorctrl+p").OnClick(func(*application.Context) {
 		whenVisible(win.IsVisible(), docs.PrintDocument)
 	})
+
+	addExportMenu(menu, docEmit)
 
 	// Wails' EditMenu role, spelled out so Find can join it. The native Find
 	// roles are not used: they send performTextFinderAction: to WKWebView,
@@ -655,14 +645,25 @@ func addAppMenu(menu *application.Menu, name string, onAccount func()) {
 	appMenu.AddRole(application.Quit)
 }
 
-// addPandocExportItems adds File → Export Word… and Export LaTeX…, which
-// convert through the portal (PortalService.Export). Like Export HTML, the
-// frontend gathers the document, so the menu only asks.
-func addPandocExportItems(file *application.Menu, emit func(name string, data ...any)) {
-	file.Add("Export Word…").OnClick(func(*application.Context) {
+// addExportMenu adds the top-level Export menu after File. Every item goes
+// through an event rather than calling a service: the save dialog offers a
+// filename derived from the document's own path, which only the frontend
+// holds, and HTML, Word and LaTeX are built from the document or its rendered
+// preview, which only the frontend has. Word and LaTeX convert through the
+// portal (PortalService.Export).
+func addExportMenu(menu *application.Menu, emit func(name string, data ...any)) {
+	export := menu.AddSubmenu("Export")
+	export.Add("Export PDF…").SetAccelerator("cmdorctrl+e").OnClick(func(*application.Context) {
+		emit("menu:export-pdf")
+	})
+	export.Add("Export HTML…").OnClick(func(*application.Context) {
+		emit("menu:export-html")
+	})
+	export.AddSeparator()
+	export.Add("Export Word…").OnClick(func(*application.Context) {
 		emit("menu:export-pandoc", "docx")
 	})
-	file.Add("Export LaTeX…").OnClick(func(*application.Context) {
+	export.Add("Export LaTeX…").OnClick(func(*application.Context) {
 		emit("menu:export-pandoc", "latex")
 	})
 }

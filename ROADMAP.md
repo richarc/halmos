@@ -68,11 +68,14 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
         or Halmos saved over them, fixing the lost-draft bug.
       A view of the difference between the two versions is backlog.
       *Done 2026-10-22*: built on branch `external-changes`.
-- [ ] **An Export menu.** Move Export PDF… (⌘E), Export HTML…, Export
+- [x] **An Export menu.** Move Export PDF… (⌘E), Export HTML…, Export
       Word… and Export LaTeX… out of File into their own top-level menu.
       They are added in `menu.go` (`addPandocExportItems` for Word and
       LaTeX); the `menu:export-*` events and the frontend handlers stay as
       they are.
+      *Done 2026-10-22*: Export sits after File, with PDF (⌘E) and HTML,
+      a separator, then Word and LaTeX (`addExportMenu`). Paper Size, PDF
+      Orientation and Print… stay in File.
 - [ ] **Chart builder improvements.** Scope to follow. Candidates already
       recorded: layered charts (Backlog) and the builder left open when the
       window closes (v0.11.4 leftovers).

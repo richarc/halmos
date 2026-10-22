@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   position. With unsaved edits it asks once: Keep Mine or Use File (which
   ⌘Z undoes). Saving over a file changed since it was opened asks first. A
   renamed or moved file is followed; a deleted file stays open until saved.
-- Export to Word and LaTeX (File → Export Word…, Export LaTeX…), converted
+- Export to Word and LaTeX (Export → Export Word…, Export LaTeX…), converted
   by Pandoc on halmoseditor.com with the document's citation style. Needs a
   Halmos account: the first export connects this Mac to it, and
   Account… in the app menu shows the connection and the subscription.
@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Export PDF…, Export HTML…, Export Word… and Export LaTeX… moved out of
+  File into their own Export menu, next to File. ⌘E still exports a PDF.
 - Spacing across the app follows one scale, toasts use the same text size
   as dialogs, wrap long messages and sit above the status bar instead of
   covering it, and the start screen's button reads "New Document".

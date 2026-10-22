@@ -50,7 +50,7 @@ export function ChooseCitationStyle(): $CancellablePromise<string> {
 }
 
 /**
- * ChooseHTMLExportPath asks where File → Export HTML… should write. It returns
+ * ChooseHTMLExportPath asks where Export → Export HTML… should write. It returns
  * "" when the author cancels. The page itself is built by the frontend, which
  * holds the rendered preview, and written with WriteHTMLExport.
  */

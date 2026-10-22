@@ -34,7 +34,7 @@ export function CancelPairing(): $CancellablePromise<void> {
 }
 
 /**
- * ChooseExportPath asks where File → Export Word… or Export LaTeX… should
+ * ChooseExportPath asks where Export → Export Word… or Export LaTeX… should
  * write, before anything is sent: a cancelled save sends nothing. "" means
  * cancelled.
  */

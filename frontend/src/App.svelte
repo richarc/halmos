@@ -625,7 +625,7 @@
     editor.insertCodeBlockAtCursor(language)
   }
 
-  // File → Export HTML…. The page is built from the rendered preview, which
+  // Export → Export HTML…. The page is built from the rendered preview, which
   // only exists here, so Go only asks where and writes. htmlExport and the
   // KaTeX assets it loads are imported on first use: they are not part of
   // the startup bundle.
@@ -665,7 +665,7 @@
     }
   }
 
-  // File → Export Word… / Export LaTeX…. The document is converted by Pandoc
+  // Export → Export Word… / Export LaTeX…. The document is converted by Pandoc
   // on the Halmos portal (PortalService.Export); everything sent is built
   // here from what the editor holds, and checked first, because a refusal
   // the document caused is charged to the person's seat. The first export on

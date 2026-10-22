@@ -351,12 +351,12 @@ shows; the preview and the file are unaffected.
 
 ## 6. Getting the document out
 
-**File → Export PDF…** (⌘E) writes a PDF of the preview: maths, figures,
+**Export → Export PDF…** (⌘E) writes a PDF of the preview: maths, figures,
 charts, the contents page and the References section included. **File →
 Paper Size** (A4 or Letter) and **File → PDF Orientation** set the page,
 and the preview is drawn at that size so what you see is what prints.
 
-**File → Export HTML…** writes the document as one file you can send or open
+**Export → Export HTML…** writes the document as one file you can send or open
 in any browser, offline. It holds the styles, the maths with its fonts, charts
 and diagrams as drawn, and local images embedded in the file. Images that are
 links to the web stay links. It contains no scripts. It always uses the light
@@ -364,7 +364,7 @@ theme on a white page, in the body font you chose. The save panel opens in the
 document's folder, and export waits for charts to finish drawing. Large
 images make a large file.
 
-**File → Export Word…** and **File → Export LaTeX…** convert the document
+**Export → Export Word…** and **Export → Export LaTeX…** convert the document
 with Pandoc on halmoseditor.com, with citations and the reference list in the
 document's citation style. They need a Halmos account with a subscription: the
 first time, Halmos shows a code and opens halmoseditor.com in your browser,
