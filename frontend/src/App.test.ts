@@ -2027,6 +2027,7 @@ describe('changes made by another program', () => {
   // default back so it cannot leak into the next.
   beforeEach(() => {
     DocumentService.Save.mockImplementation(async () => ({ conflict: false }))
+    DocumentService.RecoverDraft.mockImplementation(async () => ({ found: false, content: '' }))
   })
 
   function changed(content: string, version = 'v2', path = '/tmp/paper.md') {
@@ -2308,6 +2309,131 @@ describe('changes made by another program', () => {
     buttonByText(target, 'Clear')!.click()
     await vi.waitFor(() => expect(editorText(target)).toContain('bibliography: references.bib'))
     expect(DocumentService.ForgetDocument).toHaveBeenCalledTimes(1)
+  })
+
+  function moved(from: string, to: string) {
+    listeners['document:moved']({ data: { from, to } })
+    flushSync()
+  }
+
+  function deleted(path = '/tmp/paper.md') {
+    listeners['document:deleted']({ data: { path } })
+    flushSync()
+  }
+
+  it('follows a moved file', async () => {
+    const target = await openDoc(MINE)
+    DocumentService.RecentFiles.mockClear()
+    moved('/tmp/paper.md', '/tmp/Papers/qec.md')
+
+    expect(target.querySelector('.toast')?.textContent).toBe('Moved to Papers/qec.md')
+    expect(target.querySelector('.status-name')!.textContent).toContain('qec.md')
+    // Go has already added the new path to recents; only the list is re-read.
+    await vi.waitFor(() => expect(DocumentService.RecentFiles).toHaveBeenCalled())
+
+    typeX(target)
+    listeners['menu:save']({ data: null })
+    await vi.waitFor(() => expect(DocumentService.Save).toHaveBeenCalledWith('/tmp/Papers/qec.md', 'x' + MINE, false))
+    await settledClean()
+  })
+
+  // Go has already moved the draft; the keeper carries on under the new
+  // path and discards nothing.
+  it('a move with unsaved edits keeps drafting under the new path', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    moved('/tmp/paper.md', '/tmp/Papers/qec.md')
+    typeX(target)
+
+    await vi.waitFor(() => expect(DocumentService.WriteDraft).toHaveBeenLastCalledWith('/tmp/Papers/qec.md', 'xx' + MINE))
+    expect(DocumentService.DiscardDraft).not.toHaveBeenCalled()
+    expect(target.querySelector('.status-name')!.textContent).toContain('Edited')
+  })
+
+  it('ignores a move of another file', async () => {
+    const target = await openDoc(MINE)
+    moved('/tmp/other.md', '/tmp/Papers/other.md')
+
+    expect(target.querySelector('.toast')).toBeNull()
+    expect(target.querySelector('.status-name')!.textContent).toContain('paper.md')
+    listeners['menu:save']({ data: null })
+    await vi.waitFor(() => expect(DocumentService.Save).toHaveBeenCalledWith('/tmp/paper.md', MINE, false))
+  })
+
+  it('a deleted file stays open and unsaved', async () => {
+    const target = await openDoc(MINE)
+    await settledClean()
+    deleted()
+
+    expect(target.querySelector('.toast')?.textContent).toBe('"paper.md" was deleted. Save will recreate it.')
+    expect(editorText(target)).toBe(MINE)
+    await vi.waitFor(() => expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true))
+    expect(target.querySelector('.status-name')!.textContent).toContain('Edited')
+
+    listeners['menu:save']({ data: null })
+    await vi.waitFor(() => expect(DocumentService.Save).toHaveBeenCalledWith('/tmp/paper.md', MINE, false))
+    await settledClean()
+    expect(target.querySelector('.status-name')!.textContent).not.toContain('Edited')
+  })
+
+  // Don't Save accepts the text as it is, so the document goes clean and
+  // the draft written for it is discarded rather than left behind.
+  it("Don't Save on a deleted file discards its draft", async () => {
+    const target = await openDoc(MINE)
+    deleted()
+    await vi.waitFor(() => expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true))
+    listeners['close:confirm']({ data: 'quit' })
+    flushSync()
+    const unsaved = target.querySelector<HTMLDialogElement>('dialog[aria-label="Unsaved changes"]')!
+    buttonByText(unsaved, "Don't Save")!.click()
+
+    await vi.waitFor(() => expect(DocumentService.Quit).toHaveBeenCalled())
+    expect(DocumentService.DiscardDraft).toHaveBeenCalledWith('/tmp/paper.md')
+  })
+
+  it('Save As on a deleted file makes it clean', async () => {
+    const target = await openDoc(MINE)
+    deleted()
+    await vi.waitFor(() => expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true))
+    DocumentService.SaveAs.mockResolvedValueOnce('/tmp/again.md')
+    listeners['menu:save-as']({ data: null })
+
+    await settledClean()
+    expect(target.querySelector('.status-name')!.textContent).toBe('again.md')
+  })
+
+  it('ignores a delete of another file', async () => {
+    const target = await openDoc(MINE)
+    await settledClean()
+    deleted('/tmp/other.md')
+
+    expect(target.querySelector('.toast')).toBeNull()
+    expect(target.querySelector('.status-name')!.textContent).not.toContain('Edited')
+  })
+
+  // Go reports a file that comes back as a change, even with the same bytes.
+  // With no edits of its own the document takes it back silently.
+  it('a deleted file that comes back is clean again', async () => {
+    const target = await openDoc(MINE)
+    deleted()
+    await vi.waitFor(() => expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true))
+    changed(MINE)
+
+    expect(openQuestions(target)).toHaveLength(0)
+    await vi.waitFor(() => expect(DocumentService.AcceptDiskVersion).toHaveBeenCalledWith('v2'))
+    await settledClean()
+  })
+
+  it('a recovery offer says when the file changed', async () => {
+    DocumentService.RecoverDraft.mockImplementation(async (docPath: string) =>
+      docPath === '/tmp/paper.md' ? { found: true, content: 'x', changed: true } : { found: false, content: '', changed: false },
+    )
+    const target = await openDoc(MINE)
+    const dlg = target.querySelector<HTMLDialogElement>('dialog[aria-label="Recover draft"]')!
+    await vi.waitFor(() => expect(dlg.open).toBe(true))
+    expect(dlg.textContent).toContain(
+      'A draft of "paper.md" was found, and the file has since been changed by another program. Restore the draft?',
+    )
   })
 })
 
