@@ -295,6 +295,23 @@ func TestWatchMoveToTrashIsDelete(t *testing.T) {
 	}
 }
 
+func TestWatchMoveToVolumeTrashIsDelete(t *testing.T) {
+	// A file trashed on another volume goes to /Volumes/X/.Trashes/<uid>/.
+	_, path, log := openWatched(t, "one")
+	trash := filepath.Join(t.TempDir(), ".Trashes", "501")
+	if err := os.MkdirAll(trash, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(path, filepath.Join(trash, "doc.md")); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, func() bool { return len(log.named("document:deleted")) > 0 }, time.Second)
+	quiet()
+	if moved := log.named("document:moved"); len(moved) != 0 {
+		t.Errorf("moves = %+v, want none", moved)
+	}
+}
+
 func TestForgetDocumentStopsWatching(t *testing.T) {
 	s, path, log := openWatched(t, "one")
 	s.ForgetDocument()

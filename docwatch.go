@@ -151,7 +151,9 @@ func (s *DocumentService) checkDocument(ctx context.Context) (name string, data 
 
 	d.last = st
 	if to, ok := s.movedTo(); ok {
-		if strings.Contains(to, "/.Trash/") {
+		// Trash on the home volume is ~/.Trash; on any other volume it is
+		// /Volumes/X/.Trashes/<uid>. Either is a delete, not a move.
+		if strings.Contains(to, "/.Trash/") || strings.Contains(to, "/.Trashes/") {
 			d.seen = ""
 			return "document:deleted", DocDeleted{Path: d.path}, moved, emit
 		}
