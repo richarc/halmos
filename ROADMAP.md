@@ -76,6 +76,17 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       *Done 2026-10-22*: Export sits after File, with PDF (⌘E) and HTML,
       a separator, then Word and LaTeX (`addExportMenu`). Paper Size, PDF
       Orientation and Print… stay in File.
+- [ ] **Bug (to confirm): large white space at the top of each page in an
+      exported PDF.** Reported 2026-10-22. Reproduce first with a
+      multi-page document on A4 and US Letter, portrait and landscape, and
+      measure the top margin against the 25mm the sheet is meant to have.
+      Where the margin comes from today: the print CSS `@page { margin:
+      25mm; }` in `frontend/public/style.css`, with `NSPrintInfo`'s margins
+      set to zero in `print_darwin.go` so the two do not add up; a second
+      place in `print_darwin.go` still sets 30pt margins, so check which
+      path Export PDF… takes. Also check for leftover spacing from the
+      preview (the sheet's padding, the first element's top margin) that
+      the print CSS does not reset.
 - [ ] **Chart builder improvements.** Scope to follow. Candidates already
       recorded: layered charts (Backlog) and the builder left open when the
       window closes (v0.11.4 leftovers).
