@@ -40,6 +40,35 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
 - [ ] **Chart builder improvements.** Scope to follow. Candidates already
       recorded: layered charts (Backlog) and the builder left open when the
       window closes (v0.11.4 leftovers).
+- [ ] **Page numbers, headers and footers in exported output.** Set in the
+      frontmatter, like `bibliography`, `csl` and `toc`, so a document
+      carries its own page setup. The key names and what they can hold
+      (fixed text, the title, the page number, page of pages) are to be
+      decided. Each format needs its own route:
+      - PDF: `print_darwin.go` prints with zero margins and lets the CSS
+        `@page` rule set the 25mm margin, and nothing draws a header or
+        footer today. WebKit's printing does not appear to support CSS
+        page-margin boxes (`@top-center`, `counter(page)`); check that
+        first, because if it is true the PDF route needs a different
+        mechanism, and that decides the size of this item.
+      - Word and LaTeX: made by the portal's Pandoc conversion, so the
+        settings travel in the export request and the portal applies them
+        (a reference `.docx` for Word, the LaTeX template or `fancyhdr`
+        for LaTeX).
+      - HTML: page numbers only matter when it is printed; decide whether
+        it gets print CSS or nothing.
+- [ ] **Control how references are formatted, beyond the chosen style.**
+      LaTeX bibliography packages let an author set, for example, how many
+      authors are listed before "et al." Offer the same, set in the
+      frontmatter, without the user editing a `.csl` file. The CSL style
+      already holds these options (`et-al-min`, `et-al-use-first` and
+      their `subsequent` forms on `citation` and `bibliography`), so the
+      likely approach is to override those attributes in the loaded style
+      before citeproc-js uses it. Because the editor sends that same CSL to
+      the portal for Word and LaTeX export, one change covers the preview,
+      PDF, HTML, Word and LaTeX. Start with the author-list options and
+      list which other options are worth exposing. Name-format options
+      (initials, "and" versus "&") are candidates.
 - [ ] **Architecture, performance and security review** of the whole app
       before v1.0.0. Findings that block 1.0 are fixed here; the rest go to
       the Backlog with the reasons, like the earlier review leftovers.
