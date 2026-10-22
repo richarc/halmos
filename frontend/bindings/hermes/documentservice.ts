@@ -117,8 +117,8 @@ export function ExportPDF(docPath: string): $CancellablePromise<void> {
 }
 
 /**
- * ForgetDocument clears the tracked document, so a later Save to its path is
- * not checked.
+ * ForgetDocument clears the tracked document and stops watching it, so a
+ * later Save to its path is not checked.
  */
 export function ForgetDocument(): $CancellablePromise<void> {
     return $Call.ByID(4244315604);

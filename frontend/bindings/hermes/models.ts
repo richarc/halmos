@@ -57,6 +57,12 @@ export interface Document {
 export interface Draft {
     "found": boolean;
     "content": string;
+
+    /**
+     * Changed is true when the document on disk is no longer the version the
+     * draft was started from: another program wrote it since.
+     */
+    "changed": boolean;
 }
 
 /**

@@ -95,6 +95,10 @@ func NewDocumentService(recentsPath string) *DocumentService {
 		version:         appVersion,
 	}
 	s.drafts.prune(time.Now())
+	s.onDocMoved = func(from, to string) {
+		_ = s.drafts.move(from, to)
+		s.addRecent(to)
+	}
 	return s
 }
 
@@ -133,6 +137,7 @@ func (s *DocumentService) Save(path, content string, overwrite bool) (SaveResult
 		return SaveResult{}, err
 	}
 	s.trackDocument(path, []byte(content))
+	_ = s.drafts.markSaved(path, contentVersion([]byte(content)))
 	s.addRecent(path)
 	s.dirty.Store(false)
 	return SaveResult{}, nil
@@ -187,7 +192,13 @@ func (s *DocumentService) IsDirty() bool {
 // discarded on the dirty-to-clean transition); the store decides whether a
 // draft is still worth offering. See recovery.go.
 func (s *DocumentService) WriteDraft(docPath, content string) error {
-	return s.drafts.write(docPath, content)
+	base := ""
+	s.docMu.Lock()
+	if docPath != "" && docPath == s.doc.path {
+		base = s.doc.base
+	}
+	s.docMu.Unlock()
+	return s.drafts.write(docPath, content, base)
 }
 
 func (s *DocumentService) DiscardDraft(docPath string) error {
