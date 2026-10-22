@@ -15,10 +15,10 @@ func TestSaveOverwritesExistingFile(t *testing.T) {
 	s := newTestService(t)
 	path := filepath.Join(t.TempDir(), "paper.md")
 
-	if err := s.Save(path, "first draft"); err != nil {
+	if _, err := s.Save(path, "first draft", false); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	if err := s.Save(path, "second draft"); err != nil {
+	if _, err := s.Save(path, "second draft", false); err != nil {
 		t.Fatalf("Save (overwrite): %v", err)
 	}
 
@@ -42,7 +42,7 @@ func TestSavePreservesExistingFilePermissions(t *testing.T) {
 	}
 
 	s := newTestService(t)
-	if err := s.Save(path, "updated"); err != nil {
+	if _, err := s.Save(path, "updated", false); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
@@ -59,7 +59,7 @@ func TestSaveCreatesNewFileWithDefaultPermissions(t *testing.T) {
 	s := newTestService(t)
 	path := filepath.Join(t.TempDir(), "new.md")
 
-	if err := s.Save(path, "x"); err != nil {
+	if _, err := s.Save(path, "x", false); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
@@ -78,7 +78,7 @@ func TestSaveLeavesNoTempFilesBehind(t *testing.T) {
 	path := filepath.Join(dir, "paper.md")
 
 	for range 3 {
-		if err := s.Save(path, "x"); err != nil {
+		if _, err := s.Save(path, "x", false); err != nil {
 			t.Fatalf("Save: %v", err)
 		}
 	}
@@ -113,7 +113,7 @@ func TestSaveFailureLeavesOriginalIntactAndCleansUp(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
 
 	s := newTestService(t)
-	if err := s.Save(path, "replacement"); err == nil {
+	if _, err := s.Save(path, "replacement", false); err == nil {
 		t.Fatal("want an error when the destination directory is not writable")
 	}
 

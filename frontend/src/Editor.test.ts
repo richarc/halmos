@@ -17,6 +17,7 @@ interface ChartBlock {
 
 interface EditorApi {
   setContent(text: string, cursor?: 'start' | 'end'): void
+  reloadContent(text: string, undoable: boolean): void
   insertAtCursor(text: string): void
   insertBlockAtCursor(text: string): void
   insertCodeBlockAtCursor(language: string): void
@@ -56,6 +57,73 @@ function mountEditor(extra: Record<string, unknown> = {}) {
     },
   }
 }
+
+describe('Editor.reloadContent', () => {
+  const cursorOf = (editor: EditorApi) => {
+    let head = -1
+    editor.runCommand((v) => ((head = v.state.selection.main.head), true))
+    return head
+  }
+
+  it('keeps the cursor where it was when lines are appended after it', () => {
+    const { editor, cleanup } = mountEditor()
+    editor.setContent('one\ntwo\n')
+    flushSync()
+    editor.runCommand((v) => (v.dispatch({ selection: { anchor: 5 } }), true))
+    editor.reloadContent('one\ntwo\nthree\n', false)
+    flushSync()
+    expect(cursorOf(editor)).toBe(5)
+    cleanup()
+  })
+
+  it('moves the cursor forward when a line is inserted above it', () => {
+    const { editor, cleanup } = mountEditor()
+    editor.setContent('one\ntwo\n')
+    flushSync()
+    editor.runCommand((v) => (v.dispatch({ selection: { anchor: 5 } }), true))
+    editor.reloadContent('zero\none\ntwo\n', false)
+    flushSync()
+    expect(cursorOf(editor)).toBe(10)
+    cleanup()
+  })
+
+  it('leaves the user\'s own edits on the undo stack when the reload is not undoable', () => {
+    const { editor, text, cleanup } = mountEditor()
+    editor.setContent('a\n')
+    flushSync()
+    editor.insertAtCursor('X')
+    flushSync()
+    editor.reloadContent('Xa\nb\n', false)
+    flushSync()
+    editor.runCommand(undo)
+    flushSync()
+    expect(text()).toBe('a\nb\n')
+    cleanup()
+  })
+
+  it('can be undone when asked to be undoable', () => {
+    const { editor, text, cleanup } = mountEditor()
+    editor.setContent('before\n')
+    flushSync()
+    editor.reloadContent('after\n', true)
+    flushSync()
+    expect(text()).toBe('after\n')
+    editor.runCommand(undo)
+    flushSync()
+    expect(text()).toBe('before\n')
+    cleanup()
+  })
+
+  it('reports the new text through onchange', () => {
+    const { editor, text, cleanup } = mountEditor()
+    editor.setContent('a')
+    flushSync()
+    editor.reloadContent('ab', false)
+    flushSync()
+    expect(text()).toBe('ab')
+    cleanup()
+  })
+})
 
 describe('Editor.setContent', () => {
   it('defaults the cursor to the start, so opening a file does not relocate it', () => {

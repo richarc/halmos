@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -40,7 +43,7 @@ func TestDraftRoundTripAndDiscard(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := d.write(doc, "saved plus more"); err != nil {
+	if err := d.write(doc, "saved plus more", ""); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	got, err := d.find(doc)
@@ -70,7 +73,7 @@ func TestDraftRoundTripAndDiscard(t *testing.T) {
 func TestDraftIsPrivateToTheUser(t *testing.T) {
 	d := newTestDraftStore(t)
 	doc := filepath.Join(t.TempDir(), "paper.md")
-	if err := d.write(doc, "x"); err != nil {
+	if err := d.write(doc, "x", ""); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(filepath.Join(d.dir, draftKey(doc)+".json"))
@@ -96,7 +99,7 @@ func TestRecoverDropsADraftTheDocumentHasCaughtUpWith(t *testing.T) {
 	if err := os.WriteFile(doc, []byte("v1"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.write(doc, "v1 plus"); err != nil {
+	if err := d.write(doc, "v1 plus", ""); err != nil {
 		t.Fatal(err)
 	}
 	// The document is saved after the draft: whatever the draft held, the
@@ -127,7 +130,7 @@ func TestRecoverDropsADraftIdenticalToTheDocument(t *testing.T) {
 	if err := os.Chtimes(doc, old, old); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.write(doc, "same"); err != nil {
+	if err := d.write(doc, "same", ""); err != nil {
 		t.Fatal(err)
 	}
 	got, err := d.find(doc)
@@ -148,7 +151,7 @@ func TestRecoverDropsADraftWithTheSameMtimeAsTheDocument(t *testing.T) {
 	if err := os.WriteFile(doc, []byte("v1"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.write(doc, "v1 plus"); err != nil {
+	if err := d.write(doc, "v1 plus", ""); err != nil {
 		t.Fatal(err)
 	}
 	draftInfo, err := os.Stat(filepath.Join(d.dir, draftKey(doc)+".json"))
@@ -172,7 +175,7 @@ func TestRecoverDropsADraftWithTheSameMtimeAsTheDocument(t *testing.T) {
 func TestRecoverOffersTheDraftWhenTheDocumentIsGone(t *testing.T) {
 	d := newTestDraftStore(t)
 	doc := filepath.Join(t.TempDir(), "deleted.md")
-	if err := d.write(doc, "only copy"); err != nil {
+	if err := d.write(doc, "only copy", ""); err != nil {
 		t.Fatal(err)
 	}
 	got, err := d.find(doc)
@@ -186,7 +189,7 @@ func TestRecoverOffersTheDraftWhenTheDocumentIsGone(t *testing.T) {
 
 func TestRecoverUntitledNeedsNoDocument(t *testing.T) {
 	d := newTestDraftStore(t)
-	if err := d.write("", "scratch"); err != nil {
+	if err := d.write("", "scratch", ""); err != nil {
 		t.Fatal(err)
 	}
 	got, err := d.find("")
@@ -200,7 +203,7 @@ func TestRecoverUntitledNeedsNoDocument(t *testing.T) {
 
 func TestRecoverDropsEmptyAndUnreadableDrafts(t *testing.T) {
 	d := newTestDraftStore(t)
-	if err := d.write("", ""); err != nil {
+	if err := d.write("", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := d.find(""); got.Found {
@@ -227,10 +230,10 @@ func TestRecoverDropsEmptyAndUnreadableDrafts(t *testing.T) {
 
 func TestPruneRemovesOnlyOldDrafts(t *testing.T) {
 	d := newTestDraftStore(t)
-	if err := d.write("/papers/old.md", "old"); err != nil {
+	if err := d.write("/papers/old.md", "old", ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.write("/papers/new.md", "new"); err != nil {
+	if err := d.write("/papers/new.md", "new", ""); err != nil {
 		t.Fatal(err)
 	}
 	oldFile := filepath.Join(d.dir, draftKey("/papers/old.md")+".json")
@@ -276,5 +279,257 @@ func TestDocumentServiceExposesTheDraftStore(t *testing.T) {
 	wantDir := filepath.Join(filepath.Dir(s.recentsPath), "drafts")
 	if s.drafts.dir != wantDir {
 		t.Errorf("want drafts at %s, got %s", wantDir, s.drafts.dir)
+	}
+}
+
+func writeDoc(t *testing.T, path, text string, mtime time.Time) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, mtime, mtime); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDraftKeptWhenOtherProgramWritesAfterIt(t *testing.T) {
+	d := newTestDraftStore(t)
+	doc := filepath.Join(t.TempDir(), "paper.md")
+	if err := d.write(doc, "mine", contentVersion([]byte("one"))); err != nil {
+		t.Fatal(err)
+	}
+	writeDoc(t, doc, "theirs", time.Now().Add(time.Hour))
+	got, err := d.find(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Found || !got.Changed || got.Content != "mine" {
+		t.Errorf("want the draft kept and marked changed, got %+v", got)
+	}
+	if _, err := os.Stat(d.file(doc)); err != nil {
+		t.Errorf("draft file must remain: %v", err)
+	}
+}
+
+func TestDraftDroppedWhenDocumentEqualsDraft(t *testing.T) {
+	d := newTestDraftStore(t)
+	doc := filepath.Join(t.TempDir(), "paper.md")
+	if err := d.write(doc, "mine", contentVersion([]byte("one"))); err != nil {
+		t.Fatal(err)
+	}
+	writeDoc(t, doc, "mine", time.Now().Add(-time.Hour))
+	got, _ := d.find(doc)
+	if got.Found {
+		t.Errorf("want nothing offered, got %+v", got)
+	}
+	if _, err := os.Stat(d.file(doc)); !os.IsNotExist(err) {
+		t.Error("draft file must be removed")
+	}
+}
+
+func TestDraftDroppedWhenHalmosSavedOverIt(t *testing.T) {
+	d := newTestDraftStore(t)
+	doc := filepath.Join(t.TempDir(), "paper.md")
+	if err := d.write(doc, "mine", contentVersion([]byte("one"))); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.markSaved(doc, contentVersion([]byte("saved text"))); err != nil {
+		t.Fatal(err)
+	}
+	writeDoc(t, doc, "saved text", time.Now().Add(-time.Hour))
+	got, _ := d.find(doc)
+	if got.Found {
+		t.Errorf("want nothing offered, got %+v", got)
+	}
+}
+
+func TestDraftOfferedUnchangedDiskIsNotChanged(t *testing.T) {
+	d := newTestDraftStore(t)
+	doc := filepath.Join(t.TempDir(), "paper.md")
+	if err := d.write(doc, "mine", contentVersion([]byte("one"))); err != nil {
+		t.Fatal(err)
+	}
+	writeDoc(t, doc, "one", time.Now().Add(time.Hour))
+	got, _ := d.find(doc)
+	if !got.Found || got.Changed {
+		t.Errorf("want found and not changed, got %+v", got)
+	}
+}
+
+func TestLegacyDraftKeepsMtimeRule(t *testing.T) {
+	d := newTestDraftStore(t)
+	doc := filepath.Join(t.TempDir(), "paper.md")
+	if err := os.MkdirAll(d.dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	legacy := `{"path":"` + doc + `","content":"mine"}`
+	if err := os.WriteFile(d.file(doc), []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	writeDoc(t, doc, "theirs", time.Now().Add(time.Hour))
+	got, _ := d.find(doc)
+	if got.Found {
+		t.Errorf("a legacy draft older than the document must be dropped, got %+v", got)
+	}
+}
+
+func TestDraftMovesWithDocument(t *testing.T) {
+	d := newTestDraftStore(t)
+	a, b := "/papers/a.md", "/papers/b.md"
+	if err := d.write(a, "mine", "v"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.move(a, b); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := d.find(b); !got.Found || got.Content != "mine" {
+		t.Errorf("want the draft under the new path, got %+v", got)
+	}
+	if got, _ := d.find(a); got.Found {
+		t.Error("the old path must have no draft")
+	}
+	if err := d.move("/papers/none.md", "/papers/x.md"); err != nil {
+		t.Errorf("move with no draft must be a no-op, got %v", err)
+	}
+}
+
+func TestDraftWriteClearsSavedOnlyWhenContentChanges(t *testing.T) {
+	d := newTestDraftStore(t)
+	doc := "/papers/a.md"
+	_ = d.write(doc, "mine", "v")
+	_ = d.markSaved(doc, "s")
+	_ = d.write(doc, "mine", "v")
+	df := readDraftFile(t, d, doc)
+	if df.Saved != "s" {
+		t.Errorf("same content must keep Saved, got %q", df.Saved)
+	}
+	_ = d.write(doc, "more", "v")
+	if df := readDraftFile(t, d, doc); df.Saved != "" {
+		t.Errorf("new content must clear Saved, got %q", df.Saved)
+	}
+}
+
+func readDraftFile(t *testing.T, d *draftStore, doc string) draftFile {
+	t.Helper()
+	data, err := os.ReadFile(d.file(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var df draftFile
+	if err := json.Unmarshal(data, &df); err != nil {
+		t.Fatal(err)
+	}
+	return df
+}
+
+// openForDraft writes a document and opens it on a real service, so
+// WriteDraft picks up the tracked base.
+func openForDraft(t *testing.T, s *DocumentService, text string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "paper.md")
+	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.OpenPath(path); err != nil {
+		t.Fatalf("OpenPath: %v", err)
+	}
+	return path
+}
+
+func TestServiceDraftIsChangedAfterAnotherProgramWrites(t *testing.T) {
+	s := newTestService(t)
+	path := openForDraft(t, s, "one")
+	if err := s.WriteDraft(path, "mine"); err != nil {
+		t.Fatalf("WriteDraft: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("theirs"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.RecoverDraft(path)
+	if err != nil || !got.Found || got.Content != "mine" || !got.Changed {
+		t.Errorf("got %+v, %v; want found, changed", got, err)
+	}
+}
+
+func TestServiceDraftDroppedAfterHalmosSaves(t *testing.T) {
+	s := newTestService(t)
+	path := openForDraft(t, s, "one")
+	if err := s.WriteDraft(path, "mine"); err != nil {
+		t.Fatalf("WriteDraft: %v", err)
+	}
+	if res, err := s.Save(path, "mine2", false); err != nil || res.Conflict {
+		t.Fatalf("Save: %+v, %v", res, err)
+	}
+	if got, err := s.RecoverDraft(path); err != nil || got.Found {
+		t.Errorf("got %+v, %v; want not found", got, err)
+	}
+}
+
+func TestServiceDocMovedHookMovesDraftAndRecent(t *testing.T) {
+	s := newTestService(t)
+	from := openForDraft(t, s, "one")
+	to := filepath.Join(filepath.Dir(from), "renamed.md")
+	if err := s.WriteDraft(from, "mine"); err != nil {
+		t.Fatalf("WriteDraft: %v", err)
+	}
+	if err := os.Rename(from, to); err != nil {
+		t.Fatal(err)
+	}
+	notified := 0
+	s.onRecentsChanged = func() { notified++ }
+	s.onDocMoved(from, to)
+
+	if got, _ := s.RecoverDraft(to); !got.Found || got.Content != "mine" {
+		t.Errorf("draft at new path = %+v, want found", got)
+	}
+	if got, _ := s.RecoverDraft(from); got.Found {
+		t.Errorf("draft at old path = %+v, want not found", got)
+	}
+	recents := s.RecentFiles()
+	if len(recents) == 0 || recents[0] != to {
+		t.Errorf("recents = %v, want %s first", recents, to)
+	}
+	for _, p := range recents {
+		if p == from {
+			t.Errorf("recents = %v, still holds %s", recents, from)
+		}
+	}
+	if notified != 1 {
+		t.Errorf("recents notified %d times, want 1", notified)
+	}
+}
+
+func TestDraftWriteNotLostToConcurrentMarkSaved(t *testing.T) {
+	// markSaved reads the draft and writes it back. Unserialised, it can
+	// write back text that a concurrent write has already replaced.
+	d := newTestDraftStore(t)
+	doc := filepath.Join(t.TempDir(), "paper.md")
+	const n = 200
+	var wg sync.WaitGroup
+	done := make(chan struct{})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				_ = d.markSaved(doc, "v")
+			}
+		}
+	}()
+	last := ""
+	for i := 0; i < n; i++ {
+		last = fmt.Sprintf("text %d", i)
+		if err := d.write(doc, last, "base"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	close(done)
+	wg.Wait()
+	df, ok := d.read(doc)
+	if !ok || df.Content != last {
+		t.Errorf("draft = %q, want %q", df.Content, last)
 	}
 }

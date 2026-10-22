@@ -13,14 +13,19 @@ import (
 
 func newTestService(t *testing.T) *DocumentService {
 	t.Helper()
-	return NewDocumentService(filepath.Join(t.TempDir(), "recents.json"))
+	s := NewDocumentService(filepath.Join(t.TempDir(), "recents.json"))
+	// There is no Wails app in tests: record nothing, and stop the document
+	// watcher when the test ends.
+	s.emitDoc = func(string, any) {}
+	t.Cleanup(s.ForgetDocument)
+	return s
 }
 
 func TestSaveAndOpenPathRoundTrip(t *testing.T) {
 	s := newTestService(t)
 	path := filepath.Join(t.TempDir(), "paper.md")
 
-	if err := s.Save(path, "# Title\n$x^2$\n"); err != nil {
+	if _, err := s.Save(path, "# Title\n$x^2$\n", false); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 	doc, err := s.OpenPath(path)
@@ -46,7 +51,7 @@ func TestRecentsOrderDedupeAndCap(t *testing.T) {
 	var paths []string
 	for i := range 12 {
 		p := filepath.Join(dir, string(rune('a'+i))+".md")
-		if err := s.Save(p, "x"); err != nil {
+		if _, err := s.Save(p, "x", false); err != nil {
 			t.Fatalf("Save: %v", err)
 		}
 		paths = append(paths, p)
@@ -100,7 +105,7 @@ func TestDirtyFlag(t *testing.T) {
 		t.Error("should be dirty after SetDirty(true)")
 	}
 	path := filepath.Join(t.TempDir(), "p.md")
-	if err := s.Save(path, "x"); err != nil {
+	if _, err := s.Save(path, "x", false); err != nil {
 		t.Fatal(err)
 	}
 	if s.IsDirty() {
@@ -112,7 +117,7 @@ func TestClearRecents(t *testing.T) {
 	s := newTestService(t)
 	dir := t.TempDir()
 	for _, name := range []string{"a.md", "b.md"} {
-		if err := s.Save(filepath.Join(dir, name), "x"); err != nil {
+		if _, err := s.Save(filepath.Join(dir, name), "x", false); err != nil {
 			t.Fatalf("Save: %v", err)
 		}
 	}
@@ -134,7 +139,7 @@ func TestRecentsChangedCallback(t *testing.T) {
 	dir := t.TempDir()
 
 	path := filepath.Join(dir, "a.md")
-	if err := s.Save(path, "x"); err != nil {
+	if _, err := s.Save(path, "x", false); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 	if fired != 1 {
@@ -270,7 +275,7 @@ func TestAddRecentSurvivesConcurrentSaves(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := range 20 {
 		wg.Go(func() {
-			if err := s.Save(filepath.Join(dir, fmt.Sprintf("f%02d.md", i)), "x"); err != nil {
+			if _, err := s.Save(filepath.Join(dir, fmt.Sprintf("f%02d.md", i)), "x", false); err != nil {
 				t.Errorf("Save: %v", err)
 			}
 		})

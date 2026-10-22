@@ -5,12 +5,13 @@
   import { Table } from '@lezer/markdown'
   import { languages } from '@codemirror/language-data'
   import { keymap, type Command } from '@codemirror/view'
-  import { EditorState, Prec, Compartment } from '@codemirror/state'
+  import { EditorState, Prec, Compartment, Transaction } from '@codemirror/state'
   import { HighlightStyle, syntaxHighlighting, syntaxTree, forceParsing } from '@codemirror/language'
   import { tags } from '@lezer/highlight'
   import type { SyntaxNode } from '@lezer/common'
   import { codeHighlightStyleSpecs } from './lib/syntaxTags'
   import { spellcheckExtension } from './lib/spellcheck'
+  import { minimalChange } from './lib/textDiff'
   import { citationCompletionSource, citationOptionClass, citationOptionTitle, type CitationContext } from './lib/citationCompletion'
   import { autocompletion } from '@codemirror/autocomplete'
   import { citationHover, unknownKeyMarks, refreshCitationsEffect } from './lib/citationEditor'
@@ -227,6 +228,20 @@
     // not steal focus, since that is not current behaviour and was not asked
     // for.
     if (cursor === 'end') view.focus()
+  }
+
+  /**
+   * Applies new text for the SAME document (the file changed on disk) as one
+   * minimal change, so the cursor, scroll position, find panel and undo
+   * history survive; `setContent` is for a different document. `undoable`
+   * says whether ⌘Z may take the reload back: true when the user's own edits
+   * were replaced, false when the reload only brings in what they never had.
+   * Does not scroll or focus. `onchange` fires through the update listener.
+   */
+  export function reloadContent(text: string, undoable: boolean): void {
+    const change = minimalChange(view.state.doc.toString(), text)
+    if (!change) return
+    view.dispatch({ changes: change, annotations: Transaction.addToHistory.of(undoable) })
   }
 
   export function insertAtCursor(text: string): void {

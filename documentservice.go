@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,7 +56,17 @@ type DocumentService struct {
 	// A file macOS asked us to open before the frontend was listening.
 	launch launchFiles
 	// Serialises the read-modify-write of the recents file.
-	recentsMu      sync.Mutex
+	recentsMu sync.Mutex
+	// The open document, against which Save checks the file on disk.
+	// See docstate.go.
+	docMu sync.Mutex
+	doc   trackedDoc
+	// The document watcher's poll interval and event emitter, injectable
+	// for tests; a nil emitDoc emits through Wails. onDocMoved is called,
+	// under no lock, before document:moved is emitted. See docwatch.go.
+	docTick        time.Duration
+	emitDoc        func(name string, data any)
+	onDocMoved     func(from, to string)
 	watchTick      time.Duration
 	emitBibChanged func()
 	watchMu        sync.Mutex
@@ -76,6 +87,7 @@ func NewDocumentService(recentsPath string) *DocumentService {
 		settings:        newSettingsStore(filepath.Join(dataDir, "settings.json")),
 		drafts:          newDraftStore(filepath.Join(dataDir, "drafts")),
 		watchTick:       2 * time.Second,
+		docTick:         time.Second,
 		caywBase:        "http://127.0.0.1:23119",
 		updateFeed:      updateFeedURL,
 		updateStatePath: filepath.Join(dataDir, "update-check.json"),
@@ -83,6 +95,10 @@ func NewDocumentService(recentsPath string) *DocumentService {
 		version:         appVersion,
 	}
 	s.drafts.prune(time.Now())
+	s.onDocMoved = func(from, to string) {
+		_ = s.drafts.move(from, to)
+		s.moveRecent(from, to)
+	}
 	return s
 }
 
@@ -91,17 +107,40 @@ func (s *DocumentService) OpenPath(path string) (Document, error) {
 	if err != nil {
 		return Document{}, err
 	}
+	s.docMu.Lock()
+	s.trackDocument(path, data)
+	s.docMu.Unlock()
 	s.addRecent(path)
 	return Document{Path: path, Content: string(data)}, nil
 }
 
-func (s *DocumentService) Save(path, content string) error {
-	if err := writeFileAtomic(path, []byte(content), 0o644); err != nil {
-		return err
+// Save writes content to path. When path is the tracked document and
+// overwrite is false, it first reads the file, and if another program has
+// changed it since the editor last matched it, returns a conflict without
+// writing. A missing file is not a conflict: saving recreates it. Any other
+// read error is returned rather than written over unchecked.
+func (s *DocumentService) Save(path, content string, overwrite bool) (SaveResult, error) {
+	s.docMu.Lock()
+	defer s.docMu.Unlock()
+	if !overwrite && path == s.doc.path {
+		disk, err := os.ReadFile(path)
+		switch {
+		case err == nil:
+			if contentVersion(disk) != s.doc.base {
+				return SaveResult{Conflict: true}, nil
+			}
+		case !errors.Is(err, os.ErrNotExist):
+			return SaveResult{}, err
+		}
 	}
+	if err := writeFileAtomic(path, []byte(content), 0o644); err != nil {
+		return SaveResult{}, err
+	}
+	s.trackDocument(path, []byte(content))
+	_ = s.drafts.markSaved(path, contentVersion([]byte(content)))
 	s.addRecent(path)
 	s.dirty.Store(false)
-	return nil
+	return SaveResult{}, nil
 }
 
 // RecentFiles takes no lock: the list is written atomically, so a concurrent
@@ -153,7 +192,13 @@ func (s *DocumentService) IsDirty() bool {
 // discarded on the dirty-to-clean transition); the store decides whether a
 // draft is still worth offering. See recovery.go.
 func (s *DocumentService) WriteDraft(docPath, content string) error {
-	return s.drafts.write(docPath, content)
+	base := ""
+	s.docMu.Lock()
+	if docPath != "" && docPath == s.doc.path {
+		base = s.doc.base
+	}
+	s.docMu.Unlock()
+	return s.drafts.write(docPath, content, base)
 }
 
 func (s *DocumentService) DiscardDraft(docPath string) error {
@@ -213,7 +258,8 @@ func (s *DocumentService) SaveAs(content string) (string, error) {
 	if err != nil || path == "" {
 		return "", err
 	}
-	if err := s.Save(path, content); err != nil {
+	// The save panel has already asked about replacing an existing file.
+	if _, err := s.Save(path, content, true); err != nil {
 		return "", err
 	}
 	return path, nil
@@ -307,7 +353,7 @@ func (s *DocumentService) CreateDocument(path, content, bibName, bibContent stri
 			return Document{}, fmt.Errorf("checking for bibliography: %w", err)
 		}
 	}
-	if err := s.Save(path, content); err != nil {
+	if _, err := s.Save(path, content, true); err != nil {
 		return Document{}, err
 	}
 	return Document{Path: path, Content: content}, nil
@@ -451,11 +497,31 @@ func (s *DocumentService) addRecent(path string) {
 	s.notifyRecentsChanged()
 }
 
-func (s *DocumentService) storeRecentLocked(path string) error {
-	recents := slices.DeleteFunc(s.readRecents(), func(p string) bool { return p == path })
-	recents = slices.Insert(recents, 0, path)
-	recents = recents[:min(len(recents), maxRecents)]
+// moveRecent replaces from with to at the front of the list, after the open
+// document was moved, in one read-modify-write and one notification.
+func (s *DocumentService) moveRecent(from, to string) {
+	s.recentsMu.Lock()
+	recents := slices.DeleteFunc(s.readRecents(), func(p string) bool { return p == from })
+	err := s.writeRecentsLocked(withRecent(recents, to))
+	s.recentsMu.Unlock()
+	if err != nil {
+		return
+	}
+	s.notifyRecentsChanged()
+}
 
+func (s *DocumentService) storeRecentLocked(path string) error {
+	return s.writeRecentsLocked(withRecent(s.readRecents(), path))
+}
+
+// withRecent moves path to the front of recents, capped at maxRecents.
+func withRecent(recents []string, path string) []string {
+	recents = slices.DeleteFunc(recents, func(p string) bool { return p == path })
+	recents = slices.Insert(recents, 0, path)
+	return recents[:min(len(recents), maxRecents)]
+}
+
+func (s *DocumentService) writeRecentsLocked(recents []string) error {
 	if err := os.MkdirAll(filepath.Dir(s.recentsPath), 0o755); err != nil {
 		return err
 	}

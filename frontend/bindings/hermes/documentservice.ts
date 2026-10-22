@@ -10,6 +10,16 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
+ * AcceptDiskVersion makes version the base, so the next Save does not treat
+ * it as a conflict. Only the version last seen on disk is accepted: anything
+ * else is stale, and accepting it would let a Save overwrite a change the
+ * author never saw.
+ */
+export function AcceptDiskVersion(version: string): $CancellablePromise<void> {
+    return $Call.ByID(2995279531, version);
+}
+
+/**
  * CheckForUpdates compares the running version with the feed's. force skips
  * the once-a-day throttle and the setting gate; the Help menu's manual item
  * passes true, the automatic check at launch passes false.
@@ -107,6 +117,14 @@ export function ExportPDF(docPath: string): $CancellablePromise<void> {
 }
 
 /**
+ * ForgetDocument clears the tracked document and stops watching it, so a
+ * later Save to its path is not checked.
+ */
+export function ForgetDocument(): $CancellablePromise<void> {
+    return $Call.ByID(4244315604);
+}
+
+/**
  * ImportData opens a native picker for a delimited data file and returns its
  * contents. The reading half is split into readDataFile so it stays testable,
  * the same way ReadBibliography is testable while Open is not.
@@ -192,8 +210,15 @@ export function RecoverDraft(docPath: string): $CancellablePromise<$models.Draft
     return $Call.ByID(2854644563, docPath);
 }
 
-export function Save(path: string, content: string): $CancellablePromise<void> {
-    return $Call.ByID(494444433, path, content);
+/**
+ * Save writes content to path. When path is the tracked document and
+ * overwrite is false, it first reads the file, and if another program has
+ * changed it since the editor last matched it, returns a conflict without
+ * writing. A missing file is not a conflict: saving recreates it. Any other
+ * read error is returned rather than written over unchecked.
+ */
+export function Save(path: string, content: string, overwrite: boolean): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(494444433, path, content, overwrite);
 }
 
 export function SaveAs(content: string): $CancellablePromise<string> {

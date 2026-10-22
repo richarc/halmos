@@ -50,7 +50,7 @@ So the four cases can be told apart from one `stat` of the path plus one
 - Path exists, same inode → maybe changed in place: compare content.
 - Path exists, new inode → replaced: compare content, reopen the new file.
 - Path missing, open file reports a different path → moved there. A path
-  inside `~/.Trash` counts as deleted.
+  inside `~/.Trash`, or another volume's `.Trashes`, counts as deleted.
 - Path missing, open file reports the original path → deleted.
 
 ## Recommendation
