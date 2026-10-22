@@ -24,7 +24,7 @@ Serves: M0.15
 
 Tidy what is there before v1.0.0 adds anything. More items to follow.
 
-- [ ] **Investigate following changes made to the open file by something
+- [x] **Investigate following changes made to the open file by something
       else**, such as another editor or a program that generates content
       into the file. Today nothing watches the open document. Halmos keeps
       showing the text it loaded, and Save writes over the other program's
@@ -46,6 +46,27 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
         on disk is newer; check that still holds.
       The outcome is a recommendation with a size estimate, built in this
       release or later.
+      *Done 2026-10-22*: build it in this release, about 7 days
+      (`docs/superpowers/specs/2026-10-22-external-file-changes-design.md`).
+      Found on the way: a recovery draft is deleted, and the unsaved edits
+      lost, when another program writes the document after the last draft
+      and Halmos then crashes.
+- [ ] **Follow changes made to the open file by something else**, as the
+      investigation above recommends:
+      - The text on disk gets a version (its content hash) on open and save.
+      - Save checks the file first and asks before overwriting a change
+        made by another program, including Save from the close and quit
+        question.
+      - A watcher polls the open document every second, acts only once the
+        file has settled, and never reacts to Halmos's own saves.
+      - With no unsaved edits the file reloads silently, keeping cursor,
+        scroll and undo history. With unsaved edits, ask once per change:
+        Keep Mine or Use File (undoable).
+      - A moved file is followed; a deleted one keeps its text, marked
+        unsaved. Can move to v1.0.0 if the release runs long.
+      - Recovery drafts are dropped only when the file holds the same text
+        or Halmos saved over them, fixing the lost-draft bug.
+      A view of the difference between the two versions is backlog.
 - [ ] **An Export menu.** Move Export PDF… (⌘E), Export HTML…, Export
       Word… and Export LaTeX… out of File into their own top-level menu.
       They are added in `menu.go` (`addPandocExportItems` for Word and
