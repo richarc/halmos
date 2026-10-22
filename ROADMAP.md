@@ -18,6 +18,32 @@ citations stay free; the paid features are the hosted services that cost
 money to run (conversion, reference lookups, AI); and AI removes routine
 work but does not write the paper.
 
+## v0.15.0 — Clean-up before 1.0
+
+Serves: M0.15
+
+Tidy what is there before v1.0.0 adds anything. More items to follow.
+
+- [ ] **Auto Save does what its name says.** It does not behave the way
+      it was expected to; details to follow. Today the `autoSave` setting
+      only writes recovery drafts (`recovery.go`, `lib/recoveryDraft.ts`):
+      debounced 2 s while the document is dirty, kept under
+      `<data>/hermes/drafts/`, offered back after a crash, and never written
+      over the document. Explicit Save is the only thing that changes the
+      file. Start by checking that behaviour works as designed, then decide
+      what the setting should do.
+- [ ] **An Export menu.** Move Export PDF… (⌘E), Export HTML…, Export
+      Word… and Export LaTeX… out of File into their own top-level menu.
+      They are added in `menu.go` (`addPandocExportItems` for Word and
+      LaTeX); the `menu:export-*` events and the frontend handlers stay as
+      they are.
+- [ ] **Chart builder improvements.** Scope to follow. Candidates already
+      recorded: layered charts (Backlog) and the builder left open when the
+      window closes (v0.11.4 leftovers).
+- [ ] **Architecture, performance and security review** of the whole app
+      before v1.0.0. Findings that block 1.0 are fixed here; the rest go to
+      the Backlog with the reasons, like the earlier review leftovers.
+
 ## v1.0.0 — Production
 
 Serves: M1.0
