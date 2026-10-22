@@ -100,6 +100,12 @@ func (s *DocumentService) pollDocument(ctx context.Context) {
 	if name == "" {
 		return
 	}
+	// checkDocument saw a live context under the lock, but a Save may have
+	// stopped this watcher and started another since it was released. An
+	// event from the stopped one would describe a file Halmos just wrote.
+	if ctx.Err() != nil {
+		return
+	}
 	if move, ok := data.(DocMove); ok && moved != nil {
 		moved(move.From, move.To)
 	}
