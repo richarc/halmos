@@ -1213,7 +1213,7 @@
     const snapshot = content // what we're writing (content may change mid-await)
     try {
       if (path) {
-        await DocumentService.Save(path, snapshot)
+        await DocumentService.Save(path, snapshot, false)
       } else {
         const newPath = await DocumentService.SaveAs(snapshot)
         if (!newPath) return false // cancelled

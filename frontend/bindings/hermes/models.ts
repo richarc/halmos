@@ -96,6 +96,14 @@ export interface PortalError {
 }
 
 /**
+ * SaveResult tells the frontend whether Save wrote. Conflict means the file
+ * changed on disk since the editor last matched it, and nothing was written.
+ */
+export interface SaveResult {
+    "conflict": boolean;
+}
+
+/**
  * Settings holds every persisted user preference in one value. Adding a
  * preference means adding a field with a json tag, a default in
  * defaultSettings, and a clamp in normalise — persistence, change

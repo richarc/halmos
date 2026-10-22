@@ -19,6 +19,7 @@ export type {
     ExportImage,
     PairingInfo,
     PortalError,
+    SaveResult,
     Settings,
     UpdateResult,
     WelcomeInfo
