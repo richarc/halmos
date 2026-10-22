@@ -107,6 +107,13 @@
   // docPath it was offered for, captured up front so Discard Draft still
   // targets the right draft after dismissRecovery has cleared `recovery`.
   let recovery = $state<{ key: string; content: string } | null>(null)
+  // Another program changed the open document while it had unsaved edits
+  // here, awaiting Keep Mine / Use File. A later change replaces it, so the
+  // answer always applies to the newest version on disk.
+  let diskChange = $state<{ version: string; content: string } | null>(null)
+  // A Save that found the file changed on disk, awaiting Overwrite / Cancel.
+  // Holds the resolver of askOverwrite's promise; null when no dialog is up.
+  let overwriteAnswer = $state<((overwrite: boolean) => void) | null>(null)
   // One toast per document for a failing draft write: a toast every two
   // seconds while typing would be worse than no insurance.
   let draftWriteWarned = false
@@ -925,6 +932,7 @@
     // A swap makes any pending offer moot; the draft file stays on disk and
     // is offered again when that document is next opened.
     recovery = null
+    diskChange = null
     path = docPath
     content = docContent
     welcomeDismissed = true
@@ -979,6 +987,58 @@
     // without a draft to ask about. Only the untitled path can be here with
     // an empty buffer.
     if (path === null && content === '' && recents.length === 0) doNew()
+  }
+
+  // document:changed from Go's watcher. Halmos's own saves never send it.
+  // A clean document takes the new text without asking; a dirty one asks.
+  function onDiskChange(change: { path: string; version: string; content: string }) {
+    // The previous document's watcher can still report after a switch.
+    if (change.path !== path) return
+    if (!dirty) {
+      useDiskVersion(change, false)
+      return
+    }
+    diskChange = { version: change.version, content: change.content }
+  }
+
+  // `undoable` is false for the silent reload and true for Use File, so ⌘Z
+  // brings back the text the user chose to replace.
+  function useDiskVersion(change: { version: string; content: string }, undoable: boolean) {
+    editor.reloadContent(change.content, undoable) // fires onEditorChange, queueing a render
+    content = change.content
+    savedContent = change.content
+    acceptDiskVersion(change.version)
+  }
+
+  // A failure is logged, not shown: the cost is one extra conflict question
+  // at the next Save.
+  function acceptDiskVersion(version: string) {
+    void DocumentService.AcceptDiskVersion(version).catch((err) => console.warn('AcceptDiskVersion:', err))
+  }
+
+  // Keep Mine, and Esc: the edits stay and stay unsaved, and the file's
+  // version becomes the base, so the next Save does not ask about it again.
+  function keepMine() {
+    const change = diskChange
+    diskChange = null
+    if (change) acceptDiskVersion(change.version)
+  }
+
+  function useFile() {
+    const change = diskChange
+    diskChange = null
+    if (change) useDiskVersion(change, true)
+  }
+
+  // Resolves true on Overwrite, false on Cancel or Esc.
+  function askOverwrite(): Promise<boolean> {
+    return new Promise((resolve) => (overwriteAnswer = resolve))
+  }
+
+  function answerOverwrite(overwrite: boolean) {
+    const resolve = overwriteAnswer
+    overwriteAnswer = null
+    resolve?.(overwrite)
   }
 
   function discardRecoveredDraft() {
@@ -1141,7 +1201,10 @@
     // A swap makes any pending offer moot; the draft file stays on disk and
     // is offered again when that document is next opened.
     recovery = null
+    diskChange = null
     path = null
+    // Untitled: Go stops watching the old file and checking saves against it.
+    void DocumentService.ForgetDocument().catch((err) => console.warn('ForgetDocument:', err))
     // 'end' lands the cursor (and focus) below the frontmatter so the user
     // can start typing immediately; loadDocument() below relies on the
     // 'start' default instead, since opening a file must not relocate where
@@ -1213,7 +1276,14 @@
     const snapshot = content // what we're writing (content may change mid-await)
     try {
       if (path) {
-        await DocumentService.Save(path, snapshot, false)
+        const docPath = path
+        const result = await DocumentService.Save(docPath, snapshot, false)
+        // Another program changed the file since Halmos last matched it, and
+        // nothing was written. Replacing that is the user's call.
+        if (result.conflict) {
+          if (!(await askOverwrite())) return false
+          await DocumentService.Save(docPath, snapshot, true)
+        }
       } else {
         const newPath = await DocumentService.SaveAs(snapshot)
         if (!newPath) return false // cancelled
@@ -1342,7 +1412,9 @@
     drafts.reset()
     draftWriteWarned = false
     recovery = null
+    diskChange = null
     path = null
+    void DocumentService.ForgetDocument().catch((err) => console.warn('ForgetDocument:', err))
     editor.setContent('')
     content = ''
     savedContent = ''
@@ -1411,6 +1483,11 @@
       pendingAction = intent
     })
     Events.On('document:closed', closeDocument)
+    Events.On('document:changed', (ev: { data: unknown }) => {
+      const d = ev.data as { path?: unknown; version?: unknown; content?: unknown } | null
+      if (typeof d?.path !== 'string' || typeof d.version !== 'string' || typeof d.content !== 'string') return
+      onDiskChange({ path: d.path, version: d.version, content: d.content })
+    })
     // Finder's Open With while running (#19); same path as Open Recent, so
     // unsaved changes are asked about first.
     Events.On('file:open', (ev: { data: unknown }) => {
@@ -1688,6 +1765,34 @@
     {#snippet footer()}
       <button class="dialog-alt" onclick={discardRecoveredDraft}>Discard Draft</button>
       <button class="primary" onclick={restoreDraft}>Restore</button>
+    {/snippet}
+  </Dialog>
+
+  <Dialog
+    open={diskChange !== null}
+    label="Changed on disk"
+    title="Changed on disk"
+    role="alertdialog"
+    onclose={keepMine}
+  >
+    <p>"{filename}" was changed by another program, and there are unsaved changes here.</p>
+    {#snippet footer()}
+      <button onclick={keepMine}>Keep Mine</button>
+      <button class="primary" onclick={useFile}>Use File</button>
+    {/snippet}
+  </Dialog>
+
+  <Dialog
+    open={overwriteAnswer !== null}
+    label="Changed on disk"
+    title="Changed on disk"
+    role="alertdialog"
+    onclose={() => answerOverwrite(false)}
+  >
+    <p>"{filename}" was changed by another program since it was opened. Save anyway and replace those changes?</p>
+    {#snippet footer()}
+      <button onclick={() => answerOverwrite(false)}>Cancel</button>
+      <button class="primary" onclick={() => answerOverwrite(true)}>Overwrite</button>
     {/snippet}
   </Dialog>
 

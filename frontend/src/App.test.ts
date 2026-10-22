@@ -40,6 +40,8 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       Save: vi.fn(async () => ({ conflict: false })),
       SaveAs: vi.fn(async () => ''),
       Quit: vi.fn(async () => {}),
+      AcceptDiskVersion: vi.fn(async (_version: string) => {}),
+      ForgetDocument: vi.fn(async () => {}),
       CloseWindow: vi.fn(async () => {}),
       TakeLaunchFile: vi.fn(async () => ''),
       PickCitations: vi.fn(async () => ''),
@@ -2014,6 +2016,223 @@ describe('closing the window', () => {
     flushSync()
 
     expect(target.textContent).toContain('Finish or cancel the chart before closing')
+  })
+})
+
+describe('changes made by another program', () => {
+  const MINE = '# Results\n\nMine.\n'
+  const THEIRS = '# Results\n\nTheirs.\n'
+
+  // Save resolves { conflict: true } once in some tests below; put the
+  // default back so it cannot leak into the next.
+  beforeEach(() => {
+    DocumentService.Save.mockImplementation(async () => ({ conflict: false }))
+  })
+
+  function changed(content: string, version = 'v2', path = '/tmp/paper.md') {
+    listeners['document:changed']({ data: { path, version, content } })
+    flushSync()
+  }
+
+  // Both questions are titled "Changed on disk"; the one up is the open one.
+  function openQuestions(target: HTMLElement) {
+    return [...target.querySelectorAll<HTMLDialogElement>('dialog[aria-label="Changed on disk"]')].filter((d) => d.open)
+  }
+
+  function editorText(target: HTMLElement) {
+    return EditorView.findFromDOM(target.querySelector('.cm-editor')!)!.state.doc.toString()
+  }
+
+  function typeX(target: HTMLElement) {
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: 0, to: 0, insert: 'x' } })
+    flushSync()
+  }
+
+  async function settledClean() {
+    await vi.waitFor(() => expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(false))
+  }
+
+  it('reloads a clean document silently', async () => {
+    const target = await openDoc(MINE)
+    changed(THEIRS)
+
+    expect(editorText(target)).toBe(THEIRS)
+    await vi.waitFor(() => expect(target.querySelector('.preview-pane')!.textContent).toContain('Theirs.'))
+    expect(openQuestions(target)).toHaveLength(0)
+    await vi.waitFor(() => expect(DocumentService.AcceptDiskVersion).toHaveBeenCalledWith('v2'))
+    await settledClean()
+    expect(target.querySelector('.status-name')!.textContent).not.toContain('Edited')
+  })
+
+  // A watcher event from the previous document can land after a switch.
+  it('ignores a change for another path', async () => {
+    const target = await openDoc(MINE)
+    changed(THEIRS, 'v2', '/tmp/other.md')
+
+    expect(editorText(target)).toBe(MINE)
+    expect(openQuestions(target)).toHaveLength(0)
+    expect(DocumentService.AcceptDiskVersion).not.toHaveBeenCalled()
+  })
+
+  it('asks when there are unsaved edits', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    changed(THEIRS)
+
+    const [dlg] = openQuestions(target)
+    expect(dlg).toBeDefined()
+    expect(dlg.getAttribute('role')).toBe('alertdialog')
+    expect(dlg.textContent).toContain('"paper.md" was changed by another program, and there are unsaved changes here.')
+    expect(buttonByText(dlg, 'Keep Mine')).toBeDefined()
+    expect(buttonByText(dlg, 'Use File')!.classList).toContain('primary')
+    expect(editorText(target)).toBe('x' + MINE)
+    expect(DocumentService.AcceptDiskVersion).not.toHaveBeenCalled()
+  })
+
+  it('Keep Mine keeps the text and accepts the version', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    changed(THEIRS)
+    buttonByText(openQuestions(target)[0], 'Keep Mine')!.click()
+    flushSync()
+
+    expect(openQuestions(target)).toHaveLength(0)
+    expect(editorText(target)).toBe('x' + MINE)
+    await vi.waitFor(() => expect(DocumentService.AcceptDiskVersion).toHaveBeenCalledWith('v2'))
+    expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true)
+  })
+
+  // Esc must not be destructive, the same rule as the recovery dialog.
+  it('Esc on the question keeps mine', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    changed(THEIRS)
+    openQuestions(target)[0].dispatchEvent(new Event('cancel'))
+    flushSync()
+
+    expect(openQuestions(target)).toHaveLength(0)
+    expect(editorText(target)).toBe('x' + MINE)
+    await vi.waitFor(() => expect(DocumentService.AcceptDiskVersion).toHaveBeenCalledWith('v2'))
+  })
+
+  it('Use File applies the file and accepts it', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    changed(THEIRS)
+    buttonByText(openQuestions(target)[0], 'Use File')!.click()
+    flushSync()
+
+    expect(openQuestions(target)).toHaveLength(0)
+    expect(editorText(target)).toBe(THEIRS)
+    await vi.waitFor(() => expect(DocumentService.AcceptDiskVersion).toHaveBeenCalledWith('v2'))
+    await settledClean()
+  })
+
+  it('a second change replaces the open question', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    changed(THEIRS, 'v2')
+    changed('# Results\n\nThird.\n', 'v3')
+
+    expect(openQuestions(target)).toHaveLength(1)
+    buttonByText(openQuestions(target)[0], 'Use File')!.click()
+    flushSync()
+
+    expect(editorText(target)).toBe('# Results\n\nThird.\n')
+    await vi.waitFor(() => expect(DocumentService.AcceptDiskVersion).toHaveBeenCalledWith('v3'))
+    expect(DocumentService.AcceptDiskVersion).not.toHaveBeenCalledWith('v2')
+  })
+
+  it('a stream of changes on a clean document asks nothing', async () => {
+    const target = await openDoc(MINE)
+    for (let i = 1; i <= 5; i++) changed(`# Results\n\nVersion ${i}.\n`, `v${i}`)
+
+    expect(openQuestions(target)).toHaveLength(0)
+    expect(editorText(target)).toBe('# Results\n\nVersion 5.\n')
+    await vi.waitFor(() => expect(DocumentService.AcceptDiskVersion).toHaveBeenLastCalledWith('v5'))
+    await settledClean()
+  })
+
+  it('Save asks before overwriting, and Overwrite writes', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    DocumentService.Save.mockResolvedValueOnce({ conflict: true })
+    listeners['menu:save']({ data: null })
+
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(1))
+    const dlg = openQuestions(target)[0]
+    expect(dlg.getAttribute('role')).toBe('alertdialog')
+    expect(dlg.textContent).toContain(
+      '"paper.md" was changed by another program since it was opened. Save anyway and replace those changes?',
+    )
+    expect(buttonByText(dlg, 'Overwrite')!.classList).toContain('primary')
+    buttonByText(dlg, 'Overwrite')!.click()
+
+    await vi.waitFor(() => expect(DocumentService.Save).toHaveBeenLastCalledWith('/tmp/paper.md', 'x' + MINE, true))
+    await settledClean()
+    expect(openQuestions(target)).toHaveLength(0)
+  })
+
+  it('Save asks before overwriting, and Cancel writes nothing', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    DocumentService.Save.mockResolvedValueOnce({ conflict: true })
+    listeners['menu:save']({ data: null })
+
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(1))
+    buttonByText(openQuestions(target)[0], 'Cancel')!.click()
+    flushSync()
+    await Promise.resolve()
+
+    expect(openQuestions(target)).toHaveLength(0)
+    expect(DocumentService.Save).toHaveBeenCalledTimes(1)
+    expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true)
+  })
+
+  it('quit with Save meets a conflict: Cancel stays, Overwrite quits', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    const unsaved = target.querySelector<HTMLDialogElement>('dialog[aria-label="Unsaved changes"]')!
+
+    DocumentService.Save.mockResolvedValueOnce({ conflict: true })
+    listeners['close:confirm']({ data: 'quit' })
+    flushSync()
+    buttonByText(unsaved, 'Save')!.click()
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(1))
+    buttonByText(openQuestions(target)[0], 'Cancel')!.click()
+    flushSync()
+    await vi.waitFor(() => expect(unsaved.open).toBe(false))
+    expect(DocumentService.Quit).not.toHaveBeenCalled()
+    expect(DocumentService.Save).toHaveBeenCalledTimes(1)
+    expect(target.querySelector('.status-name')!.textContent).toContain('Edited')
+
+    DocumentService.Save.mockResolvedValueOnce({ conflict: true })
+    listeners['close:confirm']({ data: 'quit' })
+    flushSync()
+    buttonByText(unsaved, 'Save')!.click()
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(1))
+    buttonByText(openQuestions(target)[0], 'Overwrite')!.click()
+
+    await vi.waitFor(() => expect(DocumentService.Quit).toHaveBeenCalled())
+    expect(DocumentService.Save).toHaveBeenLastCalledWith('/tmp/paper.md', 'x' + MINE, true)
+  })
+
+  // menu:new only opens the New… dialog, which can be cancelled with this
+  // document still open, so the untitled template (doNew) is what forgets.
+  // It is reached from a close with no recents, and from the welcome pane.
+  it('new and close forget the document', async () => {
+    const target = await openDoc(MINE)
+    DocumentService.ForgetDocument.mockClear()
+    listeners['document:closed']({ data: null })
+    flushSync()
+    expect(DocumentService.ForgetDocument).toHaveBeenCalledTimes(1)
+
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    DocumentService.ForgetDocument.mockClear()
+    buttonByText(target, 'Clear')!.click()
+    await vi.waitFor(() => expect(editorText(target)).toContain('bibliography: references.bib'))
+    expect(DocumentService.ForgetDocument).toHaveBeenCalledTimes(1)
   })
 })
 
