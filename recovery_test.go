@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -494,5 +496,40 @@ func TestServiceDocMovedHookMovesDraftAndRecent(t *testing.T) {
 	}
 	if notified != 1 {
 		t.Errorf("recents notified %d times, want 1", notified)
+	}
+}
+
+func TestDraftWriteNotLostToConcurrentMarkSaved(t *testing.T) {
+	// markSaved reads the draft and writes it back. Unserialised, it can
+	// write back text that a concurrent write has already replaced.
+	d := newTestDraftStore(t)
+	doc := filepath.Join(t.TempDir(), "paper.md")
+	const n = 200
+	var wg sync.WaitGroup
+	done := make(chan struct{})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				_ = d.markSaved(doc, "v")
+			}
+		}
+	}()
+	last := ""
+	for i := 0; i < n; i++ {
+		last = fmt.Sprintf("text %d", i)
+		if err := d.write(doc, last, "base"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	close(done)
+	wg.Wait()
+	df, ok := d.read(doc)
+	if !ok || df.Content != last {
+		t.Errorf("draft = %q, want %q", df.Content, last)
 	}
 }

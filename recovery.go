@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -44,6 +45,9 @@ const draftMaxAge = 30 * 24 * time.Hour
 // draft the document has since caught up with. See find.
 type draftStore struct {
 	dir string
+	// mu serialises every read-modify-write of a draft file, so a write and
+	// a markSaved cannot interleave and leave older text marked Saved.
+	mu sync.Mutex
 }
 
 func newDraftStore(dir string) *draftStore {
@@ -67,6 +71,8 @@ func (d *draftStore) file(docPath string) string {
 }
 
 func (d *draftStore) write(docPath, content, base string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if err := os.MkdirAll(d.dir, 0o700); err != nil {
 		return err
 	}
@@ -85,6 +91,7 @@ func (d *draftStore) write(docPath, content, base string) error {
 }
 
 // read loads the draft file; ok is false when it is missing or unreadable.
+// The caller holds mu.
 func (d *draftStore) read(docPath string) (draftFile, bool) {
 	data, err := os.ReadFile(d.file(docPath))
 	if err != nil {
@@ -101,6 +108,8 @@ func (d *draftStore) read(docPath string) (draftFile, bool) {
 // draft stood, so find can tell its own save from another program's write.
 // No draft, no work.
 func (d *draftStore) markSaved(docPath, version string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	df, ok := d.read(docPath)
 	if !ok {
 		return nil
@@ -116,6 +125,8 @@ func (d *draftStore) markSaved(docPath, version string) error {
 // move re-files the draft under another document path, after the document
 // was renamed. No draft, no work.
 func (d *draftStore) move(from, to string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	df, ok := d.read(from)
 	if !ok {
 		return nil
@@ -138,6 +149,8 @@ func (d *draftStore) move(from, to string) error {
 // the frontend discards on every dirty-to-clean transition, and most of
 // those have no draft to remove.
 func (d *draftStore) discard(docPath string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	err := os.Remove(d.file(docPath))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
@@ -154,6 +167,8 @@ func (d *draftStore) discard(docPath string) error {
 // keep the old rule: dropped when the document is not older. A document that
 // cannot be read does not disqualify the draft — it may be all that is left.
 func (d *draftStore) find(docPath string) (Draft, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	name := d.file(docPath)
 	data, err := os.ReadFile(name)
 	if errors.Is(err, os.ErrNotExist) {
