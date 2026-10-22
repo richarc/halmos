@@ -413,13 +413,13 @@ when a key inserts but will not resolve — is in
 
 ## Exporting to PDF
 
-**File → Export PDF…** (⌘E) prints the rendered preview, including maths,
+**Export → Export PDF…** (⌘E) prints the rendered preview, including maths,
 charts, and the References section. Page orientation is set under **File → PDF
 Orientation** and is remembered between sessions.
 
 ## Exporting to Word and LaTeX
 
-**File → Export Word…** and **File → Export LaTeX…** send the document to
+**Export → Export Word…** and **Export → Export LaTeX…** send the document to
 halmoseditor.com, where Pandoc converts it with the document's citation style;
 nothing is installed on the Mac. They need a Halmos account: the first export
 connects this Mac to it through the browser, and **Halmos Editor → Account…**

@@ -295,22 +295,53 @@ func TestAppMenuHasAccountAfterAbout(t *testing.T) {
 	}
 }
 
-func TestPandocExportItemsFollowExportHTML(t *testing.T) {
+// Exporting has its own top-level menu, right after File: PDF (⌘E) and HTML,
+// which the app makes itself, then Word and LaTeX, which go through the
+// portal's conversion.
+func TestExportMenu(t *testing.T) {
 	testApp()
-	file := application.NewMenu()
-	var got []any
-	addPandocExportItems(file, func(name string, data ...any) { got = append(got, name, data[0]) })
-	if file.ItemAt(0).Label() != "Export Word…" || file.ItemAt(1).Label() != "Export LaTeX…" {
-		t.Fatalf("items %q, %q", file.ItemAt(0).Label(), file.ItemAt(1).Label())
+	menu := application.NewMenu()
+	menu.AddSubmenu("File")
+	addExportMenu(menu, func(string, ...any) {})
+	item := menu.ItemAt(1)
+	if item == nil || !item.IsSubmenu() || item.Label() != "Export" {
+		t.Fatalf("second top-level item is not the Export menu")
 	}
+	export := item.GetSubmenu()
+	want := []string{"Export PDF…", "Export HTML…", "", "Export Word…", "Export LaTeX…"}
+	for i, label := range want {
+		it := export.ItemAt(i)
+		if it == nil {
+			t.Fatalf("item %d missing, want %q", i, label)
+		}
+		if label == "" {
+			if !it.IsSeparator() {
+				t.Errorf("item %d is %q, want a separator", i, it.Label())
+			}
+			continue
+		}
+		if it.Label() != label {
+			t.Errorf("item %d is %q, want %q", i, it.Label(), label)
+		}
+	}
+	if export.ItemAt(len(want)) != nil {
+		t.Errorf("Export has more than %d items", len(want))
+	}
+	if acc := export.ItemAt(0).GetAccelerator(); acc != "Cmd+E" && acc != "cmdorctrl+e" {
+		t.Errorf("Export PDF… accelerator %q, want ⌘E", acc)
+	}
+}
+
+// File no longer carries the export items; Print… stays there.
+func TestFileMenuHasNoExportItems(t *testing.T) {
 	src, err := os.ReadFile("menu.go")
 	if err != nil {
 		t.Fatal(err)
 	}
-	html := strings.Index(string(src), `file.Add("Export HTML…")`)
-	pandoc := strings.Index(string(src), "addPandocExportItems(file, docEmit)")
-	next := strings.Index(string(src)[html+1:], "file.Add")
-	if html < 0 || pandoc < html || (next >= 0 && html+1+next < pandoc) {
-		t.Error("addPandocExportItems(file, docEmit) must come right after Export HTML…")
+	if strings.Contains(string(src), `file.Add("Export`) {
+		t.Error("an Export item is still added to File")
+	}
+	if !strings.Contains(string(src), `file.Add("Print…")`) {
+		t.Error("Print… is no longer in File")
 	}
 }

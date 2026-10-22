@@ -244,7 +244,7 @@ func pandocExportTarget(format, docPath string) (dir, name string) {
 	return filepath.Dir(docPath), strings.TrimSuffix(base, filepath.Ext(base)) + ext
 }
 
-// ChooseExportPath asks where File → Export Word… or Export LaTeX… should
+// ChooseExportPath asks where Export → Export Word… or Export LaTeX… should
 // write, before anything is sent: a cancelled save sends nothing. "" means
 // cancelled.
 func (s *PortalService) ChooseExportPath(format, docPath string) (string, error) {

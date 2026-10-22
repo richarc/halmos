@@ -186,7 +186,7 @@ Footnotes are listed after the References section.
 
 ## 6. Export
 
-**File → Export PDF…** (⌘E) includes the formatted citations, the References
+**Export → Export PDF…** (⌘E) includes the formatted citations, the References
 section and the footnotes. Check the unknown-citation count first: an unknown
 key prints as a red `[@key?]`.
 

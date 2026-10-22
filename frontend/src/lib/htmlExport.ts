@@ -1,4 +1,4 @@
-// File → Export HTML…: the rendered preview as one self-contained page.
+// Export → Export HTML…: the rendered preview as one self-contained page.
 //
 // App.svelte imports this module dynamically, only when exporting, so neither
 // it nor the KaTeX stylesheet and fonts it pulls in lazily are part of the
