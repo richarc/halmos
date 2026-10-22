@@ -24,14 +24,28 @@ Serves: M0.15
 
 Tidy what is there before v1.0.0 adds anything. More items to follow.
 
-- [ ] **Auto Save does what its name says.** It does not behave the way
-      it was expected to; details to follow. Today the `autoSave` setting
-      only writes recovery drafts (`recovery.go`, `lib/recoveryDraft.ts`):
-      debounced 2 s while the document is dirty, kept under
-      `<data>/hermes/drafts/`, offered back after a crash, and never written
-      over the document. Explicit Save is the only thing that changes the
-      file. Start by checking that behaviour works as designed, then decide
-      what the setting should do.
+- [ ] **Investigate following changes made to the open file by something
+      else**, such as another editor or a program that generates content
+      into the file. Today nothing watches the open document. Halmos keeps
+      showing the text it loaded, and Save writes over the other program's
+      changes without warning. The bibliography already has a watcher
+      (`WatchBibliography` in `documentservice.go`, polling mtime and size,
+      emitting `bib:changed`) that shows one way to detect a change. The
+      investigation should answer:
+      - Unsaved edits: reload silently when there are none. When there are,
+        ask, and decide what the choices are (keep mine, take theirs, show
+        the difference).
+      - A program that writes often, such as a generator appending output:
+        keep the cursor and scroll position across a reload, and avoid
+        reacting to a half-written file.
+      - Save: check the file has not changed since it was loaded or last
+        saved, so an external change is never overwritten unseen.
+      - The file is renamed, moved or deleted while open.
+      - Halmos's own saves must not trigger a reload.
+      - Recovery drafts (`recovery.go`) already drop a draft when the file
+        on disk is newer; check that still holds.
+      The outcome is a recommendation with a size estimate, built in this
+      release or later.
 - [ ] **An Export menu.** Move Export PDF… (⌘E), Export HTML…, Export
       Word… and Export LaTeX… out of File into their own top-level menu.
       They are added in `menu.go` (`addPandocExportItems` for Word and
