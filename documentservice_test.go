@@ -13,7 +13,12 @@ import (
 
 func newTestService(t *testing.T) *DocumentService {
 	t.Helper()
-	return NewDocumentService(filepath.Join(t.TempDir(), "recents.json"))
+	s := NewDocumentService(filepath.Join(t.TempDir(), "recents.json"))
+	// There is no Wails app in tests: record nothing, and stop the document
+	// watcher when the test ends.
+	s.emitDoc = func(string, any) {}
+	t.Cleanup(s.ForgetDocument)
+	return s
 }
 
 func TestSaveAndOpenPathRoundTrip(t *testing.T) {

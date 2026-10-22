@@ -59,8 +59,14 @@ type DocumentService struct {
 	recentsMu sync.Mutex
 	// The open document, against which Save checks the file on disk.
 	// See docstate.go.
-	docMu          sync.Mutex
-	doc            trackedDoc
+	docMu sync.Mutex
+	doc   trackedDoc
+	// The document watcher's poll interval and event emitter, injectable
+	// for tests; a nil emitDoc emits through Wails. onDocMoved is called,
+	// under no lock, before document:moved is emitted. See docwatch.go.
+	docTick        time.Duration
+	emitDoc        func(name string, data any)
+	onDocMoved     func(from, to string)
 	watchTick      time.Duration
 	emitBibChanged func()
 	watchMu        sync.Mutex
@@ -81,6 +87,7 @@ func NewDocumentService(recentsPath string) *DocumentService {
 		settings:        newSettingsStore(filepath.Join(dataDir, "settings.json")),
 		drafts:          newDraftStore(filepath.Join(dataDir, "drafts")),
 		watchTick:       2 * time.Second,
+		docTick:         time.Second,
 		caywBase:        "http://127.0.0.1:23119",
 		updateFeed:      updateFeedURL,
 		updateStatePath: filepath.Join(dataDir, "update-check.json"),
