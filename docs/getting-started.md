@@ -53,6 +53,12 @@ file beside it.
   **Autosave** under the View menu below), so a crash loses at most a couple
   of seconds of typing. The draft is never written over your file; only ⌘S
   changes the document on disk.
+- If another program changes the open file, Halmos reloads it for you when
+  you have no unsaved edits, keeping your place. If you do have unsaved
+  edits it asks whether to **Keep Mine** or **Use File**; Use File can be
+  undone with ⌘Z. If you save over a file that changed since you opened it,
+  Halmos asks first. If the file is renamed or moved, Halmos follows it; if
+  it is deleted, the text stays open and ⌘S recreates it.
 
 ---
 

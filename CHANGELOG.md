@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Halmos follows changes made to the open file by another program. With no
+  unsaved edits the file reloads on its own, keeping the cursor and scroll
+  position. With unsaved edits it asks once: Keep Mine or Use File (which
+  ⌘Z undoes). Saving over a file changed since it was opened asks first. A
+  renamed or moved file is followed; a deleted file stays open until saved.
 - Export to Word and LaTeX (File → Export Word…, Export LaTeX…), converted
   by Pandoc on halmoseditor.com with the document's citation style. Needs a
   Halmos account: the first export connects this Mac to it, and
@@ -16,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A recovery draft was deleted when another program wrote the document
+  after the draft and Halmos then crashed. Drafts now go only when the file
+  holds the same text or Halmos saved over them, and the restore question
+  says when another program changed the file.
 - Quitting from the Dock menu, or logging out or restarting, with unsaved
   changes now asks whether to save, as ⌘Q does. Before, the changes were
   lost. Logging out stops while the question is open; log out again after

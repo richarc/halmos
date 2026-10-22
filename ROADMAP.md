@@ -51,7 +51,7 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       Found on the way: a recovery draft is deleted, and the unsaved edits
       lost, when another program writes the document after the last draft
       and Halmos then crashes.
-- [ ] **Follow changes made to the open file by something else**, as the
+- [x] **Follow changes made to the open file by something else**, as the
       investigation above recommends:
       - The text on disk gets a version (its content hash) on open and save.
       - Save checks the file first and asks before overwriting a change
@@ -67,6 +67,7 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       - Recovery drafts are dropped only when the file holds the same text
         or Halmos saved over them, fixing the lost-draft bug.
       A view of the difference between the two versions is backlog.
+      *Done 2026-10-22*: built on branch `external-changes`.
 - [ ] **An Export menu.** Move Export PDF… (⌘E), Export HTML…, Export
       Word… and Export LaTeX… out of File into their own top-level menu.
       They are added in `menu.go` (`addPandocExportItems` for Word and
