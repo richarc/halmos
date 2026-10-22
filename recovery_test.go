@@ -419,3 +419,80 @@ func readDraftFile(t *testing.T, d *draftStore, doc string) draftFile {
 	}
 	return df
 }
+
+// openForDraft writes a document and opens it on a real service, so
+// WriteDraft picks up the tracked base.
+func openForDraft(t *testing.T, s *DocumentService, text string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "paper.md")
+	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.OpenPath(path); err != nil {
+		t.Fatalf("OpenPath: %v", err)
+	}
+	return path
+}
+
+func TestServiceDraftIsChangedAfterAnotherProgramWrites(t *testing.T) {
+	s := newTestService(t)
+	path := openForDraft(t, s, "one")
+	if err := s.WriteDraft(path, "mine"); err != nil {
+		t.Fatalf("WriteDraft: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("theirs"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.RecoverDraft(path)
+	if err != nil || !got.Found || got.Content != "mine" || !got.Changed {
+		t.Errorf("got %+v, %v; want found, changed", got, err)
+	}
+}
+
+func TestServiceDraftDroppedAfterHalmosSaves(t *testing.T) {
+	s := newTestService(t)
+	path := openForDraft(t, s, "one")
+	if err := s.WriteDraft(path, "mine"); err != nil {
+		t.Fatalf("WriteDraft: %v", err)
+	}
+	if res, err := s.Save(path, "mine2", false); err != nil || res.Conflict {
+		t.Fatalf("Save: %+v, %v", res, err)
+	}
+	if got, err := s.RecoverDraft(path); err != nil || got.Found {
+		t.Errorf("got %+v, %v; want not found", got, err)
+	}
+}
+
+func TestServiceDocMovedHookMovesDraftAndRecent(t *testing.T) {
+	s := newTestService(t)
+	from := openForDraft(t, s, "one")
+	to := filepath.Join(filepath.Dir(from), "renamed.md")
+	if err := s.WriteDraft(from, "mine"); err != nil {
+		t.Fatalf("WriteDraft: %v", err)
+	}
+	if err := os.Rename(from, to); err != nil {
+		t.Fatal(err)
+	}
+	notified := 0
+	s.onRecentsChanged = func() { notified++ }
+	s.onDocMoved(from, to)
+
+	if got, _ := s.RecoverDraft(to); !got.Found || got.Content != "mine" {
+		t.Errorf("draft at new path = %+v, want found", got)
+	}
+	if got, _ := s.RecoverDraft(from); got.Found {
+		t.Errorf("draft at old path = %+v, want not found", got)
+	}
+	recents := s.RecentFiles()
+	if len(recents) == 0 || recents[0] != to {
+		t.Errorf("recents = %v, want %s first", recents, to)
+	}
+	for _, p := range recents {
+		if p == from {
+			t.Errorf("recents = %v, still holds %s", recents, from)
+		}
+	}
+	if notified != 1 {
+		t.Errorf("recents notified %d times, want 1", notified)
+	}
+}

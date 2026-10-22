@@ -97,7 +97,7 @@ func NewDocumentService(recentsPath string) *DocumentService {
 	s.drafts.prune(time.Now())
 	s.onDocMoved = func(from, to string) {
 		_ = s.drafts.move(from, to)
-		s.addRecent(to)
+		s.moveRecent(from, to)
 	}
 	return s
 }
@@ -497,11 +497,31 @@ func (s *DocumentService) addRecent(path string) {
 	s.notifyRecentsChanged()
 }
 
-func (s *DocumentService) storeRecentLocked(path string) error {
-	recents := slices.DeleteFunc(s.readRecents(), func(p string) bool { return p == path })
-	recents = slices.Insert(recents, 0, path)
-	recents = recents[:min(len(recents), maxRecents)]
+// moveRecent replaces from with to at the front of the list, after the open
+// document was moved, in one read-modify-write and one notification.
+func (s *DocumentService) moveRecent(from, to string) {
+	s.recentsMu.Lock()
+	recents := slices.DeleteFunc(s.readRecents(), func(p string) bool { return p == from })
+	err := s.writeRecentsLocked(withRecent(recents, to))
+	s.recentsMu.Unlock()
+	if err != nil {
+		return
+	}
+	s.notifyRecentsChanged()
+}
 
+func (s *DocumentService) storeRecentLocked(path string) error {
+	return s.writeRecentsLocked(withRecent(s.readRecents(), path))
+}
+
+// withRecent moves path to the front of recents, capped at maxRecents.
+func withRecent(recents []string, path string) []string {
+	recents = slices.DeleteFunc(recents, func(p string) bool { return p == path })
+	recents = slices.Insert(recents, 0, path)
+	return recents[:min(len(recents), maxRecents)]
+}
+
+func (s *DocumentService) writeRecentsLocked(recents []string) error {
 	if err := os.MkdirAll(filepath.Dir(s.recentsPath), 0o755); err != nil {
 		return err
 	}
