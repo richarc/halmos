@@ -2100,7 +2100,7 @@ describe('changes made by another program', () => {
     expect(openQuestions(target)).toHaveLength(0)
     expect(editorText(target)).toBe('x' + MINE)
     await vi.waitFor(() => expect(DocumentService.AcceptDiskVersion).toHaveBeenCalledWith('v2'))
-    expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true)
+    expect(target.querySelector('.status-name')!.textContent).toContain('Edited')
   })
 
   // Esc must not be destructive, the same rule as the recovery dialog.
@@ -2183,11 +2183,86 @@ describe('changes made by another program', () => {
     await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(1))
     buttonByText(openQuestions(target)[0], 'Cancel')!.click()
     flushSync()
-    await Promise.resolve()
 
-    expect(openQuestions(target)).toHaveLength(0)
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(0))
     expect(DocumentService.Save).toHaveBeenCalledTimes(1)
-    expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true)
+    expect(target.querySelector('.status-name')!.textContent).toContain('Edited')
+  })
+
+  it('Esc on the overwrite question writes nothing', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    DocumentService.Save.mockResolvedValueOnce({ conflict: true })
+    listeners['menu:save']({ data: null })
+
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(1))
+    openQuestions(target)[0].dispatchEvent(new Event('cancel'))
+    flushSync()
+
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(0))
+    expect(DocumentService.Save).toHaveBeenCalledTimes(1)
+    expect(target.querySelector('.status-name')!.textContent).toContain('Edited')
+  })
+
+  // The overwrite question belongs to the document it was asked for.
+  it('closing the document answers the overwrite question with no', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    DocumentService.Save.mockResolvedValueOnce({ conflict: true })
+    listeners['menu:save']({ data: null })
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(1))
+
+    listeners['document:closed']({ data: null })
+    flushSync()
+
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(0))
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    expect(DocumentService.Save).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), true)
+    await settledClean()
+  })
+
+  // The quit's Save asks first; a ⌘S while that is up asks again. The quit's
+  // save() must get its answer (no), or the unsaved-changes dialog would wait
+  // on a promise nothing will ever resolve.
+  it('a second overwrite question answers the first with no', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    const unsaved = target.querySelector<HTMLDialogElement>('dialog[aria-label="Unsaved changes"]')!
+    DocumentService.Save.mockResolvedValueOnce({ conflict: true }).mockResolvedValueOnce({ conflict: true })
+    listeners['close:confirm']({ data: 'quit' })
+    flushSync()
+    buttonByText(unsaved, 'Save')!.click()
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(1))
+
+    listeners['menu:save']({ data: null })
+    await vi.waitFor(() => expect(DocumentService.Save).toHaveBeenCalledTimes(2))
+    // The first ask was answered no: the quit is abandoned.
+    await vi.waitFor(() => expect(unsaved.open).toBe(false))
+    expect(openQuestions(target)).toHaveLength(1)
+
+    buttonByText(openQuestions(target)[0], 'Overwrite')!.click()
+    await vi.waitFor(() => expect(DocumentService.Save).toHaveBeenCalledTimes(3))
+    expect(DocumentService.Save).toHaveBeenLastCalledWith('/tmp/paper.md', 'x' + MINE, true)
+    await settledClean()
+    expect(DocumentService.Quit).not.toHaveBeenCalled()
+  })
+
+  // Saving the editor's text is keeping mine: the disk question goes away.
+  it('a save made while the disk question is up clears it', async () => {
+    const target = await openDoc(MINE)
+    typeX(target)
+    changed(THEIRS)
+    expect(openQuestions(target)).toHaveLength(1)
+
+    DocumentService.Save.mockResolvedValueOnce({ conflict: true })
+    listeners['menu:save']({ data: null })
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(2))
+    const overwrite = openQuestions(target).find((d) => buttonByText(d, 'Overwrite'))!
+    buttonByText(overwrite, 'Overwrite')!.click()
+
+    await vi.waitFor(() => expect(openQuestions(target)).toHaveLength(0))
+    await settledClean()
+    expect(editorText(target)).toBe('x' + MINE)
   })
 
   it('quit with Save meets a conflict: Cancel stays, Overwrite quits', async () => {

@@ -933,6 +933,8 @@
     // is offered again when that document is next opened.
     recovery = null
     diskChange = null
+    // The question was about the document going away; nothing is written.
+    answerOverwrite(false)
     path = docPath
     content = docContent
     welcomeDismissed = true
@@ -1030,8 +1032,11 @@
     if (change) useDiskVersion(change, true)
   }
 
-  // Resolves true on Overwrite, false on Cancel or Esc.
+  // Resolves true on Overwrite, false on Cancel or Esc. A second ask (a Save
+  // from the unsaved-changes dialog while this one is up) answers the first
+  // with false, so that save() does not wait for ever.
   function askOverwrite(): Promise<boolean> {
+    answerOverwrite(false)
     return new Promise((resolve) => (overwriteAnswer = resolve))
   }
 
@@ -1202,6 +1207,7 @@
     // is offered again when that document is next opened.
     recovery = null
     diskChange = null
+    answerOverwrite(false)
     path = null
     // Untitled: Go stops watching the old file and checking saves against it.
     void DocumentService.ForgetDocument().catch((err) => console.warn('ForgetDocument:', err))
@@ -1282,6 +1288,8 @@
         // nothing was written. Replacing that is the user's call.
         if (result.conflict) {
           if (!(await askOverwrite())) return false
+          // The document may have been closed or swapped while asking.
+          if (path !== docPath) return false
           await DocumentService.Save(docPath, snapshot, true)
         }
       } else {
@@ -1294,6 +1302,9 @@
         void refreshRecents()
       }
       savedContent = snapshot
+      // Saving the editor's text is keeping mine; Go's Save has re-tracked
+      // the version on disk, so the Keep Mine / Use File question is moot.
+      diskChange = null
       return true
     } catch (err) {
       toast(`Could not save: ${err}`)
@@ -1413,6 +1424,7 @@
     draftWriteWarned = false
     recovery = null
     diskChange = null
+    answerOverwrite(false)
     path = null
     void DocumentService.ForgetDocument().catch((err) => console.warn('ForgetDocument:', err))
     editor.setContent('')
