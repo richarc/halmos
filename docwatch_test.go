@@ -304,3 +304,41 @@ func TestForgetDocumentStopsWatching(t *testing.T) {
 		t.Errorf("events after ForgetDocument = %+v, want none", events)
 	}
 }
+
+func TestWatchReportsFileBackAfterDelete(t *testing.T) {
+	// Trash then Put Back, or git stash then stash pop: the same bytes
+	// return. The editor was told the file was deleted, so it must hear
+	// that the file is back.
+	s, path, log := openWatched(t, "one")
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, func() bool { return len(log.named("document:deleted")) > 0 }, time.Second)
+	writeFile(t, path, "one")
+	waitFor(t, func() bool { return len(log.named("document:changed")) > 0 }, time.Second)
+	quiet()
+	changes := log.named("document:changed")
+	if len(changes) != 1 {
+		t.Fatalf("changes = %+v, want one", changes)
+	}
+	want := DiskChange{Path: path, Version: contentVersion([]byte("one")), Content: "one"}
+	if got := changes[0].data.(DiskChange); got != want {
+		t.Errorf("payload = %+v, want %+v", got, want)
+	}
+
+	// The reported version is the one AcceptDiskVersion takes as the base.
+	s.AcceptDiskVersion(want.Version)
+	s.docMu.Lock()
+	base := s.doc.base
+	s.docMu.Unlock()
+	if base != want.Version {
+		t.Errorf("base = %q, want the reappeared version %q", base, want.Version)
+	}
+	res, err := s.Save(path, "mine", false)
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	if res.Conflict {
+		t.Error("Save after accepting the reappeared version conflicted")
+	}
+}

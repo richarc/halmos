@@ -26,7 +26,9 @@ type DocMove struct {
 }
 
 // DocDeleted is the payload of document:deleted. The watcher keeps polling
-// the path, so a file that reappears there is reported as a change.
+// the path, so a file that reappears there is reported as a change. A delete
+// clears seen, so that holds even when the same bytes come back (Trash then
+// Put Back, git stash then pop).
 type DocDeleted struct {
 	Path string `json:"path"`
 }
@@ -150,6 +152,7 @@ func (s *DocumentService) checkDocument(ctx context.Context) (name string, data 
 	d.last = st
 	if to, ok := s.movedTo(); ok {
 		if strings.Contains(to, "/.Trash/") {
+			d.seen = ""
 			return "document:deleted", DocDeleted{Path: d.path}, moved, emit
 		}
 		from := d.path
@@ -158,6 +161,7 @@ func (s *DocumentService) checkDocument(ctx context.Context) (name string, data 
 		d.pending = d.last
 		return "document:moved", DocMove{From: from, To: to}, moved, emit
 	}
+	d.seen = ""
 	return "document:deleted", DocDeleted{Path: d.path}, moved, emit
 }
 
