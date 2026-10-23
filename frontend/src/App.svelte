@@ -65,6 +65,7 @@
   import UnknownCitations from './UnknownCitations.svelte'
   import { unknownCitations } from './lib/citationKeys'
   import { readSpec, type BuilderState } from './lib/chartSpec'
+  import { refusalMessage } from './lib/chartLabels'
   import type { ChartWidth, FigureAlignment } from './lib/figures'
   import {
     DEFAULT_PAPER_SIZE,
@@ -499,7 +500,7 @@
       toast(
         result.reason === 'invalid-json'
           ? "That chart block isn't valid JSON, so it can't be opened here."
-          : `That chart uses ${result.unconsumed.slice(0, 2).join(' and ')}, which the builder can't edit.`,
+          : refusalMessage(result.unconsumed),
       )
       return
     }
@@ -537,6 +538,12 @@
     // ones the user had deliberately left unfolded — not just the block just
     // inserted or replaced.
     editor.runCommand(foldAllCodeBlocks)
+  }
+
+  function closeChartBuilder() {
+    chartOpen = false
+    chartInitial = null
+    chartTarget = null
   }
 
   let tableOpen = $state(false)
@@ -1495,6 +1502,11 @@
     diskChange = null
     diskGone = false
     answerOverwrite(false)
+    // A builder or the New dialog left open would come back over the welcome
+    // pane on the next Dock click, aimed at a document that is gone.
+    closeChartBuilder()
+    closeTableBuilder()
+    newOpen = false
     path = null
     void DocumentService.ForgetDocument().catch((err) => console.warn('ForgetDocument:', err))
     editor.setContent('')
@@ -1803,11 +1815,7 @@
     <ChartBuilder
       initial={chartInitial}
       oncommit={commitChart}
-      oncancel={() => {
-        chartOpen = false
-        chartInitial = null
-        chartTarget = null
-      }}
+      oncancel={closeChartBuilder}
     />
   {/if}
 

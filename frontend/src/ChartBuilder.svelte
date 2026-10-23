@@ -299,6 +299,11 @@
           // the field above owns. Carrying the rest through is what stops
           // reopening a chart from quietly stripping it.
           extras,
+          // Styling readSpec kept (an axis label angle, points on a line).
+          // It was written for the chart's own type, so a different type
+          // starts without it rather than inherit settings that may not
+          // apply.
+          ...(initial?.styles && chartType === initial.chartType ? { styles: initial.styles } : {}),
         }
       : null,
   )

@@ -76,7 +76,57 @@ export interface ValueEncoding extends Encoding {
  * carrying those alongside the `mark`/`encoding` pair buildSpec emits would
  * produce a spec that is not valid Vega-Lite at all.
  */
-const PASSTHROUGH_KEYS = ['$schema', 'description', 'name', 'title', 'width', 'height'] as const
+const PASSTHROUGH_KEYS = [
+  '$schema',
+  'description',
+  'name',
+  'title',
+  'width',
+  'height',
+  'config',
+  'background',
+  'padding',
+  'autosize',
+] as const
+
+/**
+ * Styling on an encoding channel that the builder carries unchanged, by the
+ * same reasoning as PASSTHROUGH_KEYS: none of these changes which column is
+ * plotted or how it is counted. `bin`, `timeUnit`, `stack` and the like do,
+ * so they stay out and a chart using them is still refused.
+ */
+const CHANNEL_STYLE_KEYS = ['axis', 'scale', 'legend', 'sort'] as const
+
+/** Styling on the mark that the builder carries unchanged. */
+const MARK_STYLE_KEYS = [
+  'point',
+  'line',
+  'opacity',
+  'fillOpacity',
+  'strokeWidth',
+  'strokeDash',
+  'interpolate',
+  'size',
+  'filled',
+  'color',
+  'cornerRadius',
+  'tooltip',
+  'ticks',
+] as const
+
+/**
+ * Styling read from a hand-written chart, kept so that reopening it in the
+ * builder does not strip it. Each part is omitted when empty. `mark` present,
+ * even empty, means the mark is written as an object (`{"type": "line"}`)
+ * rather than a bare name.
+ */
+export interface ChartStyles {
+  mark?: Record<string, unknown>
+  x?: Record<string, unknown>
+  /** For a pie, `theta`. */
+  y?: Record<string, unknown>
+  colour?: Record<string, unknown>
+}
 
 /**
  * A colour channel. For most charts this groups rows and carries no quantity,
@@ -101,6 +151,8 @@ export interface BuilderState {
   extent: Extent
   /** Inert top-level properties preserved verbatim across a round trip. */
   extras: Record<string, unknown>
+  /** Omitted when the chart has none. */
+  styles?: ChartStyles
 }
 
 /**
@@ -108,18 +160,17 @@ export interface BuilderState {
  * shaped types map onto a mark the author never has to know about.
  */
 function markFor(state: BuilderState): unknown {
-  switch (state.chartType) {
-    case 'histogram':
-      return 'bar'
-    case 'heatmap':
-      return 'rect'
-    case 'pie':
-      return 'arc'
-    case 'errorbar':
-      return { type: 'errorbar', extent: state.extent }
-    default:
-      return state.chartType
-  }
+  const style = state.styles?.mark
+  if (state.chartType === 'errorbar') return { type: 'errorbar', extent: state.extent, ...style }
+  const type =
+    state.chartType === 'histogram'
+      ? 'bar'
+      : state.chartType === 'heatmap'
+        ? 'rect'
+        : state.chartType === 'pie'
+          ? 'arc'
+          : state.chartType
+  return style ? { type, ...style } : type
 }
 
 /**
@@ -162,6 +213,7 @@ export function buildSpec(input: BuilderState): string {
   if (state.chartType === 'histogram') x.bin = true
   x.type = state.x.type
   if (state.x.title !== '') x.title = state.x.title
+  Object.assign(x, state.styles?.x)
 
   // Vega-Lite's `count` counts rows and takes no field, so emitting one would
   // be invalid. readSpec restores the empty field for the same reason.
@@ -173,6 +225,7 @@ export function buildSpec(input: BuilderState): string {
     y.aggregate = state.y.aggregate
   }
   if (state.y.title !== '') y.title = state.y.title
+  Object.assign(y, state.styles?.y)
 
   const encoding: Record<string, unknown> = {}
   if (state.chartType === 'pie') {
@@ -184,6 +237,7 @@ export function buildSpec(input: BuilderState): string {
       theta.aggregate = state.y.aggregate
     }
     if (state.y.title !== '') theta.title = state.y.title
+    Object.assign(theta, state.styles?.y)
     encoding.theta = theta
   } else {
     encoding.x = x
@@ -198,6 +252,7 @@ export function buildSpec(input: BuilderState): string {
     if (state.colour.aggregate && state.colour.aggregate !== 'none') {
       colour.aggregate = state.colour.aggregate
     }
+    Object.assign(colour, state.styles?.colour)
     encoding.color = colour
   }
 
@@ -294,6 +349,11 @@ function isValidRow(v: unknown): v is Record<string, string | number> {
   )
 }
 
+/** The keys of o that are in keys, in o's order. */
+function pick(o: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(o).filter(([k]) => keys.includes(k)))
+}
+
 function readEncoding(raw: unknown): Encoding {
   const o = isPlainObject(raw) ? raw : {}
   return {
@@ -322,11 +382,12 @@ function inferChartType(parsed: Record<string, unknown>): ChartType | null {
   const enc = isPlainObject(parsed.encoding) ? parsed.encoding : {}
 
   if (isPlainObject(mark)) {
-    // The only mark object the builder models is an error bar with an extent.
-    if (mark.type === 'errorbar' && (EXTENTS as readonly unknown[]).includes(mark.extent)) {
-      return 'errorbar'
+    if (mark.type === 'errorbar') {
+      return (EXTENTS as readonly unknown[]).includes(mark.extent) ? 'errorbar' : null
     }
-    return null
+    // Any other mark object is read by its type; the styling beside it is
+    // either carried (MARK_STYLE_KEYS) or makes the rebuild differ.
+    return inferChartType({ ...parsed, mark: mark.type })
   }
   if (mark === 'arc' && isPlainObject(enc.theta)) return 'pie'
   if (mark === 'rect' && isPlainObject(enc.color) && enc.color.type === 'quantitative') {
@@ -384,6 +445,22 @@ export function readSpec(json: string): ReadResult {
       }
     : null
 
+  const styles: ChartStyles = {}
+  const markStyle = isPlainObject(parsed.mark) ? pick(parsed.mark, MARK_STYLE_KEYS) : null
+  // An error bar is always written as an object, so only its styling says
+  // anything; for every other type the object form itself is kept.
+  if (markStyle && (markObj.type !== 'errorbar' || Object.keys(markStyle).length > 0)) {
+    styles.mark = markStyle
+  }
+  for (const [part, raw] of [
+    ['x', enc.x],
+    ['y', rawY],
+    ['colour', rawColour],
+  ] as const) {
+    const style = isPlainObject(raw) ? pick(raw, CHANNEL_STYLE_KEYS) : {}
+    if (Object.keys(style).length > 0) styles[part] = style
+  }
+
   const candidate: BuilderState = {
     chartType: inferChartType(parsed) ?? 'line',
     rows:
@@ -400,6 +477,7 @@ export function readSpec(json: string): ReadResult {
         parsed[k],
       ]),
     ),
+    ...(Object.keys(styles).length > 0 ? { styles } : {}),
   }
 
   const rebuilt: unknown = JSON.parse(buildSpec(candidate))

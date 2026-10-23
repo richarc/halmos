@@ -922,7 +922,7 @@ describe('chart builder', () => {
     flushSync()
 
     expect(target.querySelector('.chart-builder')).toBeNull()
-    expect(target.textContent).toContain('transform')
+    expect(target.textContent).toContain('That chart filters or calculates its data ("transform")')
     expect(view.state.doc.toString()).toBe(before)
   })
 
@@ -2037,6 +2037,23 @@ describe('closing the window', () => {
     await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
     const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
     expect(view.state.doc.toString()).toBe('')
+  })
+
+  // A clean close skips close:confirm and hides the window straight away, so
+  // closeDocument is the only place left to put the builders away.
+  it('closes an open builder or New dialog with the document', async () => {
+    for (const open of ['menu:insert-chart', 'menu:insert-table', 'menu:new']) {
+      const target = await openDoc('# Results\n\nJust prose.\n')
+      listeners[open]({ data: null })
+      flushSync()
+      expect(target.querySelector('.chart-builder, .table-builder, dialog[aria-label="New document"][open]')).not.toBeNull()
+
+      listeners['document:closed']({ data: null })
+      flushSync()
+
+      await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+      expect(target.querySelector('.chart-builder, .table-builder, dialog[aria-label="New document"][open]')).toBeNull()
+    }
   })
 
   it('names closing, not quitting, when a builder refuses a close', async () => {
