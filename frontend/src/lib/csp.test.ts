@@ -45,3 +45,17 @@ describe('withContentSecurityPolicy', () => {
     expect(html.indexOf(meta)).toBeLessThan(html.indexOf('<script'))
   })
 })
+
+describe('the build', () => {
+  it('adds the policy to the app page in production builds, and not to Quick Look', async () => {
+    const { default: config } = await import('../../vite.config')
+    type Plug = { name: string; apply?: string; transformIndexHtml?: (html: string) => string }
+    const plugins = (mode: string) =>
+      ((config as (env: { mode: string; command: string }) => { plugins: unknown[] })({ mode, command: 'build' })
+        .plugins.flat(Infinity) as Plug[])
+    const csp = plugins('production').find((p) => p?.name === 'content-security-policy')
+    expect(csp?.apply).toBe('build')
+    expect(csp?.transformIndexHtml?.('<head></head>')).toContain(CONTENT_SECURITY_POLICY)
+    expect(plugins('quicklook').some((p) => p?.name === 'content-security-policy')).toBe(false)
+  })
+})

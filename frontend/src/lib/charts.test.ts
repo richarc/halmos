@@ -297,6 +297,19 @@ describe('embedChart', () => {
     expect(vi.mocked(vegaEmbed).mock.lastCall?.[2]).toMatchObject({ loader: offlineLoader })
   })
 
+  it('hands vega-embed the prepared spec', async () => {
+    const { default: vegaEmbed } = await import('vega-embed')
+    await embedChart(
+      document.createElement('div'),
+      JSON.stringify({ mark: 'bar', usermeta: { embedOptions: { ast: false } }, data: { values: 'a\n1', format: { type: 'csv' } } }),
+    )
+    expect(vi.mocked(vegaEmbed).mock.lastCall?.[1]).toEqual({
+      mark: 'bar',
+      usermeta: {},
+      data: { values: [{ a: '1' }], format: { type: 'json', parse: 'auto' } },
+    })
+  })
+
   it('evaluates chart expressions without generating code', async () => {
     // The app page's Content-Security-Policy forbids eval, which Vega's
     // default expression compiler needs; its interpreter does not.

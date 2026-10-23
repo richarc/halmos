@@ -30,6 +30,7 @@
     "@wailsio/runtime": "3.0.0-beta.30",
     "citeproc": "^2.4.63",
     "codemirror": "^6.0.2",
+    "d3-dsv": "^3.0.1",
     "katex": "^0.16.47",
     "markdown-it": "^14.3.2",
     "markdown-it-footnote": "^4.0.0",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@tsconfig/svelte": "^5.0.8",
+    "@types/d3-dsv": "^3.0.7",
     "@types/katex": "^0.16.8",
     "@types/markdown-it": "^14.1.2",
     "@types/markdown-it-footnote": "^3.0.4",
