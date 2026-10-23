@@ -32,6 +32,7 @@ type DocumentService struct {
 	settings    *settingsStore
 	drafts      *draftStore
 	dirty       atomic.Bool
+	builderOpen atomic.Bool
 	// Set by Quit: the user has already answered the unsaved-changes dialog
 	// (or a demo is quitting), so shouldQuit lets the quit through.
 	approved atomic.Bool
@@ -189,6 +190,19 @@ func (s *DocumentService) SetDirty(dirty bool) {
 
 func (s *DocumentService) IsDirty() bool {
 	return s.dirty.Load()
+}
+
+// SetBuilderOpen is told whether the chart or table builder is open. Its work
+// is not in the document until committed, so a close or quit with a builder
+// open asks first, as one with unsaved changes does.
+func (s *DocumentService) SetBuilderOpen(open bool) {
+	s.builderOpen.Store(open)
+}
+
+// mustAsk is whether a close or quit goes through the frontend's confirm
+// (close:confirm) rather than straight ahead.
+func (s *DocumentService) mustAsk() bool {
+	return s.dirty.Load() || s.builderOpen.Load()
 }
 
 // WriteDraft, DiscardDraft and RecoverDraft are the recovery-draft bindings.

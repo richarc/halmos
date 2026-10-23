@@ -118,8 +118,11 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       - Name a refusal in plain English (`refusalMessage` in
         `lib/chartLabels.ts`), not as a path like `encoding.x.axis`.
       - Closing the window with a builder or the New dialog open now closes
-        them (`closeDocument`). A clean close skips the confirm step, which
-        is how they were left behind.
+        them (`closeDocument`). A clean close skipped the confirm step, which
+        is how they were left behind. A close or quit with a builder open
+        now always asks first: the frontend reports it with
+        `SetBuilderOpen`, Go's `mustAsk` sends `close:confirm`, and
+        "Discard the chart?" comes before the unsaved-changes dialog.
       *Done 2026-10-23.*
 - [ ] **Page numbers, headers and footers in exported output.** Set in the
       frontmatter, like `bibliography`, `csl` and `toc`, so a document

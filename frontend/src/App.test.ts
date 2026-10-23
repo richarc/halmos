@@ -33,6 +33,7 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       }),
       WelcomeInfo: vi.fn(async () => ({ version: '0.14.0', home: '/Users/ann' })),
       SetDirty: vi.fn(async () => {}),
+      SetBuilderOpen: vi.fn(async () => {}),
       WatchBibliography: vi.fn(async () => {}),
       ReadBibliography: vi.fn(async () => ''),
       Open: vi.fn(async () => ({ path: '', content: '' })),
@@ -1183,27 +1184,29 @@ describe('chart builder', () => {
     expect(target.querySelector('.chart-builder')).not.toBeNull()
   })
 
-  // Deferred review finding, v0.8: the guard above was right but silent. ⌘Q
-  // (and closing the window, which terminates the app too) did *nothing at
-  // all* while the builder was open — no dialog, no message, no quit, no clue
-  // which of those was intended. Refusing is still the right answer, because
-  // closing the builder would throw away an in-progress chart without asking;
-  // refusing invisibly is not.
-  it('says why it refused the quit rather than swallowing it', async () => {
+  // A quit or close with a builder open asks before the chart is thrown
+  // away, clean document or not; Keep Editing leaves everything as it was.
+  it('asks before discarding the chart on quit, and Keep Editing keeps it', async () => {
     const target = await openDoc('# Results\n\nJust prose.\n')
     listeners['menu:insert-chart']({ data: null })
     flushSync()
-    expect(target.querySelector('.chart-builder')).not.toBeNull()
+    expect(DocumentService.SetBuilderOpen).toHaveBeenLastCalledWith(true)
 
     listeners['close:confirm']({ data: null })
     flushSync()
 
-    expect(target.textContent).toContain('Finish or cancel the chart before quitting')
-    // Still refused, and the builder is still there to be finished.
+    const ask = target.querySelector<HTMLDialogElement>('dialog[aria-label="Discard chart"]')!
+    expect(ask.open).toBe(true)
+    expect(ask.textContent).toContain('Discard it and quit?')
     expect(
       target.querySelector<HTMLDialogElement>('dialog[aria-label="Unsaved changes"]')!.open,
     ).toBe(false)
+
+    buttonByText(ask, 'Keep Editing')!.click()
+    flushSync()
+    expect(ask.open).toBe(false)
     expect(target.querySelector('.chart-builder')).not.toBeNull()
+    expect(DocumentService.Quit).not.toHaveBeenCalled()
   })
 
   // role="alertdialog" makes screen readers announce this dialog as a
@@ -1356,14 +1359,20 @@ describe('table builder', () => {
     expect(target.querySelector('.table-builder')).toBeNull()
   })
 
-  it('refuses to quit audibly while the builder is open', async () => {
+  it('quits a clean document once the table is discarded', async () => {
     const target = await openDoc('# Results\n\nJust prose.\n')
     listeners['menu:insert-table']({ data: null })
     flushSync()
     listeners['close:confirm']({ data: null })
     flushSync()
-    expect(target.textContent).toContain('Finish or cancel the table before quitting')
-    expect(target.querySelector('.table-builder')).not.toBeNull()
+    const ask = target.querySelector<HTMLDialogElement>('dialog[aria-label="Discard table"]')!
+    expect(ask.open).toBe(true)
+
+    buttonByText(ask, 'Discard')!.click()
+    flushSync()
+
+    expect(target.querySelector('.table-builder')).toBeNull()
+    await vi.waitFor(() => expect(DocumentService.Quit).toHaveBeenCalled())
   })
 })
 
@@ -2056,15 +2065,39 @@ describe('closing the window', () => {
     }
   })
 
-  it('names closing, not quitting, when a builder refuses a close', async () => {
+  it('asks about the chart, then about unsaved changes, before closing', async () => {
+    const target = await openDoc('# Results\n\nJust prose.\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: 0, to: 0, insert: 'x' } })
+    flushSync()
+    listeners['menu:insert-chart']({ data: null })
+    flushSync()
+
+    listeners['close:confirm']({ data: 'close' })
+    flushSync()
+    const ask = target.querySelector<HTMLDialogElement>('dialog[aria-label="Discard chart"]')!
+    expect(ask.textContent).toContain('Discard it and close?')
+    buttonByText(ask, 'Discard')!.click()
+    flushSync()
+
+    expect(target.querySelector('.chart-builder')).toBeNull()
+    expect(
+      target.querySelector<HTMLDialogElement>('dialog[aria-label="Unsaved changes"]')!.open,
+    ).toBe(true)
+    expect(DocumentService.CloseWindow).not.toHaveBeenCalled()
+  })
+
+  it('closes a clean document once the chart is discarded', async () => {
     const target = await openDoc('# Results\n\nJust prose.\n')
     listeners['menu:insert-chart']({ data: null })
     flushSync()
 
     listeners['close:confirm']({ data: 'close' })
     flushSync()
+    buttonByText(target.querySelector<HTMLElement>('dialog[aria-label="Discard chart"]')!, 'Discard')!.click()
+    flushSync()
 
-    expect(target.textContent).toContain('Finish or cancel the chart before closing')
+    await vi.waitFor(() => expect(DocumentService.CloseWindow).toHaveBeenCalled())
   })
 })
 

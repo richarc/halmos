@@ -238,6 +238,15 @@ export function SavePastedImage(docPath: string, data: string | null, ext: strin
 }
 
 /**
+ * SetBuilderOpen is told whether the chart or table builder is open. Its work
+ * is not in the document until committed, so a close or quit with a builder
+ * open asks first, as one with unsaved changes does.
+ */
+export function SetBuilderOpen(open: boolean): $CancellablePromise<void> {
+    return $Call.ByID(805036951, open);
+}
+
+/**
  * SetCitationStyle records the open document's `csl:` value (the frontend
  * sends "apa" when there is none) so the menu can tick it. The menu is only
  * rebuilt on a real change.

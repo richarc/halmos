@@ -93,7 +93,7 @@ func main() {
 		// menu.go. A dirty document gets the same confirm, shown first
 		// because the window may be hidden (#17); see shouldQuit.
 		ShouldQuit: func() bool {
-			return shouldQuit(docs.IsDirty(), docs.quitApproved(), func() {
+			return shouldQuit(docs.mustAsk(), docs.quitApproved(), func() {
 				showWindow(win)
 				application.Get().Event.Emit("close:confirm", "quit")
 			})
@@ -167,7 +167,7 @@ func main() {
 	// is a close, not a quit, so it hides afterwards rather than exiting.
 	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		e.Cancel()
-		closeRequest(docs.IsDirty(),
+		closeRequest(docs.mustAsk(),
 			func() { app.Event.Emit("close:confirm", "close") },
 			docs.CloseWindow)
 	})
