@@ -169,9 +169,13 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       updated" export rewrites the file often, and every rewrite repeats
       both, even when the bytes are unchanged. Skip a reload whose contents
       have not changed, parse off the main thread, and reuse parsed entries.
-- [ ] **Correct stale notes in `CLAUDE.md`.** Its PDF note describes the
+- [x] **Correct stale notes in `CLAUDE.md`.** Its PDF note describes the
       print panel, which Export PDF… never shows (that is Print…), and the
       review lists a few more.
+      *Done 2026-10-23:* the PDF note covers both routes and Export PDF's
+      own rules; the events list adds `menu:export-pandoc`, `menu:account`,
+      `menu:insert-code` and `portal:pairing`; `PortalService` has a note;
+      a Taskfile comment names the right binary.
 
 ## v1.0.0 — Production
 
