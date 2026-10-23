@@ -32,7 +32,7 @@
     "codemirror": "^6.0.2",
     "d3-dsv": "^3.0.1",
     "katex": "^0.16.47",
-    "markdown-it": "^14.3.2",
+    "markdown-it": "^14.3.3",
     "markdown-it-footnote": "^4.0.0",
     "mermaid": "^11.16.1",
     "vega": "^6.3.1",
