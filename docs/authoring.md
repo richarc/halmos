@@ -151,6 +151,12 @@ Image paths resolve **relative to the document**, the same way `bibliography:`
 does, so a figure stored beside the file is just its filename. `../shared/`
 and absolute paths work too. A remote URL works as well.
 
+A local image needs an image file extension: `.png`, `.jpg`/`.jpeg`, `.gif`,
+`.webp`, `.svg`, `.avif`, `.bmp`, `.tif`/`.tiff`, `.heic`/`.heif`, `.apng`,
+`.jfif`, `.ico`, `.jxl`, or `.pdf` for a PDF figure. Any other file beside
+the document is not shown, so a document cannot display a file you did not
+mean to put in it.
+
 ```markdown
 ![Recovered sources](fig1.png)
 ![Recovered sources](figures/fig1.png)
@@ -196,8 +202,11 @@ own contents page — though every heading still gets an anchor, so
 
 ## Charts
 
-A `vega-lite` fenced block holding a Vega-Lite JSON spec. Inline the data so
-the document stays self-contained:
+A `vega-lite` fenced block holding a Vega-Lite JSON spec. The data goes in
+the spec, as `values` (rows, or CSV/TSV text with a `format`). A chart does
+not load anything from a URL or a file, which keeps the document
+self-contained and stops a chart someone sent you from reading or sending
+anything:
 
 ````markdown
 ```vega-lite

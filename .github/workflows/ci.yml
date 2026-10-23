@@ -94,8 +94,21 @@ jobs:
       - run: npm run build
         working-directory: frontend
 
+      # With the race detector: the document watcher, recovery drafts and
+      # settings store all share state between goroutines.
       - name: Tests
-        run: go test ./.
+        run: go test -race ./.
+
+      - name: Vet
+        run: go vet ./.
+
+      # The same two commands as quicklook:test in Taskfile.yml, run directly
+      # so this job does not need the wails3 CLI. Keep them in step.
+      - name: Quick Look tests
+        run: |
+          mkdir -p bin
+          xcrun swiftc -swift-version 5 quicklook/PreviewText.swift quicklook/Tests/main.swift -o bin/HalmosQuickLookTests
+          bin/HalmosQuickLookTests
 
       - name: Build
         run: go build -o /dev/null .

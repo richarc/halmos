@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -122,6 +123,9 @@ func demoBody(lines []string, start int) (string, int, bool) {
 // app can set it, which is why a production build honours it too.
 const demoEnv = "HERMES_DEMO"
 
+// errDemoOff is returned by the methods that act when HERMES_DEMO is unset.
+var errDemoOff = errors.New("demo mode is off: " + demoEnv + " is not set")
+
 type demoRect struct{ X, Y, W, H int }
 
 // DemoService is the Go half of demo mode: hands the parsed script to the
@@ -129,8 +133,9 @@ type demoRect struct{ X, Y, W, H int }
 // screencapture while the script says so. One recording at a time.
 type DemoService struct {
 	window *application.WebviewWindow
-	// Seams for tests: the recorder command, where the window is, and the
-	// window's full-screen state and entry.
+	// Seams for tests: whether demo mode is on, the recorder command, where
+	// the window is, and the window's full-screen state and entry.
+	enabled           func() bool
 	recordCommand     func(path string, r demoRect) *exec.Cmd
 	windowRect        func() (demoRect, error)
 	enterFullscreen   func() error
@@ -150,6 +155,11 @@ type demoRecording struct {
 
 func NewDemoService(win *application.WebviewWindow) *DemoService {
 	s := &DemoService{window: win}
+	// Read on each call, like Script. The service is registered in every
+	// build because the page asks it for a script at startup, so the methods
+	// that act check this themselves: outside demo mode a page cannot make it
+	// record, remove the file it records over, or go full screen.
+	s.enabled = func() bool { return os.Getenv(demoEnv) != "" }
 	s.recordCommand = func(path string, r demoRect) *exec.Cmd {
 		// -v video, -x no shutter sound, -R the window's rectangle in points;
 		// screencapture records until interrupted, which StopRecording does.
@@ -183,6 +193,9 @@ func NewDemoService(win *application.WebviewWindow) *DemoService {
 // the window was leaving. Polled rather than observed: the window's own
 // state is what the recorder will read, so it is what is waited for.
 func (s *DemoService) Fullscreen() error {
+	if !s.enabled() {
+		return errDemoOff
+	}
 	if s.isFullscreen() {
 		return nil
 	}
@@ -219,6 +232,9 @@ func (s *DemoService) Script() ([]DemoStep, error) {
 
 // StartRecording begins recording the window to path.
 func (s *DemoService) StartRecording(path string) error {
+	if !s.enabled() {
+		return errDemoOff
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.recording != nil {

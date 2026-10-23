@@ -132,16 +132,37 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       repository until the security fixes ship. The blocking ones are the
       four items below and the v1.0.0 licence notices; the rest are in the
       Backlog.
-- [ ] **Security fixes from the pre-1.0 review.** Narrow what a document's
+- [x] **Security fixes from the pre-1.0 review.** Narrow what a document's
       content can load and which files the app serves to the preview, and
       give the app page and the Quick Look page a Content-Security-Policy.
       Details stay in the private review (S1–S3) until this ships.
-- [ ] **Dependency and CI pass.** Update the shipped packages with
-      published advisories (DOMPurify through Mermaid, markdown-it, KaTeX)
-      and the Wails beta if a newer one is out. Add `govulncheck`, `go vet`,
-      the race detector, `svelte-check` and the Quick Look tests to CI.
-      Bind the demo service only when demo mode is on. Then hold
-      dependencies still for 1.0.
+      *Done 2026-10-23*: charts run with a loader that refuses every URL
+      and with Vega's expression interpreter (`charts.ts`); the image route
+      and the export readers serve image extensions only, symlink targets
+      included (`localImageFile`); the production build gives the app page
+      a CSP (`lib/csp.ts`). Quick Look keeps its offline rules and sandbox
+      instead of a CSP. Verified in a production build: no violations on
+      the test document, and a request to another host is refused.
+- [x] **Dependency and CI pass.** Update the shipped packages with
+      published advisories (DOMPurify through Mermaid, markdown-it, KaTeX).
+      Add `govulncheck`, `go vet`, the race detector, `svelte-check` and the
+      Quick Look tests to CI. Bind the demo service only when demo mode is
+      on.
+      *Done 2026-10-23:* DOMPurify 3.4.17 and markdown-it 14.3.3. CI
+      already ran `govulncheck` and `svelte-check`; it now adds `go vet`,
+      `-race` and the Quick Look tests. The demo service stays registered,
+      because the page asks it for a script at startup; its recording and
+      full-screen methods refuse to run without `HERMES_DEMO`. KaTeX moved
+      to the next item.
+- [ ] **Wails, KaTeX and Mermaid, then hold dependencies for 1.0.** Wails
+      beta.34 is out (the pin is beta.30); wait until it is 7 days old, as
+      `.npmrc` asks. KaTeX's low advisory is fixed in 0.18, which needs
+      Mermaid 12 (it changes every diagram's default layout, theme and
+      look, so set `layout: dagre`, `theme: default`, `look: classic` to
+      keep today's) and an override for `@vscode/markdown-it-katex`, which
+      asks for KaTeX 0.16. KaTeX 0.18 also prefixes its CSS classes, so
+      check `style.css` and the HTML export. Then hold dependencies still
+      for 1.0.
 - [ ] **Reload the bibliography without freezing the editor.** Reading a
       2,000-entry `.bib` takes 1.5 s on the main thread (49 entries: 0.1 s),
       and the first citation pass after it up to 0.9 s more. Zotero's "Keep

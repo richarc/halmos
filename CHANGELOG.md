@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Security: a document could make the preview read local files and send
+  them elsewhere. Charts no longer load data or images from a URL (data
+  goes in the spec); images beside a document must have an image file
+  extension; the app page has a Content-Security-Policy that allows
+  requests only to the app itself. Found in the pre-1.0 review.
+- Security: updated DOMPurify (used by Mermaid diagrams) to 3.4.17 and
+  markdown-it to 14.3.3, for published advisories. Demo mode's screen
+  recording now runs only when demo mode is on.
 - Exported PDFs had about 21mm of blank space above the text on every page:
   WebKit ignored the top page margin and sized each page from the text
   width. Top and bottom margins now follow the paper's shape, so the text

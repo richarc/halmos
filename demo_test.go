@@ -178,7 +178,46 @@ func fakeRecorder() (*DemoService, *[]string) {
 		return exec.Command("/bin/sh", "-c", `touch "$0"; exec /bin/sleep 30`, path)
 	}
 	s.windowRect = func() (demoRect, error) { return demoRect{0, 0, 10, 10}, nil }
+	s.enabled = func() bool { return true }
 	return s, &args
+}
+
+// The service is registered in every build, because the page asks it for a
+// script at startup. A page without HERMES_DEMO must not be able to make it
+// record, delete the file it is told to record over, or go full screen.
+func TestDemoServiceRefusesToActWithoutTheVariable(t *testing.T) {
+	t.Setenv(demoEnv, "")
+	path := filepath.Join(t.TempDir(), "keep.txt")
+	if err := os.WriteFile(path, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := NewDemoService(nil)
+	started := false
+	s.recordCommand = func(string, demoRect) *exec.Cmd { started = true; return exec.Command("/usr/bin/true") }
+	s.windowRect = func() (demoRect, error) { return demoRect{0, 0, 10, 10}, nil }
+	entered := false
+	s.enterFullscreen = func() error { entered = true; return nil }
+	s.isFullscreen = func() bool { return entered }
+
+	if err := s.StartRecording(path); err == nil {
+		t.Error("StartRecording ran outside demo mode")
+	}
+	if started {
+		t.Error("the recorder was started outside demo mode")
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("the file named was removed outside demo mode: %v", err)
+	}
+	if err := s.Fullscreen(); err == nil || entered {
+		t.Error("Fullscreen ran outside demo mode")
+	}
+}
+
+func TestDemoServiceActsWithTheVariable(t *testing.T) {
+	t.Setenv(demoEnv, "/demos/x.demo")
+	if !NewDemoService(nil).enabled() {
+		t.Error("not enabled with HERMES_DEMO set")
+	}
 }
 
 func TestDemoServiceRecordingStartsAndStops(t *testing.T) {
@@ -229,6 +268,7 @@ func TestDemoServiceRecordingReplacesAnExistingFile(t *testing.T) {
 		return exec.Command("/bin/sh", "-c", `set -C; echo new > "$0" 2>/dev/null; exec /bin/sleep 30`, path)
 	}
 	s.windowRect = func() (demoRect, error) { return demoRect{0, 0, 10, 10}, nil }
+	s.enabled = func() bool { return true }
 	if err := s.StartRecording(path); err != nil {
 		t.Fatal(err)
 	}
@@ -248,6 +288,7 @@ func TestDemoServiceRecordingReplacesAnExistingFile(t *testing.T) {
 // the binding must not return until the window reports it is full screen.
 func TestDemoServiceFullscreenWaitsForTheWindow(t *testing.T) {
 	s := NewDemoService(nil)
+	s.enabled = func() bool { return true }
 	calls := 0
 	s.enterFullscreen = func() error { calls++; return nil }
 	polls := 0
@@ -268,6 +309,7 @@ func TestDemoServiceFullscreenWaitsForTheWindow(t *testing.T) {
 
 func TestDemoServiceFullscreenReportsAWindowThatNeverGetsThere(t *testing.T) {
 	s := NewDemoService(nil)
+	s.enabled = func() bool { return true }
 	s.enterFullscreen = func() error { return nil }
 	s.isFullscreen = func() bool { return false }
 	s.fullscreenTimeout = 120 * time.Millisecond
@@ -277,7 +319,9 @@ func TestDemoServiceFullscreenReportsAWindowThatNeverGetsThere(t *testing.T) {
 }
 
 func TestDemoServiceFullscreenWithoutAWindow(t *testing.T) {
-	if err := NewDemoService(nil).Fullscreen(); err == nil {
+	s := NewDemoService(nil)
+	s.enabled = func() bool { return true }
+	if err := s.Fullscreen(); err == nil {
 		t.Error("no error without a window")
 	}
 }

@@ -188,9 +188,8 @@ export function ReadCitationStyle(path: string, docPath: string): $CancellablePr
 
 /**
  * ReadImageDataURI returns an image beside the document as a data: URI, so an
- * exported page carries its images with it. The source resolves exactly as
- * the /_hermes/image route resolves it (localImagePath), and only image
- * extensions are read.
+ * exported page carries its images with it. It reads only what the
+ * /_hermes/image route would serve (localImageFile).
  */
 export function ReadImageDataURI(docPath: string, src: string): $CancellablePromise<string> {
     return $Call.ByID(3258348813, docPath, src);

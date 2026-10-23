@@ -2,6 +2,8 @@
 // the largest thing Hermes bundles, and a document with no charts should never
 // load them. embedChart imports the real module on first use.
 import type vegaEmbedFn from 'vega-embed'
+import type { Loader } from 'vega'
+import { dsvFormat } from 'd3-dsv'
 
 /** The slice of a Vega view the hydrator needs for cleanup. */
 export interface ChartView {
@@ -141,13 +143,72 @@ export function createChartHydrator(embed: EmbedFn = embedChart): ChartHydrator 
   }
 }
 
+const NO_URLS = 'Charts use inline data: put the values in the spec instead of a URL'
+const refuse = () => Promise.reject(new Error(NO_URLS))
+
+/**
+ * The loader every chart runs with: it refuses everything. A chart is
+ * document content, and Vega fetches whatever a spec names — a data URL, a
+ * URL built from a signal, an image mark's url, a link's href — from the app's
+ * origin, which serves files beside the document. With Vega's own loader a
+ * document someone sent could read a file and send it elsewhere. Charts made
+ * in Halmos carry their values inline, so nothing legitimate is lost.
+ */
+export const offlineLoader: Loader = {
+  load: refuse,
+  sanitize: refuse,
+  http: refuse,
+  file: refuse,
+}
+
+const DELIMITERS: Record<string, string> = { csv: ',', tsv: '\t' }
+
+/**
+ * The spec as charts run it, from the spec as the document wrote it.
+ *
+ * Delimited text in a spec (`values` as a string with a csv, tsv or dsv
+ * format) becomes rows here, because Vega reads it by generating code, which
+ * the app page's Content-Security-Policy forbids. d3-dsv's parseRows does
+ * not; the rows keep Vega's type inference through `parse: "auto"`.
+ *
+ * And `usermeta.embedOptions` goes: vega-embed lets a spec's own options
+ * override the caller's, so a document could switch the interpreter off or
+ * change number formatting for every chart after it.
+ */
+export function prepareSpec(spec: unknown): unknown {
+  const out = structuredClone(spec)
+  const usermeta = (out as { usermeta?: unknown } | null)?.usermeta
+  if (usermeta && typeof usermeta === 'object') delete (usermeta as Record<string, unknown>).embedOptions
+  rowsFromText(out)
+  return out
+}
+
+function rowsFromText(node: unknown): void {
+  if (Array.isArray(node)) {
+    node.forEach(rowsFromText)
+    return
+  }
+  if (!node || typeof node !== 'object') return
+  const o = node as Record<string, unknown>
+  const format = o.format as { type?: string; delimiter?: string; parse?: unknown } | undefined
+  if (typeof o.values === 'string' && format && typeof format === 'object') {
+    const delimiter = format.type === 'dsv' ? format.delimiter : DELIMITERS[format.type ?? '']
+    if (typeof delimiter === 'string' && delimiter.length === 1) {
+      const [header = [], ...rows] = dsvFormat(delimiter).parseRows(o.values)
+      o.values = rows.map((row) => Object.fromEntries(header.map((name, i) => [name, row[i]])))
+      o.format = { type: 'json', parse: format.parse ?? 'auto' }
+    }
+  }
+  for (const value of Object.values(o)) rowsFromText(value)
+}
+
 export async function embedChart(
   el: HTMLElement,
   specText: string,
 ): Promise<ChartView | null> {
   let spec: unknown
   try {
-    spec = JSON.parse(specText)
+    spec = prepareSpec(JSON.parse(specText))
   } catch (err) {
     renderChartError(el, `Invalid JSON: ${(err as Error).message}`)
     return null
@@ -155,9 +216,17 @@ export async function embedChart(
   try {
     // Inside the try: a chart that cannot load its renderer reports the same
     // way as a chart that cannot render.
-    const { default: vegaEmbed } = await import('vega-embed')
+    const [{ default: vegaEmbed }, { expressionInterpreter }] = await Promise.all([
+      import('vega-embed'),
+      import('vega-interpreter'),
+    ])
     const result = await vegaEmbed(el, spec as Parameters<typeof vegaEmbedFn>[1], {
       actions: false,
+      loader: offlineLoader,
+      // The app page's Content-Security-Policy forbids eval, which Vega's
+      // default expression compiler uses; the interpreter evaluates instead.
+      ast: true,
+      expr: expressionInterpreter,
     })
     return result.view
   } catch (err) {

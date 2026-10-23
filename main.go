@@ -64,7 +64,8 @@ func main() {
 	}
 	docs := NewDocumentService(recentsPath)
 	// Demo mode: plays a script named by HERMES_DEMO into the editor and
-	// records the window (demo.go). Inert unless the variable is set. The
+	// records the window (demo.go). Inert unless the variable is set: its
+	// recording and full-screen methods refuse to run without it. The
 	// window is attached once it exists, below.
 	demo := NewDemoService(nil)
 	// Connecting to the Halmos portal and exporting to Word or LaTeX

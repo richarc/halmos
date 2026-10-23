@@ -284,3 +284,17 @@ func TestSecondStartCancelsTheFirst(t *testing.T) {
 		t.Errorf("polling went on after CancelPairing: %d then %d", before, after)
 	}
 }
+
+// The Word export reads images the document names, through the same rules as
+// the preview: an image, never any other file.
+func TestReadExportImageReadsOnlyImages(t *testing.T) {
+	dir := t.TempDir()
+	doc := filepath.Join(dir, "main.md")
+	if err := os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("SECRET"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := (&PortalService{}).ReadExportImage(doc, "notes.txt")
+	if got.Error != "not_found" || got.Base64 != "" {
+		t.Errorf("ReadExportImage(notes.txt) = %+v, want not_found and no bytes", got)
+	}
+}
