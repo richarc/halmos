@@ -33,8 +33,13 @@ int hermesStampPDFAt(NSURL *in, NSURL *out, NSString *header, NSString *footer,
 	if (success && [fm fileExistsAtPath:temp.path]) {
 		if (!hermesStampPDFAt(temp, dest, header, footer, title, date, fontKey)) {
 			NSLog(@"Halmos: could not add the header and footer to %@", dest.path);
-			[fm removeItemAtURL:dest error:nil];
-			[fm moveItemAtURL:temp toURL:dest error:nil];
+			// Replace rather than delete-then-move, so a failed move cannot
+			// leave the user with neither file. Move when there is nothing
+			// at dest to replace.
+			if (![fm replaceItemAtURL:dest withItemAtURL:temp backupItemName:nil
+			                  options:0 resultingItemURL:nil error:nil]) {
+				[fm moveItemAtURL:temp toURL:dest error:nil];
+			}
 		}
 	}
 	[fm removeItemAtURL:temp error:nil];
@@ -270,9 +275,10 @@ func printWithOrientation(landscape bool) bool {
 // document-modal: it returns as soon as the sheet is on screen, long before a
 // byte reaches disk, so a read-only volume or a sandbox denial produces no
 // file, no error here, and nothing for the caller to tell the user about.
-// That limitation is inherited from the print path, which has the same shape;
-// reporting a real write failure would mean taking the didRunSelector
-// callback and plumbing the result back across the cgo boundary.
+// That limitation is inherited from the print path, which has the same shape.
+// The didRunSelector callback is now taken when there is a header or footer
+// to draw (HermesExportFinisher), but its result still only reaches NSLog;
+// reporting it would mean plumbing it back across the cgo boundary.
 //
 // f's header and footer are drawn on every page in the body font named by
 // fontKey (pdfstamp_darwin.go); with neither, WebKit's PDF is written as it is.

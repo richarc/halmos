@@ -91,6 +91,11 @@ static const CGFloat hermesFurnitureInset = 25.0 / 2 * 72 / 25.4;
 @implementation HermesStampedPage
 - (void)drawWithBox:(PDFDisplayBox)box toContext:(CGContextRef)context {
 	[super drawWithBox:box toContext:context];
+	// Only hermesStampPDFAt sets what to draw; a page drawn any other time
+	// draws as WebKit made it.
+	if (!hermesStampFont) {
+		return;
+	}
 	NSRect b = [self boundsForBox:box];
 	NSInteger page = [self.document indexForPage:self] + 1;
 
@@ -103,7 +108,12 @@ static const CGFloat hermesFurnitureInset = 25.0 / 2 * 72 / 25.4;
 		NSParagraphStyleAttributeName : style,
 	};
 	CGFloat lineHeight = ceil(hermesStampFont.ascender - hermesStampFont.descender + hermesStampFont.leading);
-	CGFloat inset = 2 * hermesFurnitureInset; // the text column's side margin
+	// The text column's side margin, as lib/paper.ts sets it: 25mm across
+	// the short edge, scaled by the paper's shape in landscape.
+	CGFloat inset = 2 * hermesFurnitureInset;
+	if (b.size.width > b.size.height) {
+		inset *= b.size.width / b.size.height;
+	}
 	CGFloat width = b.size.width - 2 * inset;
 
 	NSGraphicsContext *previous = [NSGraphicsContext currentContext];
