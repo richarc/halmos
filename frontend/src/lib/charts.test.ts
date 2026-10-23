@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
-import { createChartHydrator, embedChart, type EmbedFn, type ChartView } from './charts'
+import { createChartHydrator, embedChart, offlineLoader, type EmbedFn, type ChartView } from './charts'
 
 vi.mock('vega-embed', () => ({
   default: vi.fn(async (el: HTMLElement) => {
@@ -287,5 +287,13 @@ describe('embedChart', () => {
     expect(el.classList.contains('chart-error')).toBe(false)
     expect(view).not.toBeNull()
     expect(typeof view!.finalize).toBe('function')
+  })
+
+  it('runs every chart with the loader that refuses URLs', async () => {
+    // charts.offline.test.ts proves offlineLoader keeps Vega off the network;
+    // this proves embedChart never runs a chart without it.
+    const { default: vegaEmbed } = await import('vega-embed')
+    await embedChart(document.createElement('div'), SPEC)
+    expect(vi.mocked(vegaEmbed).mock.lastCall?.[2]).toMatchObject({ loader: offlineLoader })
   })
 })

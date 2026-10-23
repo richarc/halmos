@@ -2,6 +2,7 @@
 // the largest thing Hermes bundles, and a document with no charts should never
 // load them. embedChart imports the real module on first use.
 import type vegaEmbedFn from 'vega-embed'
+import type { Loader } from 'vega'
 
 /** The slice of a Vega view the hydrator needs for cleanup. */
 export interface ChartView {
@@ -141,6 +142,24 @@ export function createChartHydrator(embed: EmbedFn = embedChart): ChartHydrator 
   }
 }
 
+const NO_URLS = 'Charts use inline data: put the values in the spec instead of a URL'
+const refuse = () => Promise.reject(new Error(NO_URLS))
+
+/**
+ * The loader every chart runs with: it refuses everything. A chart is
+ * document content, and Vega fetches whatever a spec names — a data URL, a
+ * URL built from a signal, an image mark's url, a link's href — from the app's
+ * origin, which serves files beside the document. With Vega's own loader a
+ * document someone sent could read a file and send it elsewhere. Charts made
+ * in Halmos carry their values inline, so nothing legitimate is lost.
+ */
+export const offlineLoader: Loader = {
+  load: refuse,
+  sanitize: refuse,
+  http: refuse,
+  file: refuse,
+}
+
 export async function embedChart(
   el: HTMLElement,
   specText: string,
@@ -158,6 +177,7 @@ export async function embedChart(
     const { default: vegaEmbed } = await import('vega-embed')
     const result = await vegaEmbed(el, spec as Parameters<typeof vegaEmbedFn>[1], {
       actions: false,
+      loader: offlineLoader,
     })
     return result.view
   } catch (err) {
