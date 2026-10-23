@@ -143,6 +143,18 @@ const rasterise = vi.hoisted(() => ({
   canvasToPng: vi.fn(() => 'CANVASPNG'),
 }))
 vi.mock('./lib/rasterise', () => rasterise)
+// Counted, not replaced: the bibliography tests check when a formatter is built.
+const citationsSpy = vi.hoisted(() => ({ created: 0 }))
+vi.mock('./lib/citations', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./lib/citations')>()
+  return {
+    ...real,
+    createCitationFormatter: (...args: Parameters<typeof real.createCitationFormatter>) => {
+      citationsSpy.created++
+      return real.createCitationFormatter(...args)
+    },
+  }
+})
 vi.mock('./lib/recoveryDraft', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./lib/recoveryDraft')>()),
   DRAFT_DEBOUNCE_MS: 20,
@@ -2622,6 +2634,44 @@ describe('unknown citations in the status bar', () => {
     expect(dlg.open).toBe(false)
     const line = view.state.doc.lineAt(view.state.selection.main.head).number
     expect(line).toBe(8)
+  })
+})
+
+describe('reloading the bibliography', () => {
+  const bib = '@article{a, title={A}, author={Doe, Jane}, year={2020}}'
+  const fm = '---\nbibliography: refs.bib\n---\n'
+  afterEach(() => DocumentService.ReadBibliography.mockResolvedValue(''))
+
+  // Building a formatter costs its first formatting pass, so a reload that
+  // reads the same text with the same style keeps the formatter it has.
+  it('keeps the formatter when the text and style are unchanged', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(bib)
+    const target = await openDoc(`${fm}# Results\n\n[@a; @b]\n`)
+    await vi.waitFor(() => expect(target.querySelector('.status-bar')?.textContent).toContain('1 unknown citation'))
+    const built = citationsSpy.created
+    const reads = DocumentService.ReadBibliography.mock.calls.length
+    const watches = DocumentService.WatchBibliography.mock.calls.length
+
+    listeners['bib:changed']({ data: null })
+    await vi.waitFor(() => expect(DocumentService.WatchBibliography.mock.calls.length).toBe(watches + 1))
+    expect(DocumentService.ReadBibliography.mock.calls.length).toBe(reads + 1)
+    expect(citationsSpy.created).toBe(built)
+
+    DocumentService.ReadBibliography.mockResolvedValue(`${bib}\n@article{b, title={B}, author={Roe, Max}, year={2021}}`)
+    listeners['bib:changed']({ data: null })
+    await vi.waitFor(() => expect(target.querySelector('.status-bar')?.textContent).not.toContain('unknown citation'))
+    expect(citationsSpy.created).toBe(built + 1)
+  })
+
+  it('builds a new formatter when only the style changes', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(bib)
+    const target = await openDoc('---\nbibliography: refs.bib\ncsl: apa\n---\n# Results\n\n[@a; @b]\n')
+    await vi.waitFor(() => expect(target.querySelector('.status-bar')?.textContent).toContain('1 unknown citation'))
+    const built = citationsSpy.created
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const at = view.state.doc.toString().indexOf('apa')
+    view.dispatch({ changes: { from: at, to: at + 3, insert: 'ieee' } })
+    await vi.waitFor(() => expect(citationsSpy.created).toBe(built + 1))
   })
 })
 

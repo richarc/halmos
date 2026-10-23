@@ -34,7 +34,8 @@
   } from './lib/documentTemplate'
   import NewDocument, { type BibliographyChoice } from './NewDocument.svelte'
   import { parseFrontmatter, frontmatterKeyChange } from './lib/frontmatter'
-  import { parseBib, type CSLEntry } from './lib/bibliography'
+  import { type CSLEntry } from './lib/bibliography'
+  import { createBibParser } from './lib/bibLoader'
   import type { CitationContext } from './lib/citationCompletion'
   import { resolveTheme, applyTheme, type ThemeSetting } from './lib/theme'
   import { createCitationFormatter, isStyleFile, loadStyleXml, STYLE_IDS, type CitationFormatter } from './lib/citations'
@@ -301,12 +302,19 @@
 
   // Reload the bibliography when the document's frontmatter changes it,
   // when the document path changes, or on bib:changed from the watcher.
+  // Parses .bib text in a Web Worker and keeps the last result (bibLoader.ts).
+  const bibParser = createBibParser()
+  // What the current formatter was built from, so a reload that finds the
+  // same text and style keeps it. Null when there is nothing to keep.
+  let loadedBib: { text: string; csl: string; xml: string | null } | null = null
+
   async function reloadBibliography() {
     const gen = ++reloadGeneration
     const wanted = fmBibliography ?? null
     if (!wanted || !path) {
       formatter = undefined
       bibEntries = []
+      loadedBib = null
       // A named bibliography resolves relative to the document, so an unsaved
       // document cannot load one. Say so rather than failing silently.
       const styleFile = fmCsl && isStyleFile(fmCsl) ? fmCsl : undefined
@@ -321,35 +329,55 @@
     try {
       const text = await DocumentService.ReadBibliography(wanted, path)
       if (gen !== reloadGeneration) return // superseded by a newer request
-      const { entries, warnings } = parseBib(text)
+      const csl = fmCsl ?? 'apa'
+      // A style file resolves relative to the document, like the bibliography.
+      // A failure to read it falls back to APA below, never to no citations.
+      let xml: string | null = null
+      let styleUnreadable = false
+      if (isStyleFile(csl)) {
+        try {
+          xml = await DocumentService.ReadCitationStyle(csl, path)
+        } catch {
+          styleUnreadable = true
+        }
+        if (gen !== reloadGeneration) return // superseded while the file was read
+      }
+      // Building a formatter costs its first formatting pass (up to 0.9 s on
+      // a long paper), so the same text and style keep the one there is:
+      // saving an untitled document, for one, changes the path but not these.
+      if (formatter && loadedBib && loadedBib.text === text && loadedBib.csl === csl && loadedBib.xml === xml) {
+        void DocumentService.WatchBibliography(wanted, path)
+        return
+      }
+      const { entries, warnings } = await bibParser.parse(text)
+      if (gen !== reloadGeneration) return // superseded while it was parsed
       if (warnings.length)
         toast(`Bibliography: ${warnings.length} entr${warnings.length === 1 ? 'y' : 'ies'} could not be parsed`)
       let next: CitationFormatter
       let styleNotice: string | null = null
-      if (fmCsl && isStyleFile(fmCsl)) {
-        // A style file resolves relative to the document, like the bibliography.
-        // Any failure to read or build it falls back to APA, never to no citations.
+      if (isStyleFile(csl)) {
         try {
-          const xml = await DocumentService.ReadCitationStyle(fmCsl, path)
-          if (gen !== reloadGeneration) return // superseded while the file was read
-          next = await createCitationFormatter(entries, fmCsl, xml)
+          if (styleUnreadable) throw new Error('unreadable')
+          next = await createCitationFormatter(entries, csl, xml ?? undefined)
         } catch {
           if (gen !== reloadGeneration) return
           next = await createCitationFormatter(entries, 'apa')
-          styleNotice = `Citation style could not be loaded: ${fmCsl} — using APA`
+          styleNotice = `Citation style could not be loaded: ${csl} — using APA`
         }
       } else {
-        next = await createCitationFormatter(entries, fmCsl ?? 'apa')
+        next = await createCitationFormatter(entries, csl)
         if (fmCsl && !STYLE_IDS.includes(fmCsl)) styleNotice = `Unknown citation style "${fmCsl}" — using APA`
       }
       if (gen !== reloadGeneration) return // superseded while the style loaded
       formatter = next
       bibEntries = entries
+      loadedBib = styleNotice ? null : { text, csl, xml }
       if (styleNotice) toast(styleNotice)
     } catch {
       if (gen !== reloadGeneration) return // superseded by a newer request
       formatter = undefined
       bibEntries = []
+      loadedBib = null
       toast(`Bibliography not found: ${wanted}`)
     }
     void DocumentService.WatchBibliography(wanted, path)
