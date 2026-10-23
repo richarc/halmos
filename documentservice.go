@@ -420,7 +420,10 @@ func pdfExportFilename(docPath string) string {
 // paper picker would be a second source of truth for the same fact — a user
 // who changed it there would get a PDF whose measure did not match the sheet
 // they wrote against.
-func (s *DocumentService) ExportPDF(docPath string) error {
+//
+// furniture is the running header and footer from the document's frontmatter
+// (lib/pageFurniture.ts); empty templates draw nothing.
+func (s *DocumentService) ExportPDF(docPath string, furniture PageFurniture) error {
 	if s.window == nil {
 		return nil
 	}
@@ -434,7 +437,7 @@ func (s *DocumentService) ExportPDF(docPath string) error {
 	set := s.settings.get()
 	landscape := set.PrintOrientation == "landscape"
 	w, h := paperPoints(set.PaperSize, landscape)
-	if !exportPDF(path, paperPWGName(set.PaperSize), landscape, w, h) {
+	if !exportPDF(path, paperPWGName(set.PaperSize), landscape, w, h, furniture.normalised(), set.BodyFont) {
 		return fmt.Errorf("could not export the PDF")
 	}
 	return nil

@@ -76,6 +76,19 @@ export interface ExportImage {
 }
 
 /**
+ * PageFurniture is Export PDF's running header and footer: the frontmatter's
+ * `header` and `footer` templates as written, with the value for `{title}`.
+ * The export fills that, `{date}`, `{page}` and `{pages}` in, page by page, in
+ * one pass (hermesFurnitureText), so a title that contains "{page}" is printed
+ * as it is. Built by the frontend's lib/pageFurniture.ts.
+ */
+export interface PageFurniture {
+    "header": string;
+    "footer": string;
+    "title": string;
+}
+
+/**
  * PairingInfo is what the connect dialog shows while it waits. The device
  * code stays in Go.
  */

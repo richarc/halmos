@@ -17,6 +17,7 @@ export type {
     Document,
     Draft,
     ExportImage,
+    PageFurniture,
     PairingInfo,
     PortalError,
     SaveResult,

@@ -17,6 +17,12 @@ describe('parseFrontmatter', () => {
     expect(fm.body).toBe('Body\n')
   })
 
+  it('extracts header and footer', () => {
+    const fm = parseFrontmatter('---\nheader: "{title}: draft"\nfooter: Page {page} of {pages}\n---\nBody\n')
+    expect(fm.header).toBe('{title}: draft')
+    expect(fm.footer).toBe('Page {page} of {pages}')
+  })
+
   it('drops a trailing YAML comment from an unquoted value', () => {
     const fm = parseFrontmatter('---\ntoc: true  # a [[toc]] paragraph positions the contents\n---\nBody')
     expect(fm.toc).toBe('true')

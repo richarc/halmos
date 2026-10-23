@@ -34,6 +34,7 @@
   } from './lib/documentTemplate'
   import NewDocument, { type BibliographyChoice } from './NewDocument.svelte'
   import { parseFrontmatter, frontmatterKeyChange } from './lib/frontmatter'
+  import { pageFurniture } from './lib/pageFurniture'
   import { type CSLEntry } from './lib/bibliography'
   import { createBibParser } from './lib/bibLoader'
   import type { CitationContext } from './lib/citationCompletion'
@@ -657,6 +658,13 @@
   // only exists here, so Go only asks where and writes. htmlExport and the
   // KaTeX assets it loads are imported on first use: they are not part of
   // the startup bundle.
+  // The header and footer come from the frontmatter, the title from the
+  // first heading in the outline (lib/pageFurniture.ts).
+  function exportPDF() {
+    const furniture = pageFurniture(fm, outline[0]?.text ?? '', filename)
+    void DocumentService.ExportPDF(path ?? '', furniture).catch((e) => toast(String(e)))
+  }
+
   async function exportHTML() {
     if (showWelcome || chartOpen || tableOpen || newOpen) return
     const docPath = path ?? ''
@@ -1580,9 +1588,7 @@
     Events.On('recents:changed', () => void refreshRecents())
     Events.On('bib:changed', () => void reloadBibliography())
     Events.On('menu:insert-citation', () => void insertCitation())
-    Events.On('menu:export-pdf', () => {
-      void DocumentService.ExportPDF(path ?? '').catch((e) => toast(String(e)))
-    })
+    Events.On('menu:export-pdf', () => exportPDF())
     Events.On('menu:export-html', () => void exportHTML())
     Events.On('menu:export-pandoc', (ev: { data: unknown }) => {
       if (ev.data === 'docx' || ev.data === 'latex') void exportPandoc(ev.data)
@@ -1698,7 +1704,7 @@
       <button onclick={openTableBuilder}>Table…</button>
     </div>
     <div class="toolbar-group toolbar-end" role="group" aria-label="Export">
-      <button onclick={() => void DocumentService.ExportPDF(path ?? '').catch((e) => toast(String(e)))}>Export PDF…</button>
+      <button onclick={exportPDF}>Export PDF…</button>
     </div>
   </header>
 
