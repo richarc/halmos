@@ -236,8 +236,16 @@ not set `width` unless a particular chart genuinely needs to override the
 document default.
 
 A chart stays editable in the graphical builder only if it uses a single
-`mark` with `x`, `y` and optional `color` encodings. `layer`, `transform` and
-`facet` render fine but cannot be reopened there.
+`mark` with `x`, `y` and optional `color` encodings. Styling the builder has no
+control for is kept as written when the chart is reopened: `axis`, `scale`,
+`legend` and `sort` on an encoding, settings on the mark such as `point`,
+`opacity` or `interpolate`, and a top-level `config`. Styling is written for one
+chart, so the builder lets it go as the chart changes: a new chart type drops
+all of it, a new column or type drops that axis's, new data drops `scale` and
+`sort`, and editing an axis title drops the `axis` title it would otherwise
+lose to. `layer`, `transform`, `facet`, `timeUnit` and `bin` (outside a
+histogram) render fine but cannot be reopened there; the builder says which
+one it found.
 
 ## Diagrams
 

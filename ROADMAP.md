@@ -101,9 +101,26 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       document to PDF from the panel on A4 and US Letter, portrait and
       landscape, and measure the top margin. If it is wrong, decide whether
       Print… should use the same margin rule as Export PDF….
-- [ ] **Chart builder improvements.** Scope to follow. Candidates already
-      recorded: layered charts (Backlog) and the builder left open when the
-      window closes (v0.11.4 leftovers).
+- [x] **Chart builder improvements.** Scoped 2026-10-23 to three fixes;
+      layered charts stay in the Backlog.
+      - Keep styling the builder has no control for. A chart is editable
+        only if the builder can rebuild it exactly, so an axis label angle
+        or points on a line (both in `docs/test-document.md`) refused the
+        whole chart. `chartSpec.ts` now carries a fixed list unchanged:
+        `axis`, `scale`, `legend` and `sort` on each encoding, mark settings
+        such as `point`, `opacity` and `interpolate` (the mark may be an
+        object), and top-level `config`, `background`, `padding` and
+        `autosize`. The builder drops them as they stop fitting
+        (`keptStyles`): all on a new chart type, a channel's on a new
+        column, type or aggregate, `scale` and `sort` on new data.
+        `bin`, `timeUnit`, `transform`, `layer` and `facet` are still
+        refused.
+      - Name a refusal in plain English (`refusalMessage` in
+        `lib/chartLabels.ts`), not as a path like `encoding.x.axis`.
+      - Closing the window with a builder or the New dialog open now closes
+        them (`closeDocument`). A clean close skips the confirm step, which
+        is how they were left behind.
+      *Done 2026-10-23.*
 - [ ] **Page numbers, headers and footers in exported output.** Set in the
       frontmatter, like `bibliography`, `csl` and `toc`, so a document
       carries its own page setup. The keys are `header` and `footer`, each
@@ -483,9 +500,6 @@ Ideas noted along the way, not yet committed to a release:
   collapsible in the editor.
 
 - Leftovers from the v0.11.4 final review, judged minor:
-  - Closing the window while the chart builder, table builder or New
-    dialog is open leaves it open; after a Dock click it reappears over the
-    welcome pane. `closeDocument` in `App.svelte` could close them.
   - A file opened from Finder while a builder or the New dialog is open is
     ignored with no message (`requestOpenRecent` returns early).
   - A file opened from Finder while the unsaved-changes dialog is up for a

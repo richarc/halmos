@@ -275,6 +275,80 @@ describe('ChartBuilder encoding step', () => {
     target.remove()
   })
 
+  // Styling readSpec kept, such as points on a line, was written for the
+  // chart's own type; a bar chart with `point: true` is not what anyone asked
+  // for.
+  it.each([
+    ['keeps', 'line', { type: 'line', point: true }],
+    ['drops', 'bar', 'bar'],
+  ])('%s styling when the chart type is %s', (_verb, chartType, mark) => {
+    const target = document.createElement('div')
+    document.body.appendChild(target)
+    const oncommit = vi.fn()
+    const cmp = mount(ChartBuilder, {
+      target,
+      props: {
+        initial: {
+          chartType: 'line',
+          rows: [{ dose: 0, response: 1 }],
+          x: { field: 'dose', type: 'quantitative', title: '' },
+          y: { field: 'response', type: 'quantitative', title: '', aggregate: 'none' },
+          colour: null,
+          extent: 'ci' as const,
+          extras: {},
+          styles: { mark: { point: true }, x: { axis: { labelAngle: 0 } } },
+        },
+        oncommit,
+        oncancel: vi.fn(),
+      },
+    })
+    flushSync()
+    select(target, 'chart-type', chartType)
+    ;[...target.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Update')!.click()
+    flushSync()
+
+    const spec = JSON.parse(oncommit.mock.calls[0][0] as string)
+    expect(spec.mark).toEqual(mark)
+    expect(spec.encoding.x.axis).toEqual(chartType === 'line' ? { labelAngle: 0 } : undefined)
+    unmount(cmp)
+    target.remove()
+  })
+
+  it('drops a scale domain when the pasted data changes', () => {
+    const target = document.createElement('div')
+    document.body.appendChild(target)
+    const oncommit = vi.fn()
+    const cmp = mount(ChartBuilder, {
+      target,
+      props: {
+        initial: {
+          chartType: 'bar',
+          rows: [{ dose: 0, response: 1 }],
+          x: { field: 'dose', type: 'quantitative', title: '' },
+          y: { field: 'response', type: 'quantitative', title: '', aggregate: 'none' },
+          colour: null,
+          extent: 'ci' as const,
+          extras: {},
+          styles: { y: { scale: { domain: [0, 10] }, axis: { labelAngle: 0 } } },
+        },
+        oncommit,
+        oncancel: vi.fn(),
+      },
+    })
+    flushSync()
+    paste(target, 'dose,response\n0,1000\n5,2000\n')
+    ;[...target.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Update')!.click()
+    flushSync()
+
+    expect(JSON.parse(oncommit.mock.calls[0][0] as string).encoding.y).toEqual({
+      field: 'response',
+      type: 'quantitative',
+      axis: { labelAngle: 0 },
+    })
+    unmount(cmp)
+    target.remove()
+  })
+
   it('hides the aggregate control for boxplot, which summarises for itself', () => {
     const { target, cleanup } = mountBuilder()
     paste(target, 'dose,response\n0,1\n5,2\n')

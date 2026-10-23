@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildSpec, canonicalise, readSpec, type BuilderState } from './chartSpec'
+import { buildSpec, canonicalise, keptStyles, readSpec, type BuilderState } from './chartSpec'
 
 const BASE: BuilderState = {
   chartType: 'line',
@@ -450,7 +450,7 @@ describe('error bars', () => {
   it('refuses a mark object it cannot model', () => {
     const spec = JSON.stringify({
       data: { values: [{ a: 1 }] },
-      mark: { type: 'bar', cornerRadius: 4 },
+      mark: { type: 'bar', orient: 'horizontal' },
       encoding: { x: { field: 'a', type: 'quantitative' }, y: { field: 'a', type: 'quantitative' } },
     })
     expect(readSpec(spec).ok).toBe(false)
@@ -525,5 +525,145 @@ describe('pie', () => {
       encoding: { color: { field: 'a', type: 'nominal' } },
     })
     expect(readSpec(spec).ok).toBe(false)
+  })
+})
+
+describe('styling the builder does not edit', () => {
+  const xy = { x: { field: 'a', type: 'nominal' }, y: { field: 'b', type: 'quantitative' } }
+  const values = [{ a: 'A', b: 1 }]
+
+  // Both charts from docs/test-document.md that the builder used to refuse.
+  it.each([
+    [
+      'an axis label angle',
+      {
+        description: 'Simple bar chart',
+        data: { values },
+        mark: 'bar',
+        encoding: { ...xy, x: { ...xy.x, axis: { labelAngle: 0 } } },
+      },
+    ],
+    ['points on a line', { data: { values }, mark: { type: 'line', point: true }, encoding: xy }],
+    ['a mark written as an object', { data: { values }, mark: { type: 'line' }, encoding: xy }],
+    ['error bar ticks', { data: { values }, mark: { type: 'errorbar', extent: 'ci', ticks: true }, encoding: xy }],
+    [
+      'scale, sort and legend',
+      {
+        data: { values },
+        mark: { type: 'bar', cornerRadius: 3, opacity: 0.8 },
+        encoding: {
+          x: { ...xy.x, sort: '-y' },
+          y: { ...xy.y, scale: { domain: [0, 10] } },
+          color: { field: 'a', type: 'nominal', legend: { orient: 'bottom' } },
+        },
+      },
+    ],
+    [
+      'a pie slice scale',
+      {
+        data: { values },
+        mark: 'arc',
+        encoding: { theta: { field: 'b', type: 'quantitative', scale: { type: 'sqrt' } }, color: xy.x },
+      },
+    ],
+    ['top-level config', { data: { values }, mark: 'bar', encoding: xy, config: { axis: { grid: false } } }],
+  ])('keeps %s', (_name, spec) => {
+    const r = readSpec(JSON.stringify(spec))
+    if (!r.ok) throw new Error(`refused: ${JSON.stringify(r)}`)
+    expect(JSON.parse(buildSpec(r.state))).toEqual(spec)
+  })
+
+  it('reads a styled line as a line chart', () => {
+    const r = readSpec(JSON.stringify({ data: { values }, mark: { type: 'line', point: true }, encoding: xy }))
+    if (!r.ok) throw new Error('refused')
+    expect(r.state.chartType).toBe('line')
+    expect(r.state.styles).toEqual({ mark: { point: true } })
+  })
+
+  it('omits styles from a chart that has none', () => {
+    const r = readSpec(buildSpec(BASE))
+    if (!r.ok) throw new Error('refused')
+    expect('styles' in r.state).toBe(false)
+  })
+
+  it('round-trips builder states that carry styles', () => {
+    const states: BuilderState[] = [
+      { ...BASE, styles: { mark: {} } },
+      { ...BASE, styles: { mark: { point: true, interpolate: 'monotone' } } },
+      { ...BASE, styles: { x: { axis: { labelAngle: -45 } }, y: { scale: { zero: false } } } },
+      { ...BASE, colour: { field: 'g', type: 'nominal' }, styles: { colour: { legend: null } } },
+      { ...BASE, chartType: 'errorbar', styles: { mark: { ticks: true } } },
+    ]
+    for (const s of states) {
+      const r = readSpec(buildSpec(s))
+      if (!r.ok) throw new Error(`refused its own output for ${JSON.stringify(s)}`)
+      expect(r.state).toEqual(canonicalise(s))
+    }
+  })
+
+  it('still refuses a channel setting that changes what is plotted', () => {
+    const r = readSpec(
+      JSON.stringify({ data: { values }, mark: 'line', encoding: { ...xy, x: { ...xy.x, timeUnit: 'year' } } }),
+    )
+    if (r.ok || r.reason !== 'unsupported') throw new Error('expected unsupported')
+    expect(r.unconsumed).toEqual(['encoding.x.timeUnit'])
+  })
+
+  it('still refuses bin on a chart that is not a histogram', () => {
+    const r = readSpec(
+      JSON.stringify({ data: { values }, mark: 'line', encoding: { ...xy, x: { ...xy.x, bin: true } } }),
+    )
+    if (r.ok || r.reason !== 'unsupported') throw new Error('expected unsupported')
+    expect(r.unconsumed).toEqual(['encoding.x.bin'])
+  })
+
+  it('refuses a mark object whose type it does not know', () => {
+    const r = readSpec(JSON.stringify({ data: { values }, mark: { type: 'trail', point: true }, encoding: xy }))
+    expect(r.ok).toBe(false)
+  })
+})
+
+describe('keptStyles', () => {
+  const styled: BuilderState = {
+    ...BASE,
+    colour: { field: 'group', type: 'nominal' },
+    styles: {
+      mark: { point: true },
+      x: { axis: { labelAngle: 0, title: 'Dose' }, scale: { zero: false }, sort: 'descending' },
+      y: { scale: { domain: [0, 10] } },
+      colour: { legend: { orient: 'bottom' } },
+    },
+  }
+
+  it('keeps everything while nothing has changed', () => {
+    expect(keptStyles(styled, styled, true)).toEqual(styled.styles)
+  })
+
+  it('keeps nothing once the chart type changes', () => {
+    expect(keptStyles(styled, { ...styled, chartType: 'bar' }, true)).toBeUndefined()
+  })
+
+  it('drops a channel whose column, type or aggregate changed', () => {
+    expect(keptStyles(styled, { ...styled, x: { ...styled.x, type: 'nominal' } }, true)?.x).toBeUndefined()
+    expect(keptStyles(styled, { ...styled, y: { ...styled.y, field: 'other' } }, true)?.y).toBeUndefined()
+    expect(keptStyles(styled, { ...styled, y: { ...styled.y, aggregate: 'sum' } }, true)?.y).toBeUndefined()
+    expect(keptStyles(styled, { ...styled, colour: null }, true)?.colour).toBeUndefined()
+    expect(keptStyles(styled, { ...styled, x: { ...styled.x, type: 'nominal' } }, true)?.mark).toEqual({ point: true })
+  })
+
+  it('drops scale and sort, which name values, when the data changes', () => {
+    expect(keptStyles(styled, styled, false)).toEqual({
+      mark: { point: true },
+      x: { axis: { labelAngle: 0, title: 'Dose' } },
+      colour: { legend: { orient: 'bottom' } },
+    })
+  })
+
+  it('drops an axis title once the title box is edited, since it would win', () => {
+    expect(keptStyles(styled, { ...styled, x: { ...styled.x, title: 'Dose (mg)' } }, true)?.x).toEqual({
+      axis: { labelAngle: 0 },
+      scale: { zero: false },
+      sort: 'descending',
+    })
   })
 })
