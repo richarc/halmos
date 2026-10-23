@@ -79,7 +79,9 @@ func localImagePath(src, doc string) (string, bool) {
 }
 
 // imageTypes is everything the route serves, and the export readers read, by
-// extension: the image formats WebKit displays.
+// extension: the formats WebKit displays in an <img>, PDF included, because
+// PDF figures are ordinary in papers written alongside LaTeX. A file with no
+// extension is not served; sniffing would let any file's bytes decide.
 var imageTypes = map[string]string{
 	".png":  "image/png",
 	".jpg":  "image/jpeg",
@@ -93,6 +95,11 @@ var imageTypes = map[string]string{
 	".tiff": "image/tiff",
 	".heic": "image/heic",
 	".heif": "image/heif",
+	".apng": "image/apng",
+	".jfif": "image/jpeg",
+	".ico":  "image/x-icon",
+	".jxl":  "image/jxl",
+	".pdf":  "application/pdf",
 }
 
 // localImageFile resolves an image source the way localImagePath does and

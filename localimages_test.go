@@ -300,3 +300,25 @@ func TestLocalImagesLabelsWhatItServes(t *testing.T) {
 		t.Errorf("Content-Security-Policy %q, want default-src 'none' and sandbox", got)
 	}
 }
+
+// PDF figures are ordinary in papers written alongside LaTeX, and WebKit
+// draws a PDF in an <img>; the other formats are ones WebKit also displays.
+func TestLocalImagesServesPDFFiguresAndOtherWebKitImages(t *testing.T) {
+	dir := t.TempDir()
+	doc := filepath.Join(dir, "main.md")
+	for name, mime := range map[string]string{
+		"fig.pdf":    "application/pdf",
+		"anim.apng":  "image/apng",
+		"photo.jfif": "image/jpeg",
+		"icon.ico":   "image/x-icon",
+		"next.jxl":   "image/jxl",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("DATA"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		rec := get(t, doc, name)
+		if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != mime {
+			t.Errorf("%s: status %d, Content-Type %q; want 200 and %s", name, rec.Code, rec.Header().Get("Content-Type"), mime)
+		}
+	}
+}
