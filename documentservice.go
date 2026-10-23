@@ -71,7 +71,11 @@ type DocumentService struct {
 	emitBibChanged func()
 	watchMu        sync.Mutex
 	watchCancel    context.CancelFunc
-	caywBase       string
+	// The bibliography as ReadBibliography last returned it: the resolved
+	// path and the version of its content. The watcher starts from this,
+	// not from the file as it is when the watch begins. Guarded by watchMu.
+	bibReadPath, bibReadVersion string
+	caywBase                    string
 	// The update check's inputs, injectable so the tests can point it at an
 	// httptest server with a fixed clock and version. See update.go.
 	updateFeed      string
@@ -556,10 +560,14 @@ func resolveAgainstDoc(path, docPath string) string {
 }
 
 func (s *DocumentService) ReadBibliography(path, docPath string) (string, error) {
-	data, err := os.ReadFile(resolveAgainstDoc(path, docPath))
+	resolved := resolveAgainstDoc(path, docPath)
+	data, err := os.ReadFile(resolved)
 	if err != nil {
 		return "", err
 	}
+	s.watchMu.Lock()
+	s.bibReadPath, s.bibReadVersion = resolved, contentVersion(data)
+	s.watchMu.Unlock()
 	return string(data), nil
 }
 
@@ -591,6 +599,11 @@ func (s *DocumentService) WatchBibliography(path, docPath string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.watchCancel = cancel
 
+	var readVersion string
+	if s.bibReadPath == resolved {
+		readVersion = s.bibReadVersion
+	}
+
 	notify := s.emitBibChanged
 	if notify == nil {
 		notify = func() { application.Get().Event.Emit("bib:changed") }
@@ -612,6 +625,12 @@ func (s *DocumentService) WatchBibliography(path, docPath string) {
 			if b, err := os.ReadFile(resolved); err == nil {
 				lastVersion = contentVersion(b)
 			}
+		}
+		// The editor read the file before it asked for this watch, and a
+		// large library can take seconds to format in between. A rewrite in
+		// that gap is a change the editor has not seen.
+		if readVersion != "" && lastVersion != "" && readVersion != lastVersion {
+			notify()
 		}
 		ticker := time.NewTicker(s.watchTick)
 		defer ticker.Stop()

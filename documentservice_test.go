@@ -285,6 +285,38 @@ func TestWatchBibliographyIgnoresARewriteWithTheSameBytes(t *testing.T) {
 	s.WatchBibliography("", docPath)
 }
 
+// The editor reads the file, parses and formats it, and only then starts the
+// watcher, which can be seconds on a large library. A rewrite in that gap
+// must still reach the editor, so the watcher starts from what was read.
+func TestWatchBibliographyEmitsForAChangeSinceTheRead(t *testing.T) {
+	s := newTestService(t)
+	s.watchTick = 10 * time.Millisecond
+	dir := t.TempDir()
+	docPath := filepath.Join(dir, "paper.md")
+	bibPath := filepath.Join(dir, "refs.bib")
+	if err := os.WriteFile(bibPath, []byte("v1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var emitted atomic.Int32
+	s.emitBibChanged = func() { emitted.Add(1) }
+
+	if _, err := s.ReadBibliography("refs.bib", docPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bibPath, []byte("v2 longer"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.WatchBibliography("refs.bib", docPath)
+	deadline := time.Now().Add(2 * time.Second)
+	for emitted.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if emitted.Load() != 1 {
+		t.Fatalf("emitted %d times for a change made between the read and the watch, want 1", emitted.Load())
+	}
+	s.WatchBibliography("", docPath)
+}
+
 func TestWatchBibliographySelfHealsMissingFile(t *testing.T) {
 	s := newTestService(t)
 	s.watchTick = 10 * time.Millisecond

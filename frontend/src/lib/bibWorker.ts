@@ -12,3 +12,6 @@ self.onmessage = (ev: MessageEvent<{ id: number; text: string }>) => {
   }
   self.postMessage(reply)
 }
+
+// Tells bibLoader.ts the worker loaded and runs (BIB_WORKER_READY_MS).
+self.postMessage({ ready: true } satisfies BibReply)

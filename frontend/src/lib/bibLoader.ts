@@ -10,7 +10,15 @@ export interface BibWorker {
   terminate(): void
 }
 
-export type BibReply = { id: number; result: ParsedBib } | { id: number; error: string }
+export type BibReply = { ready: true } | { id: number; result: ParsedBib } | { id: number; error: string }
+
+/**
+ * How long the worker has to say it has loaded before parsing moves to the
+ * main thread. A worker that fails to load fires `error`; this covers one
+ * that never answers at all. Not a limit on parsing: a large library takes
+ * longer than this, and the clock stops once the worker is ready.
+ */
+export const BIB_WORKER_READY_MS = 5000
 
 /**
  * Parses .bib text off the main thread. A 2,000-entry library takes about
@@ -54,14 +62,22 @@ export function createBibParser(spawn: () => BibWorker | null = spawnBibWorker) 
       worker = null
     }
     if (worker) {
+      const readyTimer = setTimeout(() => abandonWorker(), BIB_WORKER_READY_MS)
       worker.onmessage = ({ data }) => {
+        if ('ready' in data) {
+          clearTimeout(readyTimer)
+          return
+        }
         const p = pending.get(data.id)
         if (!p) return
         pending.delete(data.id)
         if ('result' in data) p.resolve(data.result)
         else onMainThread(p.text).then(p.resolve, p.reject)
       }
-      worker.onerror = () => abandonWorker()
+      worker.onerror = () => {
+        clearTimeout(readyTimer)
+        abandonWorker()
+      }
     }
     return worker
   }

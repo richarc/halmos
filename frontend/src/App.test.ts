@@ -2662,6 +2662,17 @@ describe('reloading the bibliography', () => {
     await vi.waitFor(() => expect(target.querySelector('.status-bar')?.textContent).not.toContain('unknown citation'))
     expect(citationsSpy.created).toBe(built + 1)
   })
+
+  it('builds a new formatter when only the style changes', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(bib)
+    const target = await openDoc('---\nbibliography: refs.bib\ncsl: apa\n---\n# Results\n\n[@a; @b]\n')
+    await vi.waitFor(() => expect(target.querySelector('.status-bar')?.textContent).toContain('1 unknown citation'))
+    const built = citationsSpy.created
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const at = view.state.doc.toString().indexOf('apa')
+    view.dispatch({ changes: { from: at, to: at + 3, insert: 'ieee' } })
+    await vi.waitFor(() => expect(citationsSpy.created).toBe(built + 1))
+  })
 })
 
 describe('csl style files in an unsaved document', () => {

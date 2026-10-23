@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createBibParser, type BibWorker } from './bibLoader'
+import { BIB_WORKER_READY_MS, createBibParser, type BibWorker } from './bibLoader'
 import { parseBib } from './bibliography'
 
 const BIB = '@article{smith2020, author = {Smith, Jane}, title = {A Title}, year = {2020}}'
@@ -18,6 +18,8 @@ function fakeWorker() {
     },
     terminate() {},
   }
+  // bibWorker.ts says it is ready as soon as it has loaded.
+  setTimeout(() => w.onmessage?.({ data: { ready: true } }), 0)
   return w
 }
 
@@ -85,5 +87,30 @@ describe('createBibParser', () => {
     const other = BIB.replace('smith2020', 'jones2021')
     expect((await p.parse(other)).entries[0].id).toBe('jones2021')
     expect(spawn).toHaveBeenCalledTimes(1)
+  })
+
+  it('parses on the main thread when the worker replies with an error', async () => {
+    const w = fakeWorker()
+    w.postMessage = (msg) => {
+      w.posted.push(msg)
+      setTimeout(() => w.onmessage?.({ data: { id: msg.id, error: 'boom' } }), 0)
+    }
+    const p = createBibParser(() => w)
+    expect(await p.parse(BIB)).toEqual(parseBib(BIB))
+  })
+
+  // A worker that loads but never runs would leave every parse waiting.
+  it('gives up on a worker that never says it is ready', async () => {
+    vi.useFakeTimers()
+    try {
+      const silent: BibWorker = { onmessage: null, onerror: null, postMessage() {}, terminate: vi.fn() }
+      const p = createBibParser(() => silent)
+      const result = p.parse(BIB)
+      await vi.advanceTimersByTimeAsync(BIB_WORKER_READY_MS)
+      expect(await result).toEqual(parseBib(BIB))
+      expect(silent.terminate).toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
