@@ -56,7 +56,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	// this confirm would loop.
 	if quit := reclaimQuitItem(menu); quit != nil {
 		quit.OnClick(func(*application.Context) {
-			quitRequest(docs.IsDirty(),
+			quitRequest(docs.mustAsk(),
 				// Shown first: with the window hidden (#17) the dialog
 				// would otherwise render where nobody can see it.
 				func() {
@@ -565,12 +565,12 @@ func reclaimQuitItem(menu *application.Menu) *application.MenuItem {
 	return quit.SetRole(application.NoRole)
 }
 
-// quitRequest decides what ⌘Q does: raise the unsaved-changes confirm, or
-// quit. Split out from the menu closure so the branch is reachable by a test —
+// quitRequest decides what ⌘Q does: raise the confirm (unsaved changes, or
+// a builder open; see mustAsk), or quit. Split out from the menu closure so the branch is reachable by a test —
 // getting it the wrong way round silently discards the user's document, and
 // AppKit menu construction cannot be exercised headlessly.
-func quitRequest(dirty bool, confirm func(), quit func()) {
-	if dirty {
+func quitRequest(ask bool, confirm func(), quit func()) {
+	if ask {
 		confirm()
 		return
 	}
@@ -579,11 +579,11 @@ func quitRequest(dirty bool, confirm func(), quit func()) {
 
 // shouldQuit is Options.ShouldQuit's decision, run from AppKit's
 // applicationShouldTerminate. ⌘Q is caught earlier by quitRequest, but the
-// Dock's Quit, logout and restart arrive only here. A dirty document raises
-// the same confirm and refuses the quit; the user's Save or Don't Save then
+// Dock's Quit, logout and restart arrive only here. A dirty document (or an
+// open builder) raises the same confirm and refuses the quit; the user's Save or Don't Save then
 // calls DocumentService.Quit, which approves first so this lets it through.
-func shouldQuit(dirty, approved bool, confirm func()) bool {
-	if dirty && !approved {
+func shouldQuit(ask, approved bool, confirm func()) bool {
+	if ask && !approved {
 		confirm()
 		return false
 	}
@@ -600,11 +600,11 @@ var findItems = []struct{ label, key, command string }{
 }
 
 // closeRequest decides what the window's close button does: raise the
-// unsaved-changes confirm, or close. Split out for the same reason as
+// confirm (unsaved changes, or a builder open), or close. Split out for the same reason as
 // quitRequest. Closing hides the window rather than quitting, so Hermes stays
 // in the Dock and a click on its icon brings the window back (#17).
-func closeRequest(dirty bool, confirm func(), close func()) {
-	if dirty {
+func closeRequest(ask bool, confirm func(), close func()) {
+	if ask {
 		confirm()
 		return
 	}

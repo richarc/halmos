@@ -540,6 +540,26 @@
     editor.runCommand(foldAllCodeBlocks)
   }
 
+  // Go is told, so a close or quit asks first while a builder holds work
+  // that is not yet in the document.
+  $effect(() => {
+    void DocumentService.SetBuilderOpen(chartOpen || tableOpen)
+  })
+
+  // A close or quit that arrived while a builder was open, waiting on the
+  // "Discard the chart?" dialog.
+  let builderClose: 'close' | 'quit' | null = $state(null)
+
+  function discardBuilderAndContinue() {
+    const intent = builderClose
+    builderClose = null
+    if (!intent) return
+    closeChartBuilder()
+    closeTableBuilder()
+    pendingAction = intent
+    if (!dirty) finishPending()
+  }
+
   function closeChartBuilder() {
     chartOpen = false
     chartInitial = null
@@ -1555,26 +1575,16 @@
       // 'close' from the window's close button, 'quit' from ⌘Q. Anything
       // else is treated as a quit, the older and safer reading.
       const intent = ev.data === 'close' ? 'close' : 'quit'
-      const verb = intent === 'close' ? 'closing' : 'quitting'
-      // Mirrors the openChartBuilder guard above: don't raise the
-      // unsaved-changes dialog behind the chart modal, which has no focus
-      // trap of its own.
-      //
-      // Refuse, but audibly. This used to be a bare `return`, so ⌘Q with the
-      // builder open did nothing whatsoever — the app looked frozen, and the
-      // author had no way to tell a refusal from a bug. Refusing is still
-      // right: the alternative, closing the builder to get at the dialog,
-      // discards an in-progress chart to ask about a different document's
-      // unsaved changes.
-      if (chartOpen) {
-        toast(`Finish or cancel the chart before ${verb}.`)
-        return
-      }
-      if (tableOpen) {
-        toast(`Finish or cancel the table before ${verb}.`)
+      // Go asks with a builder open even for a clean document (mustAsk), so
+      // an uncommitted chart or table is never dropped without a word. Its
+      // dialog comes first; the unsaved-changes one, if needed, after.
+      if (chartOpen || tableOpen) {
+        builderClose = intent
         return
       }
       pendingAction = intent
+      // Clean by now (a builder Go saw has since closed): nothing to ask.
+      if (!dirty) finishPending()
     })
     Events.On('document:closed', closeDocument)
     Events.On('document:changed', (ev: { data: unknown }) => {
@@ -1845,6 +1855,23 @@
         }}>Cancel</button
       >
       <button class="primary" onclick={() => void confirmSave()}>Save</button>
+    {/snippet}
+  </Dialog>
+
+  <Dialog
+    open={builderClose !== null}
+    label={chartOpen ? 'Discard chart' : 'Discard table'}
+    title={chartOpen ? 'Discard the chart?' : 'Discard the table?'}
+    role="alertdialog"
+    onclose={() => (builderClose = null)}
+  >
+    <p>
+      The {chartOpen ? 'chart' : 'table'} you are building is not in the document yet.
+      Discard it and {builderClose === 'quit' ? 'quit' : 'close'}?
+    </p>
+    {#snippet footer()}
+      <button class="dialog-alt" onclick={discardBuilderAndContinue}>Discard</button>
+      <button class="primary" onclick={() => (builderClose = null)}>Keep Editing</button>
     {/snippet}
   </Dialog>
 

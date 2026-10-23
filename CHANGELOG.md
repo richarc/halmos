@@ -33,7 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ("transform")".
 - Closing the window while the chart builder, table builder or New dialog
   was open left it open, and it came back over the start screen on the next
-  Dock click.
+  Dock click. Closing or quitting with a builder open now asks "Discard the
+  chart?" (Keep Editing is the default), whether or not the document has
+  unsaved changes; before, a clean document dropped the chart without a
+  word and an edited one refused with a message.
 - Security: a document could make the preview read local files and send
   them elsewhere. Charts no longer load data or images from a URL (data
   goes in the spec); images beside a document must have an image file

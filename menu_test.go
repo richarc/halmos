@@ -141,6 +141,24 @@ func TestApproveQuitIsRemembered(t *testing.T) {
 	}
 }
 
+// A builder's work is not in the document until committed, so an open builder
+// asks before a close or quit even when the document is clean.
+func TestMustAskWhenDirtyOrBuilderOpen(t *testing.T) {
+	s := newTestService(t)
+	if s.mustAsk() {
+		t.Fatal("a clean document with no builder open must not ask")
+	}
+	s.SetBuilderOpen(true)
+	if !s.mustAsk() {
+		t.Error("an open builder must ask")
+	}
+	s.SetBuilderOpen(false)
+	s.SetDirty(true)
+	if !s.mustAsk() {
+		t.Error("unsaved changes must ask")
+	}
+}
+
 // The red button's branch. Same shape as quitRequest, but the clean path
 // hides the window instead of quitting, so the app stays in the Dock (#17).
 func TestCloseRequestConfirmsWhenDirty(t *testing.T) {
