@@ -174,10 +174,17 @@ export async function embedChart(
   try {
     // Inside the try: a chart that cannot load its renderer reports the same
     // way as a chart that cannot render.
-    const { default: vegaEmbed } = await import('vega-embed')
+    const [{ default: vegaEmbed }, { expressionInterpreter }] = await Promise.all([
+      import('vega-embed'),
+      import('vega-interpreter'),
+    ])
     const result = await vegaEmbed(el, spec as Parameters<typeof vegaEmbedFn>[1], {
       actions: false,
       loader: offlineLoader,
+      // The app page's Content-Security-Policy forbids eval, which Vega's
+      // default expression compiler uses; the interpreter evaluates instead.
+      ast: true,
+      expr: expressionInterpreter,
     })
     return result.view
   } catch (err) {

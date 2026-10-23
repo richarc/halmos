@@ -296,4 +296,13 @@ describe('embedChart', () => {
     await embedChart(document.createElement('div'), SPEC)
     expect(vi.mocked(vegaEmbed).mock.lastCall?.[2]).toMatchObject({ loader: offlineLoader })
   })
+
+  it('evaluates chart expressions without generating code', async () => {
+    // The app page's Content-Security-Policy forbids eval, which Vega's
+    // default expression compiler needs; its interpreter does not.
+    const { default: vegaEmbed } = await import('vega-embed')
+    const { expressionInterpreter } = await import('vega-interpreter')
+    await embedChart(document.createElement('div'), SPEC)
+    expect(vi.mocked(vegaEmbed).mock.lastCall?.[2]).toMatchObject({ ast: true, expr: expressionInterpreter })
+  })
 })

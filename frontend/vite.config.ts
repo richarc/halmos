@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import wails from "@wailsio/runtime/plugins/vite";
+import { withContentSecurityPolicy } from "./src/lib/csp";
 
 /**
  * The Quick Look extension loads its page with WKWebView's loadFileURL, so
@@ -15,6 +16,15 @@ function classicScript(): Plugin {
     transformIndexHtml(html) {
       return html.replace(/<script type="module" crossorigin/g, "<script defer");
     },
+  };
+}
+
+/** The app page's Content-Security-Policy, in production builds only. */
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: "content-security-policy",
+    apply: "build",
+    transformIndexHtml: withContentSecurityPolicy,
   };
 }
 
@@ -44,6 +54,6 @@ export default defineConfig(({ mode }) => {
       port: Number(process.env.WAILS_VITE_PORT) || 9245,
       strictPort: true,
     },
-    plugins: [svelte(), wails("./bindings")],
+    plugins: [svelte(), wails("./bindings"), contentSecurityPolicy()],
   };
 });
