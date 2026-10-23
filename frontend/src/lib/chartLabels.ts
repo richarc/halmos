@@ -71,8 +71,11 @@ function refusalPhrase(path: string): string {
     return `reads its data with a setting the builder doesn't offer ("${second}")`
   }
   if (head === 'mark') {
-    return second === undefined
-      ? "uses a kind of mark the builder doesn't offer"
+    // A bare `mark` path also covers a mark the builder offers with an
+    // encoding it does not (an arc with no theta), so this names the chart,
+    // not the mark.
+    return second === undefined || second === 'type'
+      ? "combines its mark and encodings in a way the builder doesn't offer"
       : `sets the mark's "${second}"`
   }
   if (head === 'encoding' && second !== undefined) {

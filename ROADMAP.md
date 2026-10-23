@@ -110,7 +110,9 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
         `axis`, `scale`, `legend` and `sort` on each encoding, mark settings
         such as `point`, `opacity` and `interpolate` (the mark may be an
         object), and top-level `config`, `background`, `padding` and
-        `autosize`. Changing the chart type in the builder drops them.
+        `autosize`. The builder drops them as they stop fitting
+        (`keptStyles`): all on a new chart type, a channel's on a new
+        column, type or aggregate, `scale` and `sort` on new data.
         `bin`, `timeUnit`, `transform`, `layer` and `facet` are still
         refused.
       - Name a refusal in plain English (`refusalMessage` in

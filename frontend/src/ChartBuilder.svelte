@@ -3,6 +3,7 @@
   import { parseDelimited, tableFromRows, toDelimited, type DataTable, type FieldType } from './lib/dataTable'
   import {
     buildSpec,
+    keptStyles,
     CHART_TYPES,
     EXTENTS,
     AGGREGATES,
@@ -109,7 +110,8 @@
   // rather than only replaced. A table with no columns serializes to '',
   // which is also what an unseeded builder wants — seedPasteText's guard
   // covers both that case and the unparseable-header-name case above.
-  let pasted = $state(seedPasteText(seed.table))
+  const seedText = seedPasteText(seed.table)
+  let pasted = $state(seedText)
   let table: DataTable | null = $state(seed.table)
   let parseError = $state('')
   let importError = $state('')
@@ -277,7 +279,7 @@
   // collides with the `$state` rune elsewhere in the file — Svelte parses
   // `$state` as store auto-subscription of a variable named `state` once one
   // is in scope, which breaks every other `$state(...)` call in the script.
-  const builderState: BuilderState | null = $derived(
+  const unstyledState: BuilderState | null = $derived(
     ready && table
       ? {
           chartType,
@@ -299,14 +301,17 @@
           // the field above owns. Carrying the rest through is what stops
           // reopening a chart from quietly stripping it.
           extras,
-          // Styling readSpec kept (an axis label angle, points on a line).
-          // It was written for the chart's own type, so a different type
-          // starts without it rather than inherit settings that may not
-          // apply.
-          ...(initial?.styles && chartType === initial.chartType ? { styles: initial.styles } : {}),
         }
       : null,
   )
+
+  // Styling readSpec kept (an axis label angle, points on a line), as far as
+  // it still fits the chart; see keptStyles.
+  const builderState: BuilderState | null = $derived.by(() => {
+    if (!unstyledState || !initial) return unstyledState
+    const styles = keptStyles(initial, unstyledState, pasted === seedText)
+    return styles ? { ...unstyledState, styles } : unstyledState
+  })
 
   // The document draws the caption below the chart, so the preview must too —
   // otherwise the builder shows it inside the chart and the document shows it

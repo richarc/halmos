@@ -174,6 +174,73 @@ function markFor(state: BuilderState): unknown {
 }
 
 /**
+ * The styling from the chart the builder opened that still applies to what
+ * the author has made of it since, for the spec the builder commits.
+ *
+ * Styling is written against one chart: a date format against a date axis,
+ * a scale domain or a sort order against these values. So a different chart
+ * type keeps none of it; a channel whose column, type or aggregate changed
+ * keeps none of its own; and new data drops `scale` and `sort`, which name
+ * values, while label angles and legend placement stay. An axis or legend
+ * title would override the title box, so it goes once the box is edited.
+ */
+export function keptStyles(
+  initial: BuilderState,
+  current: BuilderState,
+  dataUnchanged: boolean,
+): ChartStyles | undefined {
+  const styles = initial.styles
+  if (!styles || current.chartType !== initial.chartType) return undefined
+  const channel = (
+    style: Record<string, unknown> | undefined,
+    same: boolean,
+    titleEdited: boolean,
+    titled: 'axis' | 'legend',
+  ) => {
+    if (!style || !same) return undefined
+    const kept = { ...style }
+    if (!dataUnchanged) {
+      delete kept.scale
+      delete kept.sort
+    }
+    if (titleEdited && isPlainObject(kept[titled]) && 'title' in kept[titled]) {
+      const { title: _title, ...rest } = kept[titled]
+      kept[titled] = rest
+    }
+    return Object.keys(kept).length > 0 ? kept : undefined
+  }
+  const out: ChartStyles = {}
+  if (styles.mark) out.mark = styles.mark
+  const x = channel(
+    styles.x,
+    current.x.field === initial.x.field && current.x.type === initial.x.type,
+    current.x.title !== initial.x.title,
+    'axis',
+  )
+  const y = channel(
+    styles.y,
+    current.y.field === initial.y.field &&
+      current.y.type === initial.y.type &&
+      current.y.aggregate === initial.y.aggregate,
+    current.y.title !== initial.y.title,
+    'axis',
+  )
+  const colour = channel(
+    styles.colour,
+    current.colour !== null &&
+      current.colour.field === initial.colour?.field &&
+      current.colour.type === initial.colour?.type &&
+      current.colour.aggregate === initial.colour?.aggregate,
+    false,
+    'legend',
+  )
+  if (x) out.x = x
+  if (y) out.y = y
+  if (colour) out.colour = colour
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
+/**
  * The canonical form of a builder state.
  *
  * Vega-Lite's `count` counts rows and takes no field, so a field alongside it

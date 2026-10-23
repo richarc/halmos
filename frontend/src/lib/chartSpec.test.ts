@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildSpec, canonicalise, readSpec, type BuilderState } from './chartSpec'
+import { buildSpec, canonicalise, keptStyles, readSpec, type BuilderState } from './chartSpec'
 
 const BASE: BuilderState = {
   chartType: 'line',
@@ -620,5 +620,50 @@ describe('styling the builder does not edit', () => {
   it('refuses a mark object whose type it does not know', () => {
     const r = readSpec(JSON.stringify({ data: { values }, mark: { type: 'trail', point: true }, encoding: xy }))
     expect(r.ok).toBe(false)
+  })
+})
+
+describe('keptStyles', () => {
+  const styled: BuilderState = {
+    ...BASE,
+    colour: { field: 'group', type: 'nominal' },
+    styles: {
+      mark: { point: true },
+      x: { axis: { labelAngle: 0, title: 'Dose' }, scale: { zero: false }, sort: 'descending' },
+      y: { scale: { domain: [0, 10] } },
+      colour: { legend: { orient: 'bottom' } },
+    },
+  }
+
+  it('keeps everything while nothing has changed', () => {
+    expect(keptStyles(styled, styled, true)).toEqual(styled.styles)
+  })
+
+  it('keeps nothing once the chart type changes', () => {
+    expect(keptStyles(styled, { ...styled, chartType: 'bar' }, true)).toBeUndefined()
+  })
+
+  it('drops a channel whose column, type or aggregate changed', () => {
+    expect(keptStyles(styled, { ...styled, x: { ...styled.x, type: 'nominal' } }, true)?.x).toBeUndefined()
+    expect(keptStyles(styled, { ...styled, y: { ...styled.y, field: 'other' } }, true)?.y).toBeUndefined()
+    expect(keptStyles(styled, { ...styled, y: { ...styled.y, aggregate: 'sum' } }, true)?.y).toBeUndefined()
+    expect(keptStyles(styled, { ...styled, colour: null }, true)?.colour).toBeUndefined()
+    expect(keptStyles(styled, { ...styled, x: { ...styled.x, type: 'nominal' } }, true)?.mark).toEqual({ point: true })
+  })
+
+  it('drops scale and sort, which name values, when the data changes', () => {
+    expect(keptStyles(styled, styled, false)).toEqual({
+      mark: { point: true },
+      x: { axis: { labelAngle: 0, title: 'Dose' } },
+      colour: { legend: { orient: 'bottom' } },
+    })
+  })
+
+  it('drops an axis title once the title box is edited, since it would win', () => {
+    expect(keptStyles(styled, { ...styled, x: { ...styled.x, title: 'Dose (mg)' } }, true)?.x).toEqual({
+      axis: { labelAngle: 0 },
+      scale: { zero: false },
+      sort: 'descending',
+    })
   })
 })
