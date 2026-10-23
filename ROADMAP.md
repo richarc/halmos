@@ -237,6 +237,48 @@ one — dissolves when the conversion runs on a server Halmos controls.
 - [ ] **Word export keeps working citations**, so co-authors can edit the
       `.docx` without breaking references.
 
+The three items below came out of a review on 2026-10-23 of a guide to
+writing books in Markdown with Sphinx. They are editor features that are
+free in the preview and PDF, and they need the portal's conversion to
+carry them into Word and LaTeX, which is why they sit in this release.
+
+- [ ] **Cross-references to figures, tables, sections and equations.**
+      Halmos numbers figures but gives no way to refer to one. The
+      authoring guide rightly says not to write "Figure 1" by hand, which
+      leaves no correct way to write "as shown in Figure 3". Add a label
+      and a reference that renders as a linked "Figure 3" and renumbers
+      itself. Use pandoc-crossref's syntax (`{#fig:id}`, `{#tbl:id}`,
+      `{#eq:id}`, `{#sec:id}` to label; `@fig:id` or `[@fig:id]` to refer)
+      so the references survive conversion, rather than a syntax only
+      Halmos understands. Points to settle:
+      - The citation parser (`lib/citations.ts`, `lib/citationKeys.ts`)
+        must tell `@fig:id` from a citation. BibTeX keys can contain
+        colons, so a key that starts `fig:` would clash; decide the rule.
+      - Labels on images, Vega-Lite charts, Mermaid diagrams, tables,
+        display maths and headings, each in a form Pandoc accepts.
+      - Equation numbering, which display maths does not have today.
+      - Autocomplete for labels after `@`, beside the citation completion,
+        and the unknown-citation check extended to unknown labels.
+      - Word and LaTeX: see the portal's M1.1 cross-references item.
+- [ ] **Numbered table captions.** Tables have no caption and no number,
+      and journals require both. Use Pandoc's caption syntax (a
+      `: Caption` line directly after the table) so the conversion keeps
+      it. Decide whether tables share the figures' number sequence (they
+      should not: "Table 1" and "Figure 1" are numbered separately). The
+      table builder (`TableBuilder.svelte`, `lib/pipeTable.ts`) gains a
+      caption field.
+- [ ] **Title, authors and abstract as document metadata.** Today the
+      whole frontmatter is removed before rendering, and `title:` and
+      `author:` are dropped (`docs/authoring.md`, "Frontmatter: exactly
+      four keys"). That was fine with PDF as the only output. Pandoc builds
+      a proper title block for Word and LaTeX from `title`, `author`,
+      `date` and `abstract`, and a paper needs authors with affiliations.
+      Decide the keys (Pandoc's names, so the conversion uses them as
+      they are), how the preview and PDF show the title block, and how it
+      relates to `{title}` in page headers, which today is the first
+      heading. Decide before v1.0.0 if possible: changing what frontmatter
+      means is harder once 1.0 documents exist.
+
 ## v1.2.0 — AI for routine work
 
 Serves: M1.2
@@ -295,6 +337,18 @@ library, so it cannot invent a reference.
 
 Ideas noted along the way, not yet committed to a release:
 
+- From the Markdown-books review (2026-10-23):
+  - ePub export. Pandoc produces it with little extra work, so it would
+    be a fourth format on the portal's existing conversion endpoint.
+    Matters less for papers than for books; schedule it if users ask.
+  - Journal-shaped starter documents in the New dialog
+    (`lib/documentTemplate.ts`): an article with title, authors, abstract
+    and the usual sections. Waits for the title-and-authors metadata in
+    v1.1.0.
+  - Not adopted, with reasons: one file per chapter (the file-tree
+    decision below still stands; Halmos is for papers), hosting documents
+    online (out of scope, see v1.0.0), and MyST-style `{note}` blocks
+    (Halmos's GitHub-style alerts travel better).
 - Revisit Vite 8 once the upstream Rolldown lone-surrogate bug is fixed
   (v0.1 pinned Vite 7 to keep KaTeX's lexer intact).
 - File a Wails issue for the hardcoded landscape print orientation (their
