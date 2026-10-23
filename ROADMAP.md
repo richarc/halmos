@@ -132,10 +132,17 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       repository until the security fixes ship. The blocking ones are the
       four items below and the v1.0.0 licence notices; the rest are in the
       Backlog.
-- [ ] **Security fixes from the pre-1.0 review.** Narrow what a document's
+- [x] **Security fixes from the pre-1.0 review.** Narrow what a document's
       content can load and which files the app serves to the preview, and
       give the app page and the Quick Look page a Content-Security-Policy.
       Details stay in the private review (S1–S3) until this ships.
+      *Done 2026-10-23*: charts run with a loader that refuses every URL
+      and with Vega's expression interpreter (`charts.ts`); the image route
+      and the export readers serve image extensions only, symlink targets
+      included (`localImageFile`); the production build gives the app page
+      a CSP (`lib/csp.ts`). Quick Look keeps its offline rules and sandbox
+      instead of a CSP. Verified in a production build: no violations on
+      the test document, and a request to another host is refused.
 - [ ] **Dependency and CI pass.** Update the shipped packages with
       published advisories (DOMPurify through Mermaid, markdown-it, KaTeX)
       and the Wails beta if a newer one is out. Add `govulncheck`, `go vet`,
