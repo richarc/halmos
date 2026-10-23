@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security: updated DOMPurify (used by Mermaid diagrams) to 3.4.17 and
   markdown-it to 14.3.3, for published advisories. Demo mode's screen
   recording now runs only when demo mode is on.
+- A bibliography reload no longer freezes the editor. The `.bib` is parsed
+  in the background, a rewrite with the same contents (Zotero's "Keep
+  updated" export does this often) is ignored, and a style change does not
+  parse it again. With a 2,000-entry library, the pause on a change went
+  from about 2.4 s to 0.2 s.
 - Exported PDFs had about 21mm of blank space above the text on every page:
   WebKit ignored the top page margin and sized each page from the text
   width. Top and bottom margins now follow the paper's shape, so the text

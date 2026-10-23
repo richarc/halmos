@@ -163,12 +163,19 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       asks for KaTeX 0.16. KaTeX 0.18 also prefixes its CSS classes, so
       check `style.css` and the HTML export. Then hold dependencies still
       for 1.0.
-- [ ] **Reload the bibliography without freezing the editor.** Reading a
+- [x] **Reload the bibliography without freezing the editor.** Reading a
       2,000-entry `.bib` takes 1.5 s on the main thread (49 entries: 0.1 s),
       and the first citation pass after it up to 0.9 s more. Zotero's "Keep
       updated" export rewrites the file often, and every rewrite repeats
       both, even when the bytes are unchanged. Skip a reload whose contents
       have not changed, parse off the main thread, and reuse parsed entries.
+      *Done 2026-10-23:* the Go watcher emits `bib:changed` only when the
+      content's hash changes; `lib/bibLoader.ts` parses in a Web Worker and
+      caches the last text; a reload with the same text and style keeps the
+      formatter. Measured in a production build with 2,000 entries: the
+      longest stall went from 2.1–2.4 s to 0.21–0.23 s. What is left is
+      citeproc's first pass after a real change; see "Editing a citation
+      reformats every citation" in the Backlog.
 - [x] **Correct stale notes in `CLAUDE.md`.** Its PDF note describes the
       print panel, which Export PDF… never shows (that is Print…), and the
       review lists a few more.
