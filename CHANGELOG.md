@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by Pandoc on halmoseditor.com with the document's citation style. Needs a
   Halmos account: the first export connects this Mac to it, and
   Account… in the app menu shows the connection and the subscription.
+- Page numbers, headers and footers in Export PDF: set `header` and
+  `footer` in the frontmatter, using `{title}`, `{date}`, `{page}` and
+  `{pages}` (for example `footer: Page {page} of {pages}`).
 
 ### Fixed
 

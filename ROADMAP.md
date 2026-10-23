@@ -98,15 +98,18 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       window closes (v0.11.4 leftovers).
 - [ ] **Page numbers, headers and footers in exported output.** Set in the
       frontmatter, like `bibliography`, `csl` and `toc`, so a document
-      carries its own page setup. The key names and what they can hold
-      (fixed text, the title, the page number, page of pages) are to be
-      decided. Each format needs its own route:
-      - PDF: `print_darwin.go` prints with zero margins and lets the CSS
-        `@page` rule set the 25mm margin, and nothing draws a header or
-        footer today. WebKit's printing does not appear to support CSS
-        page-margin boxes (`@top-center`, `counter(page)`); check that
-        first, because if it is true the PDF route needs a different
-        mechanism, and that decides the size of this item.
+      carries its own page setup. The keys are `header` and `footer`, each
+      one line of text with `{title}`, `{date}`, `{page}` and `{pages}`.
+      Each format needs its own route:
+      - PDF: done for Export PDF. WebKit's printing has no CSS page-margin
+        boxes (checked on macOS 26.6: `@top-center` and `counter(page)`
+        print nothing), and AppKit's own header and footer cannot be
+        changed. So the PDF is rendered as before and `pdfstamp_darwin.go`
+        draws the header and footer on each page with PDFKit; text stays
+        searchable and links survive. Print… is not changed: it goes
+        through the print panel, with no file to draw on. Left for later:
+        no header on the first page, left/right placement, alternating
+        pages.
       - Word and LaTeX: made by the portal's Pandoc conversion, so the
         settings travel in the export request and the portal applies them
         (a reference `.docx` for Word, the LaTeX template or `fancyhdr`

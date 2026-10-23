@@ -98,7 +98,7 @@ here: a `title:` line would be silently ignored. A `#` starts a comment,
 whether it begins a line or follows a value, so to switch the contents on
 delete just the `#` at the start of the `toc:` line and leave the rest.
 
-Halmos reads exactly four keys. Everything else is left alone.
+Halmos reads exactly six keys. Everything else is left alone.
 
 | Key | What it does |
 |---|---|
@@ -106,6 +106,8 @@ Halmos reads exactly four keys. Everything else is left alone.
 | `csl` | Citation style: one of the five bundled names above, or the path to a journal's `.csl` file. Format → Citation Style writes it for you. A name Halmos does not know falls back to APA with a warning. |
 | `toc` | `true` renders a table of contents, at the first paragraph containing `[[toc]]` or, if there is none, at the top. |
 | `toc-depth` | How many heading levels the contents lists. Default 3. |
+| `header` | A line of text at the top of every page of an exported PDF. See [Getting the document out](#6-getting-the-document-out). |
+| `footer` | The same, at the bottom of every page. |
 
 The lines in the new-document template begin with `#`, which makes them
 comments. To switch one on, delete the `#` and the space:
@@ -355,6 +357,22 @@ shows; the preview and the file are unaffected.
 charts, the contents page and the References section included. **File →
 Paper Size** (A4 or Letter) and **File → PDF Orientation** set the page,
 and the preview is drawn at that size so what you see is what prints.
+
+To put a line at the top or bottom of every page, set `header` or `footer`
+in the frontmatter. Each is one line of text, centred, in small type, and
+can use `{title}` (the first heading, or the file name), `{date}` (today),
+`{page}` and `{pages}`:
+
+```markdown
+---
+header: "{title}"
+footer: Page {page} of {pages}
+---
+```
+
+Quote a value that contains `:` or `#`, as `header` is quoted above to be
+safe. Headers and footers appear in Export PDF only, not in Print… or the
+other formats.
 
 **Export → Export HTML…** writes the document as one file you can send or open
 in any browser, offline. It holds the styles, the maths with its fonts, charts
