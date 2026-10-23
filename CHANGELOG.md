@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The chart builder refused to open a chart with styling it has no control
+  for, such as an axis label angle or points on a line, naming it only as
+  `encoding.x.axis`. It now keeps axis, scale, legend and sort settings,
+  mark settings such as `point` and `opacity`, and a top-level `config`, and
+  writes them back unchanged. A chart it still cannot open gets a plain
+  message, such as "That chart filters or calculates its data
+  ("transform")".
+- Closing the window while the chart builder, table builder or New dialog
+  was open left it open, and it came back over the start screen on the next
+  Dock click.
 - Security: a document could make the preview read local files and send
   them elsewhere. Charts no longer load data or images from a URL (data
   goes in the spec); images beside a document must have an image file
