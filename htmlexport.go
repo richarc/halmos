@@ -11,21 +11,6 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// htmlExportImageTypes is the whole of what ReadImageDataURI will read, by
-// extension. The image route serves whatever path it is handed, because the
-// webview only ever asks it for an <img>; this binding returns the bytes to
-// JavaScript, so it is limited to images or it would read any file on disk.
-var htmlExportImageTypes = map[string]string{
-	".png":  "image/png",
-	".jpg":  "image/jpeg",
-	".jpeg": "image/jpeg",
-	".gif":  "image/gif",
-	".webp": "image/webp",
-	".svg":  "image/svg+xml",
-	".avif": "image/avif",
-	".bmp":  "image/bmp",
-}
-
 // htmlExportFilename is the name the export panel offers: the document's stem
 // with .html, or Untitled.html for a document never saved.
 func htmlExportFilename(docPath string) string {
@@ -67,17 +52,15 @@ func (s *DocumentService) WriteHTMLExport(path, html string) error {
 }
 
 // ReadImageDataURI returns an image beside the document as a data: URI, so an
-// exported page carries its images with it. The source resolves exactly as
-// the /_hermes/image route resolves it (localImagePath), and only image
-// extensions are read.
+// exported page carries its images with it. It reads only what the
+// /_hermes/image route would serve (localImageFile).
 func (s *DocumentService) ReadImageDataURI(docPath, src string) (string, error) {
-	path, ok := localImagePath(src, docPath)
-	if !ok {
+	if _, ok := localImagePath(src, docPath); !ok {
 		return "", errors.New("the image source cannot be resolved")
 	}
-	mime, ok := htmlExportImageTypes[strings.ToLower(filepath.Ext(path))]
+	path, mime, ok := localImageFile(src, docPath)
 	if !ok {
-		return "", fmt.Errorf("%s is not an image", filepath.Base(path))
+		return "", fmt.Errorf("%s is not an image that can be read", filepath.Base(src))
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {

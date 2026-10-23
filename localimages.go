@@ -2,7 +2,9 @@ package main
 
 import (
 	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 )
 
 // localImageRoute is the path renderer.ts rewrites a document-local image
@@ -27,11 +29,17 @@ func localImages(next http.Handler) http.Handler {
 		}
 
 		query := r.URL.Query()
-		path, ok := localImagePath(query.Get("src"), query.Get("doc"))
+		path, mime, ok := localImageFile(query.Get("src"), query.Get("doc"))
 		if !ok {
 			http.NotFound(w, r)
 			return
 		}
+		// The type comes from the allowlist, never from sniffing the bytes,
+		// and the policy gives a document opened from here (an SVG, say) no
+		// script, no requests and no same-origin access.
+		w.Header().Set("Content-Type", mime)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
 
 		// The URL does not change when the file is edited in another
 		// application, so the webview must ask again every time it needs the
@@ -68,4 +76,53 @@ func localImagePath(src, doc string) (string, bool) {
 		return "", false
 	}
 	return resolveAgainstDoc(src, doc), true
+}
+
+// imageTypes is everything the route serves, and the export readers read, by
+// extension: the image formats WebKit displays.
+var imageTypes = map[string]string{
+	".png":  "image/png",
+	".jpg":  "image/jpeg",
+	".jpeg": "image/jpeg",
+	".gif":  "image/gif",
+	".webp": "image/webp",
+	".svg":  "image/svg+xml",
+	".avif": "image/avif",
+	".bmp":  "image/bmp",
+	".tif":  "image/tiff",
+	".tiff": "image/tiff",
+	".heic": "image/heic",
+	".heif": "image/heif",
+}
+
+// localImageFile resolves an image source the way localImagePath does and
+// reports the file to read and its type, or false for anything that is not
+// an image.
+//
+// The route answers whatever the preview asks for, and a document can come
+// from anyone, so resolution alone is not enough: `..` and absolute paths are
+// allowed (a shared figures folder is ordinary), which without this would
+// let a document name any file on disk. Both the name asked for and the file
+// a symlink leads to must be images, so an image-named link to a private file
+// is refused, and the real path is what gets read.
+func localImageFile(src, doc string) (path, mime string, ok bool) {
+	asked, ok := localImagePath(src, doc)
+	if !ok {
+		return "", "", false
+	}
+	if _, ok := imageTypes[strings.ToLower(filepath.Ext(asked))]; !ok {
+		return "", "", false
+	}
+	real, err := filepath.EvalSymlinks(asked)
+	if err != nil {
+		return "", "", false
+	}
+	mime, ok = imageTypes[strings.ToLower(filepath.Ext(real))]
+	if !ok {
+		return "", "", false
+	}
+	if info, err := os.Stat(real); err != nil || !info.Mode().IsRegular() {
+		return "", "", false
+	}
+	return real, mime, true
 }

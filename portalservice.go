@@ -277,12 +277,12 @@ type ExportImage struct {
 // ReadExportImage reads an image the document references, resolved the way
 // the preview resolves it. Error is not_found, too_large or unreadable.
 func (s *PortalService) ReadExportImage(docPath, src string) ExportImage {
-	path, ok := localImagePath(src, docPath)
+	path, _, ok := localImageFile(src, docPath)
 	if !ok {
 		return ExportImage{Error: "not_found"}
 	}
 	info, err := os.Stat(path)
-	if err != nil || info.IsDir() {
+	if err != nil {
 		return ExportImage{Error: "not_found"}
 	}
 	if info.Size() > maxExportImageBytes {
