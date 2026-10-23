@@ -125,9 +125,32 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       PDF, HTML, Word and LaTeX. Start with the author-list options and
       list which other options are worth exposing. Name-format options
       (initials, "and" versus "&") are candidates.
-- [ ] **Architecture, performance and security review** of the whole app
+- [x] **Architecture, performance and security review** of the whole app
       before v1.0.0. Findings that block 1.0 are fixed here; the rest go to
       the Backlog with the reasons, like the earlier review leftovers.
+      *Done 2026-10-23*: the findings are kept in the private product
+      repository until the security fixes ship. The blocking ones are the
+      four items below and the v1.0.0 licence notices; the rest are in the
+      Backlog.
+- [ ] **Security fixes from the pre-1.0 review.** Narrow what a document's
+      content can load and which files the app serves to the preview, and
+      give the app page and the Quick Look page a Content-Security-Policy.
+      Details stay in the private review (S1–S3) until this ships.
+- [ ] **Dependency and CI pass.** Update the shipped packages with
+      published advisories (DOMPurify through Mermaid, markdown-it, KaTeX)
+      and the Wails beta if a newer one is out. Add `govulncheck`, `go vet`,
+      the race detector, `svelte-check` and the Quick Look tests to CI.
+      Bind the demo service only when demo mode is on. Then hold
+      dependencies still for 1.0.
+- [ ] **Reload the bibliography without freezing the editor.** Reading a
+      2,000-entry `.bib` takes 1.5 s on the main thread (49 entries: 0.1 s),
+      and the first citation pass after it up to 0.9 s more. Zotero's "Keep
+      updated" export rewrites the file often, and every rewrite repeats
+      both, even when the bytes are unchanged. Skip a reload whose contents
+      have not changed, parse off the main thread, and reuse parsed entries.
+- [ ] **Correct stale notes in `CLAUDE.md`.** Its PDF note describes the
+      print panel, which Export PDF… never shows (that is Print…), and the
+      review lists a few more.
 
 ## v1.0.0 — Production
 
@@ -294,6 +317,28 @@ library, so it cannot invent a reference.
 ## Backlog (unscheduled)
 
 Ideas noted along the way, not yet committed to a release:
+
+- From the pre-1.0 review (2026-10-23), deferred with reasons:
+  - Go accepts any path the page sends to its file-reading and writing
+    methods. Only matters if script ever runs in the page, which the
+    v0.15.0 security fixes guard against; do it before the AI features
+    put model output in the page.
+  - Split `App.svelte` (1,945 lines; the guard against acting while a
+    dialog is open is copied 18 times) before v1.1.0 adds more dialogs.
+  - Split `DocumentService` (37 methods over 9 concerns). A refactor, no
+    defect.
+  - A diagnostics log, so a user can send one with a support request.
+    Plan it with the paid services in v1.1.0.
+  - Type the Go → JS events and pin the remaining Go/TS constants with
+    tests, as the existing ones are.
+  - Editing a citation reformats every citation (186 ms at 200); use
+    citeproc's incremental update.
+  - Each preview update re-parses all the rendered HTML (29 of 38 ms on a
+    50-page paper); re-parse only changed blocks.
+  - The startup bundle grew 25% since v0.4: KaTeX is bundled twice and
+    the `.bib` parser loads before it is needed.
+  - Clear the render timing measures, which grow by a few MB an hour.
+  - Tighten Quick Look's offline rules.
 
 - Revisit Vite 8 once the upstream Rolldown lone-surrogate bug is fixed
   (v0.1 pinned Vite 7 to keep KaTeX's lexer intact).
