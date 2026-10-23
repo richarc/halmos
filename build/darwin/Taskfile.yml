@@ -156,7 +156,7 @@ tasks:
 
   run:
     # Hermes addition to the generated file: without this, `run` only copies
-    # whatever bin/hermes already exists into the bundle, signs it and
+    # whatever "bin/Halmos Editor" already exists into the bundle, signs it and
     # launches it — so running after editing source silently launches the
     # previous build. Re-add this if a Wails upgrade regenerates the file.
     deps:
