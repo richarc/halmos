@@ -109,7 +109,8 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
         searchable and links survive. Print… is not changed: it goes
         through the print panel, with no file to draw on. Left for later:
         no header on the first page, left/right placement, alternating
-        pages.
+        pages, and adding `header` and `footer` to the New Document
+        template's commented-out keys (`lib/documentTemplate.ts`).
       - Word and LaTeX: made by the portal's Pandoc conversion, so the
         settings travel in the export request and the portal applies them
         (a reference `.docx` for Word, the LaTeX template or `fancyhdr`
@@ -444,6 +445,10 @@ Ideas noted along the way, not yet committed to a release:
 - Layered charts in the chart builder (points over error bars, a regression
   line over a scatter). Needs `layer` and `transform` in the
   `buildSpec`/`readSpec` round trip; `PASSTHROUGH_KEYS` excludes them today.
+- Headers and footers in File → Print…. Export PDF… draws them on the
+  rendered file; Print… sends pages to the print panel, so there is no file
+  to draw on. It would need its own drawing step, or Print… could render a
+  stamped PDF and print that.
 
 - Leftovers from the v0.12.0 reviews, judged minor:
   - Opening a document that uses a different bibliography leaves the
