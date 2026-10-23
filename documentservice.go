@@ -596,12 +596,22 @@ func (s *DocumentService) WatchBibliography(path, docPath string) {
 		notify = func() { application.Get().Event.Emit("bib:changed") }
 	}
 
+	// The stat says when to look; the content says whether to emit. Zotero's
+	// "Keep updated" export rewrites the file often, and each bib:changed
+	// re-parses and re-formats the whole bibliography in the editor, so a
+	// rewrite with the same bytes is not a change. The last version is kept
+	// across a file that goes missing, so one that comes back unchanged is
+	// not a change either.
 	go func() {
 		var lastMod time.Time
 		var lastSize int64
+		var lastVersion string
 		known := false
 		if info, err := os.Stat(resolved); err == nil {
 			lastMod, lastSize, known = info.ModTime(), info.Size(), true
+			if b, err := os.ReadFile(resolved); err == nil {
+				lastVersion = contentVersion(b)
+			}
 		}
 		ticker := time.NewTicker(s.watchTick)
 		defer ticker.Stop()
@@ -616,8 +626,15 @@ func (s *DocumentService) WatchBibliography(path, docPath string) {
 					continue
 				}
 				if !known || !info.ModTime().Equal(lastMod) || info.Size() != lastSize {
+					b, err := os.ReadFile(resolved)
+					if err != nil {
+						continue // looked at again on the next tick
+					}
 					lastMod, lastSize, known = info.ModTime(), info.Size(), true
-					notify()
+					if v := contentVersion(b); v != lastVersion {
+						lastVersion = v
+						notify()
+					}
 				}
 			}
 		}

@@ -241,6 +241,50 @@ func TestWatchBibliographyEmitsOnChange(t *testing.T) {
 	s.WatchBibliography("", docPath) // stop
 }
 
+// Zotero's "Keep updated" export rewrites the file whenever the library
+// changes, often with the same bytes for this document's entries. Each
+// bib:changed makes the editor re-parse and re-format, so a rewrite whose
+// content is unchanged must not emit.
+func TestWatchBibliographyIgnoresARewriteWithTheSameBytes(t *testing.T) {
+	s := newTestService(t)
+	s.watchTick = 10 * time.Millisecond
+	dir := t.TempDir()
+	docPath := filepath.Join(dir, "paper.md")
+	bibPath := filepath.Join(dir, "refs.bib")
+	if err := os.WriteFile(bibPath, []byte("same"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var emitted atomic.Int32
+	s.emitBibChanged = func() { emitted.Add(1) }
+
+	s.WatchBibliography("refs.bib", docPath)
+	time.Sleep(30 * time.Millisecond)
+	if err := os.WriteFile(bibPath, []byte("same"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	later := time.Now().Add(time.Hour)
+	if err := os.Chtimes(bibPath, later, later); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(80 * time.Millisecond)
+	if n := emitted.Load(); n != 0 {
+		t.Fatalf("emitted %d times for a rewrite with the same bytes", n)
+	}
+
+	// A real change after it still emits.
+	if err := os.WriteFile(bibPath, []byte("different"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for emitted.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if emitted.Load() != 1 {
+		t.Fatalf("emitted %d times after a real change, want 1", emitted.Load())
+	}
+	s.WatchBibliography("", docPath)
+}
+
 func TestWatchBibliographySelfHealsMissingFile(t *testing.T) {
 	s := newTestService(t)
 	s.watchTick = 10 * time.Millisecond
