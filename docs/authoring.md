@@ -12,7 +12,7 @@ for producing a Halmos document.
 
 ---
 
-## Frontmatter: exactly four keys
+## Frontmatter: exactly six keys
 
 ```markdown
 ---
@@ -23,10 +23,14 @@ toc-depth: 3
 ---
 ```
 
-`bibliography`, `csl`, `toc` and `toc-depth` are the **only** keys Halmos
-reads. All are optional. The bibliography path is resolved relative to the
-document, so the `.bib` normally sits beside it; `toc` and `toc-depth` are
-described under [A table of contents](#a-table-of-contents) below.
+`bibliography`, `csl`, `toc`, `toc-depth`, `header` and `footer` are the
+**only** keys Halmos reads. All are optional. The bibliography path is
+resolved relative to the document, so the `.bib` normally sits beside it;
+`toc` and `toc-depth` are described under
+[A table of contents](#a-table-of-contents) below. `header` and `footer` are
+one line of text drawn at the top and bottom of every page of an exported
+PDF, and may use `{title}` (the first heading), `{date}`, `{page}` and
+`{pages}`: `footer: Page {page} of {pages}`.
 
 `csl` is one of five bundled styles — `apa`, `chicago-author-date`,
 `ieee`, `vancouver`, `harvard` — or the path to a `.csl` file, relative to the

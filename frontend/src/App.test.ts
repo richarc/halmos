@@ -1442,7 +1442,7 @@ describe('export PDF', () => {
     listeners['menu:export-pdf']({ data: null })
     flushSync()
 
-    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('')
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('', { header: '', footer: '', title: '' })
   })
 
   it('passes the open document’s path once one is open', async () => {
@@ -1459,7 +1459,27 @@ describe('export PDF', () => {
     listeners['menu:export-pdf']({ data: null })
     flushSync()
 
-    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md')
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md', { header: '', footer: '', title: '' })
+  })
+
+  it('passes the frontmatter’s header and footer, titled by the first heading', async () => {
+    recents.current = ['/tmp/paper.md']
+    DocumentService.OpenPath.mockResolvedValueOnce({
+      path: '/tmp/paper.md',
+      content: '---\nheader: "{title}"\nfooter: Page {page} of {pages}\n---\n# Results\n',
+    })
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    listeners['menu:open-recent']({ data: '/tmp/paper.md' })
+    await vi.waitFor(() => expect(target.textContent).toContain('Results'))
+
+    listeners['menu:export-pdf']({ data: null })
+    flushSync()
+
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith(
+      '/tmp/paper.md',
+      expect.objectContaining({ header: '{title}', footer: 'Page {page} of {pages}', title: 'Results' }),
+    )
   })
 })
 

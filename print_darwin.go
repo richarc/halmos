@@ -9,6 +9,46 @@ package main
 #import <WebKit/WebKit.h>
 #include <stdlib.h>
 
+// pdfstamp_darwin.go.
+int hermesStampPDFAt(NSURL *in, NSURL *out, NSString *header, NSString *footer,
+                     NSString *title, NSString *date, NSString *fontKey);
+
+// Finishes an export that has a header or footer. WebKit's PDF was saved to
+// a temporary file; once the operation has run, the header and footer are
+// drawn onto it on the way to the file the user chose. If that fails the
+// unstamped PDF is moved there instead, so the export still produces the
+// document. Releases itself when done.
+@interface HermesExportFinisher : NSObject {
+@public
+	NSURL *temp, *dest;
+	NSString *header, *footer, *title, *date, *fontKey;
+}
+@end
+
+@implementation HermesExportFinisher
+- (void)printOperationDidRun:(NSPrintOperation *)op
+                     success:(BOOL)success
+                 contextInfo:(void *)info {
+	NSFileManager *fm = [NSFileManager defaultManager];
+	if (success && [fm fileExistsAtPath:temp.path]) {
+		if (!hermesStampPDFAt(temp, dest, header, footer, title, date, fontKey)) {
+			NSLog(@"Halmos: could not add the header and footer to %@", dest.path);
+			// Replace rather than delete-then-move, so a failed move cannot
+			// leave the user with neither file. Move when there is nothing
+			// at dest to replace.
+			if (![fm replaceItemAtURL:dest withItemAtURL:temp backupItemName:nil
+			                  options:0 resultingItemURL:nil error:nil]) {
+				[fm moveItemAtURL:temp toURL:dest error:nil];
+			}
+		}
+	}
+	[fm removeItemAtURL:temp error:nil];
+	[temp release]; [dest release];
+	[header release]; [footer release]; [title release]; [date release]; [fontKey release];
+	[self release];
+}
+@end
+
 static WKWebView* hermesFindWebView(NSView *view) {
 	if ([view isKindOfClass:[WKWebView class]]) {
 		return (WKWebView *)view;
@@ -103,9 +143,14 @@ static int hermesPrintWebView(int landscape) {
 // the top and bottom margins are scaled to the paper's shape.
 //
 // Returns 0 if the webview could not be located.
+//
+// With a header or footer, WebKit's PDF goes to a temporary file first and
+// HermesExportFinisher draws them on the way to path.
 static int hermesExportWebViewPDF(const char *path, const char *paperName,
                                   int landscape, double paperWidth,
-                                  double paperHeight) {
+                                  double paperHeight, const char *header,
+                                  const char *footer, const char *title,
+                                  const char *fontKey) {
 	if (@available(macOS 11.0, *)) {
 		NSWindow *window = [NSApp keyWindow] ?: [NSApp mainWindow];
 		if (!window) {
@@ -117,6 +162,24 @@ static int hermesExportWebViewPDF(const char *path, const char *paperName,
 		}
 
 		NSURL *url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path]];
+		HermesExportFinisher *finisher = nil;
+		if (header[0] || footer[0]) {
+			finisher = [[HermesExportFinisher alloc] init];
+			finisher->dest = [url retain];
+			finisher->temp = [[NSURL fileURLWithPath:[NSTemporaryDirectory()
+			    stringByAppendingPathComponent:[NSString stringWithFormat:@"halmos-export-%@.pdf",
+			                                       [NSUUID UUID].UUIDString]]] retain];
+			finisher->header = [[NSString stringWithUTF8String:header] retain];
+			finisher->footer = [[NSString stringWithUTF8String:footer] retain];
+			finisher->title = [[NSString stringWithUTF8String:title] retain];
+			// {date}: today, in the Mac's region format. The webview's
+			// locale does not follow the region, so this is not done there.
+			finisher->date = [[NSDateFormatter localizedStringFromDate:[NSDate date]
+			                                                 dateStyle:NSDateFormatterLongStyle
+			                                                 timeStyle:NSDateFormatterNoStyle] retain];
+			finisher->fontKey = [[NSString stringWithUTF8String:fontKey] retain];
+			url = finisher->temp;
+		}
 
 		NSPrintInfo *pInfo = [[NSPrintInfo sharedPrintInfo] copy];
 		pInfo.horizontalPagination = NSPrintingPaginationModeAutomatic;
@@ -175,8 +238,8 @@ static int hermesExportWebViewPDF(const char *path, const char *paperName,
 		// the runloop to service the web content process, and [po runOperation]
 		// deadlocks on the main thread.
 		[po runOperationModalForWindow:window
-		                      delegate:nil
-		                didRunSelector:nil
+		                      delegate:finisher
+		                didRunSelector:finisher ? @selector(printOperationDidRun:success:contextInfo:) : nil
 		                   contextInfo:nil];
 		return 1;
 	}
@@ -185,11 +248,7 @@ static int hermesExportWebViewPDF(const char *path, const char *paperName,
 */
 import "C"
 
-import (
-	"unsafe"
-
-	"github.com/wailsapp/wails/v3/pkg/application"
-)
+import "github.com/wailsapp/wails/v3/pkg/application"
 
 // printWithOrientation runs our own print operation because Wails'
 // WebviewWindow.Print() hardcodes landscape orientation (NSPaperOrientation
@@ -216,19 +275,25 @@ func printWithOrientation(landscape bool) bool {
 // document-modal: it returns as soon as the sheet is on screen, long before a
 // byte reaches disk, so a read-only volume or a sandbox denial produces no
 // file, no error here, and nothing for the caller to tell the user about.
-// That limitation is inherited from the print path, which has the same shape;
-// reporting a real write failure would mean taking the didRunSelector
-// callback and plumbing the result back across the cgo boundary.
-func exportPDF(path, paperName string, landscape bool, paperWidth, paperHeight float64) bool {
+// That limitation is inherited from the print path, which has the same shape.
+// The didRunSelector callback is now taken when there is a header or footer
+// to draw (HermesExportFinisher), but its result still only reaches NSLog;
+// reporting it would mean plumbing it back across the cgo boundary.
+//
+// f's header and footer are drawn on every page in the body font named by
+// fontKey (pdfstamp_darwin.go); with neither, WebKit's PDF is written as it is.
+func exportPDF(path, paperName string, landscape bool, paperWidth, paperHeight float64, f PageFurniture, fontKey string) bool {
 	l := C.int(0)
 	if landscape {
 		l = 1
 	}
-	cPath := C.CString(path)
-	defer C.free(unsafe.Pointer(cPath))
-	cName := C.CString(paperName)
-	defer C.free(unsafe.Pointer(cName))
+	if f.empty() {
+		f = PageFurniture{}
+	}
+	cs := cStrings(path, paperName, f.Header, f.Footer, f.Title, fontKey)
+	defer freeCStrings(cs)
 	return application.InvokeSyncWithResult(func() bool {
-		return C.hermesExportWebViewPDF(cPath, cName, l, C.double(paperWidth), C.double(paperHeight)) != 0
+		return C.hermesExportWebViewPDF(cs[0], cs[1], l, C.double(paperWidth), C.double(paperHeight),
+			cs[2], cs[3], cs[4], cs[5]) != 0
 	})
 }

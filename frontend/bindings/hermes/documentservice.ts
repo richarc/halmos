@@ -111,9 +111,12 @@ export function DiscardDraft(docPath: string): $CancellablePromise<void> {
  * paper picker would be a second source of truth for the same fact — a user
  * who changed it there would get a PDF whose measure did not match the sheet
  * they wrote against.
+ * 
+ * furniture is the running header and footer from the document's frontmatter
+ * (lib/pageFurniture.ts); empty templates draw nothing.
  */
-export function ExportPDF(docPath: string): $CancellablePromise<void> {
-    return $Call.ByID(2450231792, docPath);
+export function ExportPDF(docPath: string, furniture: $models.PageFurniture): $CancellablePromise<void> {
+    return $Call.ByID(2450231792, docPath, furniture);
 }
 
 /**
