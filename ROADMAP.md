@@ -212,6 +212,14 @@ into Word and LaTeX (its M0.15 section).
       and the usual sections. From the Markdown-books review (2026-10-23);
       moved from the Backlog on 2026-10-24. Builds on the title, authors
       and abstract metadata above.
+- [ ] **Release v0.15.0**, once the items above are done. Cut by hand with
+      `wails3 task release`, as since v0.9.0 (the workflow is a v1.0.0
+      item). Planned 2026-10-24 as the release before 1.0. It publishes the
+      security fixes held on `main` since 2026-10-23, and the account
+      (Connect, Account…) and Word and LaTeX export work done on `main` for
+      v1.1.0: decide before tagging whether those show in v0.15.0 while
+      billing is not live. The site then offers this build (the portal's
+      M0.15 section).
 
 ## v0.16.0 — Clean-up before 1.0, continued
 
