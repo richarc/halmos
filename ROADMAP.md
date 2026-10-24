@@ -394,9 +394,39 @@ accepting it.
       inserted.
 - [ ] **Table from pasted text** (a copied spreadsheet range, a PDF table),
       opened in the table builder.
-- [ ] **AI-use record and disclosure statement.** Each AI action is recorded
-      with the document (what was asked, what was inserted, when). Halmos
-      can produce a disclosure statement from that record.
+- [ ] **AI-use record and disclosure statement.** Many publishers now ask
+      authors to declare generative AI use: the tool and version, what it
+      was used for, and where in the paper. Authors piece this together
+      from memory at submission, and the wording rules differ by journal,
+      the same shape of problem as citation styles. Free, like citations
+      (decided 2026-10-24). Expanded 2026-10-24:
+      - The record covers all AI use, not only Halmos's: every Halmos AI
+        action is recorded automatically (prompt, model and version, what
+        was inserted, accepted or edited); a "Log AI use" entry covers tools
+        used elsewhere (a chat assistant for language editing, a translator,
+        a coding assistant); an optional "Was this AI-generated?" prompt
+        after a large paste, off by default.
+      - Kept beside the document in plain text (for example
+        `paper.ai.json`), not in the frontmatter, so it goes into git and
+        to co-authors with the paper.
+      - Each entry is anchored to its section and a hash of the inserted
+        text, so Halmos can tell whether that text survives, was rewritten
+        or was deleted. The statement describes the paper as submitted, not
+        every draft.
+      - Disclosure styles, like citation styles: a template per journal or
+        publisher policy saying what to state, in what words and where
+        (methods, acknowledgements or a declaration section). Halmos drafts
+        the statement from the record; the user edits it and inserts it as
+        ordinary markdown, so it exports with the rest. A plain default
+        covers journals with no template.
+      - An optional report listing every entry (date, tool, purpose,
+        section, survived or not), for a co-author, supervisor or editor.
+      - The user can edit the record, so it is not tamper-proof evidence,
+        and Halmos never says it is.
+      Open: manual logging and the statement need no AI back end, so they
+      could ship before v1.2.0; which publishers' policies to template
+      first; whether the paste prompt helps or nags. Check each publisher's
+      current policy wording before writing its template.
 - [ ] **Prompt-injection safety.** An opened document must not be able to
       instruct the AI. Prerequisite: the Content-Security-Policy item in the
       backlog.
