@@ -165,6 +165,12 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       own rules; the events list adds `menu:export-pandoc`, `menu:account`,
       `menu:insert-code` and `portal:pairing`; `PortalService` has a note;
       a Taskfile comment names the right binary.
+- [ ] **Journal-shaped starter documents in the New dialog**
+      (`lib/documentTemplate.ts`): an article with title, authors, abstract
+      and the usual sections. From the Markdown-books review (2026-10-23);
+      moved from the Backlog on 2026-10-24. The title-and-authors metadata
+      it was waiting for is in v1.1.0, so decide whether the starter uses
+      today's frontmatter or that work moves earlier.
 
 ## v0.16.0 — Clean-up before 1.0, continued
 
@@ -427,10 +433,6 @@ Ideas noted along the way, not yet committed to a release:
   - ePub export. Pandoc produces it with little extra work, so it would
     be a fourth format on the portal's existing conversion endpoint.
     Matters less for papers than for books; schedule it if users ask.
-  - Journal-shaped starter documents in the New dialog
-    (`lib/documentTemplate.ts`): an article with title, authors, abstract
-    and the usual sections. Waits for the title-and-authors metadata in
-    v1.1.0.
   - Not adopted, with reasons: one file per chapter (the file-tree
     decision below still stands; Halmos is for papers), hosting documents
     online (out of scope, see v1.0.0), and MyST-style `{note}` blocks
