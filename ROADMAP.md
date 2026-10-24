@@ -165,12 +165,53 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       own rules; the events list adds `menu:export-pandoc`, `menu:account`,
       `menu:insert-code` and `portal:pairing`; `PortalService` has a note;
       a Taskfile comment names the right binary.
+
+The three items below came out of a review on 2026-10-23 of a guide to
+writing books in Markdown with Sphinx, and moved from v1.1.0 on 2026-10-24.
+They are free in the preview and PDF; the portal's conversion carries them
+into Word and LaTeX (its M0.15 section).
+
+- [ ] **Cross-references to figures, tables, sections and equations.**
+      Halmos numbers figures but gives no way to refer to one. The
+      authoring guide rightly says not to write "Figure 1" by hand, which
+      leaves no correct way to write "as shown in Figure 3". Add a label
+      and a reference that renders as a linked "Figure 3" and renumbers
+      itself. Use pandoc-crossref's syntax (`{#fig:id}`, `{#tbl:id}`,
+      `{#eq:id}`, `{#sec:id}` to label; `@fig:id` or `[@fig:id]` to refer)
+      so the references survive conversion, rather than a syntax only
+      Halmos understands. Points to settle:
+      - The citation parser (`lib/citations.ts`, `lib/citationKeys.ts`)
+        must tell `@fig:id` from a citation. BibTeX keys can contain
+        colons, so a key that starts `fig:` would clash; decide the rule.
+      - Labels on images, Vega-Lite charts, Mermaid diagrams, tables,
+        display maths and headings, each in a form Pandoc accepts.
+      - Equation numbering, which display maths does not have today.
+      - Autocomplete for labels after `@`, beside the citation completion,
+        and the unknown-citation check extended to unknown labels.
+      - Word and LaTeX: see the portal's M0.15 cross-references item.
+- [ ] **Numbered table captions.** Tables have no caption and no number,
+      and journals require both. Use Pandoc's caption syntax (a
+      `: Caption` line directly after the table) so the conversion keeps
+      it. Decide whether tables share the figures' number sequence (they
+      should not: "Table 1" and "Figure 1" are numbered separately). The
+      table builder (`TableBuilder.svelte`, `lib/pipeTable.ts`) gains a
+      caption field.
+- [ ] **Title, authors and abstract as document metadata.** Today the
+      whole frontmatter is removed before rendering, and `title:` and
+      `author:` are dropped (`docs/authoring.md`, "Frontmatter: exactly
+      four keys"). That was fine with PDF as the only output. Pandoc builds
+      a proper title block for Word and LaTeX from `title`, `author`,
+      `date` and `abstract`, and a paper needs authors with affiliations.
+      Decide the keys (Pandoc's names, so the conversion uses them as
+      they are), how the preview and PDF show the title block, and how it
+      relates to `{title}` in page headers, which today is the first
+      heading. Decide before v1.0.0 if possible: changing what frontmatter
+      means is harder once 1.0 documents exist.
 - [ ] **Journal-shaped starter documents in the New dialog**
       (`lib/documentTemplate.ts`): an article with title, authors, abstract
       and the usual sections. From the Markdown-books review (2026-10-23);
-      moved from the Backlog on 2026-10-24. The title-and-authors metadata
-      it was waiting for is in v1.1.0, so decide whether the starter uses
-      today's frontmatter or that work moves earlier.
+      moved from the Backlog on 2026-10-24. Builds on the title, authors
+      and abstract metadata above.
 
 ## v0.16.0 — Clean-up before 1.0, continued
 
@@ -328,48 +369,6 @@ one — dissolves when the conversion runs on a server Halmos controls.
       retracted papers (Retraction Watch data in Crossref).
 - [ ] **Word export keeps working citations**, so co-authors can edit the
       `.docx` without breaking references.
-
-The three items below came out of a review on 2026-10-23 of a guide to
-writing books in Markdown with Sphinx. They are editor features that are
-free in the preview and PDF, and they need the portal's conversion to
-carry them into Word and LaTeX, which is why they sit in this release.
-
-- [ ] **Cross-references to figures, tables, sections and equations.**
-      Halmos numbers figures but gives no way to refer to one. The
-      authoring guide rightly says not to write "Figure 1" by hand, which
-      leaves no correct way to write "as shown in Figure 3". Add a label
-      and a reference that renders as a linked "Figure 3" and renumbers
-      itself. Use pandoc-crossref's syntax (`{#fig:id}`, `{#tbl:id}`,
-      `{#eq:id}`, `{#sec:id}` to label; `@fig:id` or `[@fig:id]` to refer)
-      so the references survive conversion, rather than a syntax only
-      Halmos understands. Points to settle:
-      - The citation parser (`lib/citations.ts`, `lib/citationKeys.ts`)
-        must tell `@fig:id` from a citation. BibTeX keys can contain
-        colons, so a key that starts `fig:` would clash; decide the rule.
-      - Labels on images, Vega-Lite charts, Mermaid diagrams, tables,
-        display maths and headings, each in a form Pandoc accepts.
-      - Equation numbering, which display maths does not have today.
-      - Autocomplete for labels after `@`, beside the citation completion,
-        and the unknown-citation check extended to unknown labels.
-      - Word and LaTeX: see the portal's M1.1 cross-references item.
-- [ ] **Numbered table captions.** Tables have no caption and no number,
-      and journals require both. Use Pandoc's caption syntax (a
-      `: Caption` line directly after the table) so the conversion keeps
-      it. Decide whether tables share the figures' number sequence (they
-      should not: "Table 1" and "Figure 1" are numbered separately). The
-      table builder (`TableBuilder.svelte`, `lib/pipeTable.ts`) gains a
-      caption field.
-- [ ] **Title, authors and abstract as document metadata.** Today the
-      whole frontmatter is removed before rendering, and `title:` and
-      `author:` are dropped (`docs/authoring.md`, "Frontmatter: exactly
-      four keys"). That was fine with PDF as the only output. Pandoc builds
-      a proper title block for Word and LaTeX from `title`, `author`,
-      `date` and `abstract`, and a paper needs authors with affiliations.
-      Decide the keys (Pandoc's names, so the conversion uses them as
-      they are), how the preview and PDF show the title block, and how it
-      relates to `{title}` in page headers, which today is the first
-      heading. Decide before v1.0.0 if possible: changing what frontmatter
-      means is harder once 1.0 documents exist.
 
 ## v1.2.0 — AI for routine work
 
