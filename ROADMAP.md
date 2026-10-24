@@ -116,6 +116,62 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
         `SetBuilderOpen`, Go's `mustAsk` sends `close:confirm`, and
         "Discard the chart?" comes before the unsaved-changes dialog.
       *Done 2026-10-23.*
+- [x] **Architecture, performance and security review** of the whole app
+      before v1.0.0. Findings that block 1.0 are fixed here; the rest go to
+      the Backlog with the reasons, like the earlier review leftovers.
+      *Done 2026-10-23*: the findings are kept in the private product
+      repository until the security fixes ship. The blocking ones are the
+      four items below and the v1.0.0 licence notices; the rest are in the
+      Backlog.
+- [x] **Security fixes from the pre-1.0 review.** Narrow what a document's
+      content can load and which files the app serves to the preview, and
+      give the app page and the Quick Look page a Content-Security-Policy.
+      Details stay in the private review (S1–S3) until this ships.
+      *Done 2026-10-23*: charts run with a loader that refuses every URL
+      and with Vega's expression interpreter (`charts.ts`); the image route
+      and the export readers serve image extensions only, symlink targets
+      included (`localImageFile`); the production build gives the app page
+      a CSP (`lib/csp.ts`). Quick Look keeps its offline rules and sandbox
+      instead of a CSP. Verified in a production build: no violations on
+      the test document, and a request to another host is refused.
+- [x] **Dependency and CI pass.** Update the shipped packages with
+      published advisories (DOMPurify through Mermaid, markdown-it, KaTeX).
+      Add `govulncheck`, `go vet`, the race detector, `svelte-check` and the
+      Quick Look tests to CI. Bind the demo service only when demo mode is
+      on.
+      *Done 2026-10-23:* DOMPurify 3.4.17 and markdown-it 14.3.3. CI
+      already ran `govulncheck` and `svelte-check`; it now adds `go vet`,
+      `-race` and the Quick Look tests. The demo service stays registered,
+      because the page asks it for a script at startup; its recording and
+      full-screen methods refuse to run without `HERMES_DEMO`. KaTeX moved
+      to v0.16.0.
+- [x] **Reload the bibliography without freezing the editor.** Reading a
+      2,000-entry `.bib` takes 1.5 s on the main thread (49 entries: 0.1 s),
+      and the first citation pass after it up to 0.9 s more. Zotero's "Keep
+      updated" export rewrites the file often, and every rewrite repeats
+      both, even when the bytes are unchanged. Skip a reload whose contents
+      have not changed, parse off the main thread, and reuse parsed entries.
+      *Done 2026-10-23:* the Go watcher emits `bib:changed` only when the
+      content's hash changes; `lib/bibLoader.ts` parses in a Web Worker and
+      caches the last text; a reload with the same text and style keeps the
+      formatter. Measured in a production build with 2,000 entries: the
+      longest stall went from 2.1–2.4 s to 0.21–0.23 s. What is left is
+      citeproc's first pass after a real change; see "Editing a citation
+      reformats every citation" in the Backlog.
+- [x] **Correct stale notes in `CLAUDE.md`.** Its PDF note describes the
+      print panel, which Export PDF… never shows (that is Print…), and the
+      review lists a few more.
+      *Done 2026-10-23:* the PDF note covers both routes and Export PDF's
+      own rules; the events list adds `menu:export-pandoc`, `menu:account`,
+      `menu:insert-code` and `portal:pairing`; `PortalService` has a note;
+      a Taskfile comment names the right binary.
+
+## v0.16.0 — Clean-up before 1.0, continued
+
+Serves: M0.16
+
+The v0.15.0 items still open on 2026-10-24, moved here unchanged.
+
 - [ ] **Page numbers, headers and footers in exported output.** Set in the
       frontmatter, like `bibliography`, `csl` and `toc`, so a document
       carries its own page setup. The keys are `header` and `footer`, each
@@ -149,35 +205,6 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       PDF, HTML, Word and LaTeX. Start with the author-list options and
       list which other options are worth exposing. Name-format options
       (initials, "and" versus "&") are candidates.
-- [x] **Architecture, performance and security review** of the whole app
-      before v1.0.0. Findings that block 1.0 are fixed here; the rest go to
-      the Backlog with the reasons, like the earlier review leftovers.
-      *Done 2026-10-23*: the findings are kept in the private product
-      repository until the security fixes ship. The blocking ones are the
-      four items below and the v1.0.0 licence notices; the rest are in the
-      Backlog.
-- [x] **Security fixes from the pre-1.0 review.** Narrow what a document's
-      content can load and which files the app serves to the preview, and
-      give the app page and the Quick Look page a Content-Security-Policy.
-      Details stay in the private review (S1–S3) until this ships.
-      *Done 2026-10-23*: charts run with a loader that refuses every URL
-      and with Vega's expression interpreter (`charts.ts`); the image route
-      and the export readers serve image extensions only, symlink targets
-      included (`localImageFile`); the production build gives the app page
-      a CSP (`lib/csp.ts`). Quick Look keeps its offline rules and sandbox
-      instead of a CSP. Verified in a production build: no violations on
-      the test document, and a request to another host is refused.
-- [x] **Dependency and CI pass.** Update the shipped packages with
-      published advisories (DOMPurify through Mermaid, markdown-it, KaTeX).
-      Add `govulncheck`, `go vet`, the race detector, `svelte-check` and the
-      Quick Look tests to CI. Bind the demo service only when demo mode is
-      on.
-      *Done 2026-10-23:* DOMPurify 3.4.17 and markdown-it 14.3.3. CI
-      already ran `govulncheck` and `svelte-check`; it now adds `go vet`,
-      `-race` and the Quick Look tests. The demo service stays registered,
-      because the page asks it for a script at startup; its recording and
-      full-screen methods refuse to run without `HERMES_DEMO`. KaTeX moved
-      to the next item.
 - [ ] **Wails, KaTeX and Mermaid, then hold dependencies for 1.0.** Wails
       beta.34 is out (the pin is beta.30); wait until it is 7 days old, as
       `.npmrc` asks. KaTeX's low advisory is fixed in 0.18, which needs
@@ -187,26 +214,6 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       asks for KaTeX 0.16. KaTeX 0.18 also prefixes its CSS classes, so
       check `style.css` and the HTML export. Then hold dependencies still
       for 1.0.
-- [x] **Reload the bibliography without freezing the editor.** Reading a
-      2,000-entry `.bib` takes 1.5 s on the main thread (49 entries: 0.1 s),
-      and the first citation pass after it up to 0.9 s more. Zotero's "Keep
-      updated" export rewrites the file often, and every rewrite repeats
-      both, even when the bytes are unchanged. Skip a reload whose contents
-      have not changed, parse off the main thread, and reuse parsed entries.
-      *Done 2026-10-23:* the Go watcher emits `bib:changed` only when the
-      content's hash changes; `lib/bibLoader.ts` parses in a Web Worker and
-      caches the last text; a reload with the same text and style keeps the
-      formatter. Measured in a production build with 2,000 entries: the
-      longest stall went from 2.1–2.4 s to 0.21–0.23 s. What is left is
-      citeproc's first pass after a real change; see "Editing a citation
-      reformats every citation" in the Backlog.
-- [x] **Correct stale notes in `CLAUDE.md`.** Its PDF note describes the
-      print panel, which Export PDF… never shows (that is Print…), and the
-      review lists a few more.
-      *Done 2026-10-23:* the PDF note covers both routes and Export PDF's
-      own rules; the events list adds `menu:export-pandoc`, `menu:account`,
-      `menu:insert-code` and `portal:pairing`; `PortalService` has a note;
-      a Taskfile comment names the right binary.
 
 ## v1.0.0 — Production
 
