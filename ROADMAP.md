@@ -93,14 +93,6 @@ Tidy what is there before v1.0.0 adds anything. More items to follow.
       Top and bottom margins now scale with the paper's shape (`pageRule`
       in `lib/paper.ts`; A4 portrait 25mm × 35.4mm), and the sheet draws
       the same. Print… (30pt margins, the panel's paper) is not changed.
-- [ ] **Bug (to confirm): white space at the top of each page in Print….**
-      Export PDF… was fixed on 2026-10-22 (46mm top margin instead of
-      25mm), but Print… was left alone: it uses 30pt `NSPrintInfo` margins
-      and the paper chosen in the print panel, on top of the same `@page`
-      rule from `lib/paper.ts`. Reproduce first: print a multi-page
-      document to PDF from the panel on A4 and US Letter, portrait and
-      landscape, and measure the top margin. If it is wrong, decide whether
-      Print… should use the same margin rule as Export PDF….
 - [x] **Chart builder improvements.** Scoped 2026-10-23 to three fixes;
       layered charts stay in the Backlog.
       - Keep styling the builder has no control for. A chart is editable
@@ -524,6 +516,14 @@ Ideas noted along the way, not yet committed to a release:
 - Layered charts in the chart builder (points over error bars, a regression
   line over a scatter). Needs `layer` and `transform` in the
   `buildSpec`/`readSpec` round trip; `PASSTHROUGH_KEYS` excludes them today.
+- Bug (to confirm): white space at the top of each page in Print….
+  Export PDF… was fixed on 2026-10-22 (46mm top margin instead of 25mm),
+  but Print… was left alone: it uses 30pt `NSPrintInfo` margins and the
+  paper chosen in the print panel, on top of the same `@page` rule from
+  `lib/paper.ts`. Reproduce first: print a multi-page document to PDF from
+  the panel on A4 and US Letter, portrait and landscape, and measure the
+  top margin. If it is wrong, decide whether Print… should use the same
+  margin rule as Export PDF…. Moved from v0.15.0 on 2026-10-24.
 - Headers and footers in File → Print…. Export PDF… draws them on the
   rendered file; Print… sends pages to the print panel, so there is no file
   to draw on. It would need its own drawing step, or Print… could render a
