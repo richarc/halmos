@@ -12,6 +12,7 @@
   import { codeHighlightStyleSpecs } from './lib/syntaxTags'
   import { spellcheckExtension } from './lib/spellcheck'
   import { minimalChange } from './lib/textDiff'
+  import { parseCaptionLine } from './lib/tableCaptions'
   import { citationCompletionSource, citationOptionClass, citationOptionTitle, type CitationContext } from './lib/citationCompletion'
   import { autocompletion } from '@codemirror/autocomplete'
   import { citationHover, unknownKeyMarks, refreshCitationsEffect } from './lib/citationEditor'
@@ -475,10 +476,15 @@
     from: number
     to: number
     text: string
+    /** The `: Caption {#tbl:id}` paragraph after the table, whose text `to` and `text` include. */
+    caption: { caption: string; label: string | null } | null
   }
 
   /**
-   * The GFM table containing the cursor, or null.
+   * The GFM table containing the cursor, or null. A table's caption is the
+   * paragraph `: Caption {#tbl:id}` one blank line after it; when there is
+   * one, `to` and `text` run on to the end of it, and a cursor on the caption
+   * counts as being in the table.
    *
    * Same two load-bearing details as enclosingChartBlock, for the same
    * reasons: forceParsing first, because a table late in a long paper is not
@@ -491,15 +497,60 @@
   export function enclosingTable(): TableBlock | null {
     forceParsing(view, view.state.doc.length, 5000)
     const tree = syntaxTree(view.state)
+    const doc = view.state.doc
     const pos = view.state.selection.main.head
 
+    let table: SyntaxNode | null = null
     for (const side of [1, -1] as const) {
       let node: SyntaxNode | null = tree.resolveInner(pos, side)
       while (node && node.name !== 'Table') node = node.parent
-      if (!node) continue
-      return { from: node.from, to: node.to, text: view.state.doc.sliceString(node.from, node.to) }
+      if (node) {
+        table = node
+        break
+      }
     }
-    return null
+    if (!table) table = tableCaptionedAt(pos)
+    if (!table) return null
+
+    let to = table.to
+    let caption: TableBlock['caption'] = null
+    const last = doc.lineAt(table.to)
+    // One blank line, then a `: ` line; a wrapped caption runs on to the next
+    // blank line, and its label is at the end of the last line.
+    if (last.number + 2 <= doc.lines && doc.line(last.number + 1).text.trim() === '') {
+      const first = doc.line(last.number + 2)
+      if (parseCaptionLine(first.text)) {
+        const parts = [first.text.trim()]
+        let end = first
+        while (end.number < doc.lines && doc.line(end.number + 1).text.trim() !== '') {
+          end = doc.line(end.number + 1)
+          parts.push(end.text.trim())
+        }
+        caption = parseCaptionLine(parts.join(' '))
+        if (caption) to = end.to
+      }
+    }
+    return { from: table.from, to, text: doc.sliceString(table.from, to), caption }
+  }
+
+  /**
+   * The Table node whose caption paragraph holds `pos`, or null: walk up to
+   * the paragraph's first line, which must be a caption line, and look past
+   * at most one blank line for the table that ends there.
+   */
+  function tableCaptionedAt(pos: number): SyntaxNode | null {
+    const doc = view.state.doc
+    let line = doc.lineAt(pos)
+    if (line.text.trim() === '') return null
+    while (line.number > 1 && doc.line(line.number - 1).text.trim() !== '') line = doc.line(line.number - 1)
+    if (!parseCaptionLine(line.text)) return null
+    let above = line.number - 1
+    if (above >= 1 && doc.line(above).text.trim() === '') above--
+    if (above < 1) return null
+    let node: SyntaxNode | null = syntaxTree(view.state).resolveInner(doc.line(above).to, -1)
+    while (node && node.name !== 'Table') node = node.parent
+    // Directly above the caption: a table that ends earlier is not its table.
+    return node && node.to === doc.line(above).to ? node : null
   }
 
   /**

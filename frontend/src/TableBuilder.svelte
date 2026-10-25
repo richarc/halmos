@@ -22,6 +22,11 @@
       : { header: ['Column 1', 'Column 2', 'Column 3'], align: [null, null, null], rows: [['', '', ''], ['', '', '']] },
   )
 
+  let caption = $state(untrack(() => initial?.caption ?? ''))
+  // Kept as it was read: Halmos never rewrites an existing label.
+  const label = untrack(() => initial?.label)
+  let captionError = $state('')
+
   let header = $state<string[]>(seed.header)
   let align = $state<Alignment[]>(seed.align)
   let rows = $state<string[][]>(seed.rows)
@@ -109,7 +114,20 @@
   }
 
   function commit() {
-    oncommit({ header: [...header], align: [...align], rows: rows.map((r) => [...r]) })
+    const text = caption.trim()
+    // A label with no caption would drop the label from the document and
+    // leave every @tbl: reference to it dangling.
+    if (label && text === '') {
+      captionError = 'This table is referred to; give it a caption or remove the references first.'
+      return
+    }
+    captionError = ''
+    oncommit({
+      header: [...header],
+      align: [...align],
+      rows: rows.map((r) => [...r]),
+      ...(text ? { caption: text, ...(label ? { label } : {}) } : {}),
+    })
   }
 
   // Same reason as ChartBuilder's paste box: the modal does not stop keystrokes
@@ -133,6 +151,15 @@
 </script>
 
 <Dialog open label={title} {title} class="table-builder" onclose={oncancel}>
+  <div class="table-caption">
+    <label for="table-caption">Caption</label>
+    <input id="table-caption" data-field="caption" bind:value={caption}
+      aria-invalid={captionError ? 'true' : undefined} oninput={() => (captionError = '')} />
+    {#if captionError}
+      <p class="field-error" role="alert">{captionError}</p>
+    {/if}
+  </div>
+
   <div class="table-grid" bind:this={grid}>
     <table>
       <thead>

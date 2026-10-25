@@ -106,3 +106,20 @@ describe('round trips', () => {
     expect(r.ok && serializePipeTable(r.table)).toBe(text)
   })
 })
+
+describe('captions', () => {
+  const base: PipeTable = { header: ['a', 'b'], align: [null, null], rows: [['1', '2']] }
+  const body = serializePipeTable(base)
+
+  it('writes the caption and label after a blank line', () => {
+    expect(serializePipeTable({ ...base, caption: 'Yield', label: 'tbl:y' })).toBe(`${body}\n\n: Yield {#tbl:y}`)
+  })
+
+  it('writes a caption without a label', () => {
+    expect(serializePipeTable({ ...base, caption: 'Yield' })).toBe(`${body}\n\n: Yield`)
+  })
+
+  it('writes no caption line for an empty caption', () => {
+    expect(serializePipeTable({ ...base, caption: '', label: 'tbl:y' })).toBe(body)
+  })
+})

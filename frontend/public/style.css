@@ -967,6 +967,12 @@ dialog::backdrop { background: var(--backdrop); }
 .table-actions .paste-toggle { margin-left: auto; }
 .table-hint { margin-top: 8px; }
 
+.table-caption { margin-bottom: 12px; }
+.table-caption label { display: block; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
+.table-caption input { width: 100%; }
+.table-caption input[aria-invalid="true"] { border-color: var(--cite-error-fg); }
+.table-caption .field-error { color: var(--cite-error-fg); margin-top: 4px; }
+
 .table-import { margin-top: 16px; }
 .table-import label { display: block; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
 .table-import textarea { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }

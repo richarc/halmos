@@ -25,7 +25,12 @@ interface EditorApi {
   lineCount(): number
   topVisibleLine(): number
   enclosingChartBlock(): ChartBlock | null
-  enclosingTable(): { from: number; to: number; text: string } | null
+  enclosingTable(): {
+    from: number
+    to: number
+    text: string
+    caption: { caption: string; label: string | null } | null
+  } | null
   replaceRange(from: number, to: number, text: string): void
   find(cmd: 'open' | 'replace' | 'next' | 'previous'): boolean
   refreshCitations(): void
@@ -645,6 +650,66 @@ describe('Editor.enclosingTable', () => {
     const { editor, cleanup } = atPosition(DOC.indexOf('After'))
     expect(editor.enclosingTable()).toBeNull()
     cleanup()
+  })
+
+  it('has no caption when none follows', () => {
+    const { editor, cleanup } = atPosition(DOC.indexOf('| 1'))
+    expect(editor.enclosingTable()!.caption).toBeNull()
+    cleanup()
+  })
+
+  describe('with a caption', () => {
+    const CAPTION = ': Yield {#tbl:y}'
+    const CDOC = `# Results\n\n${TABLE}\n\n${CAPTION}\n\nAfter.\n`
+
+    function at(doc: string, pos: number) {
+      const { target, editor, cleanup } = mountEditor()
+      editor.setContent(doc)
+      const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+      view.dispatch({ selection: { anchor: pos } })
+      return { editor, cleanup }
+    }
+
+    it('extends over the caption from a cursor in the table', () => {
+      const { editor, cleanup } = at(CDOC, CDOC.indexOf('| 1'))
+      const block = editor.enclosingTable()!
+      expect(block.caption).toEqual({ caption: 'Yield', label: 'tbl:y' })
+      expect(block.text).toBe(`${TABLE}\n\n${CAPTION}`)
+      expect(CDOC.slice(block.from, block.to)).toBe(block.text)
+      cleanup()
+    })
+
+    it('finds the table from a cursor on the caption line', () => {
+      const { editor, cleanup } = at(CDOC, CDOC.indexOf('Yield'))
+      const block = editor.enclosingTable()!
+      expect(block.caption).toEqual({ caption: 'Yield', label: 'tbl:y' })
+      expect(block.from).toBe(CDOC.indexOf('| a'))
+      expect(block.to).toBe(CDOC.indexOf(CAPTION) + CAPTION.length)
+      cleanup()
+    })
+
+    it('joins a wrapped caption and reads the label from its last line', () => {
+      const doc = `${TABLE}\n\n: Yield by\ngroup {#tbl:y}\n\nAfter.\n`
+      const { editor, cleanup } = at(doc, doc.indexOf('group'))
+      const block = editor.enclosingTable()!
+      expect(block.caption).toEqual({ caption: 'Yield by group', label: 'tbl:y' })
+      expect(block.to).toBe(doc.indexOf('{#tbl:y}') + '{#tbl:y}'.length)
+      cleanup()
+    })
+
+    it('ignores a caption line that is not after a table', () => {
+      const doc = 'Some prose.\n\n: Not a caption\n'
+      const { editor, cleanup } = at(doc, doc.indexOf('Not'))
+      expect(editor.enclosingTable()).toBeNull()
+      cleanup()
+    })
+
+    it('ignores a caption separated from the table by two blank lines', () => {
+      const doc = `${TABLE}\n\n\n${CAPTION}\n`
+      const { editor, cleanup } = at(doc, doc.indexOf('Yield'))
+      expect(editor.enclosingTable()).toBeNull()
+      cleanup()
+    })
   })
 })
 

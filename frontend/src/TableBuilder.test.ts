@@ -35,6 +35,48 @@ function type(input: HTMLInputElement, value: string) {
 const headers = (root: HTMLElement) => [...root.querySelectorAll<HTMLInputElement>('input.th-cell')]
 const cells = (root: HTMLElement) => [...root.querySelectorAll<HTMLInputElement>('input.td-cell')]
 
+describe('TableBuilder caption', () => {
+  const initial: PipeTable = { header: ['a'], align: [null], rows: [['1']], caption: 'Yield', label: 'tbl:y' }
+  const field = (root: HTMLElement) => root.querySelector<HTMLInputElement>('input[data-field="caption"]')!
+
+  it('has a Caption field above the grid, seeded from the table', () => {
+    const { target, cleanup } = mountBuilder(initial)
+    expect(target.querySelector('label[for="table-caption"]')?.textContent).toBe('Caption')
+    expect(field(target).value).toBe('Yield')
+    expect(field(target).compareDocumentPosition(target.querySelector('.table-grid')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    cleanup()
+  })
+
+  it('commits the caption and keeps the label', () => {
+    const { target, oncommit, cleanup } = mountBuilder(initial)
+    type(field(target), 'New yield')
+    button(target, 'Update').click()
+    expect(oncommit.mock.calls[0][0]).toMatchObject({ caption: 'New yield', label: 'tbl:y' })
+    cleanup()
+  })
+
+  it('refuses to drop the caption of a referred-to table', () => {
+    const { target, oncommit, cleanup } = mountBuilder(initial)
+    type(field(target), '')
+    button(target, 'Update').click()
+    flushSync()
+    expect(oncommit).not.toHaveBeenCalled()
+    expect(target.querySelector('.field-error')?.textContent).toBe(
+      'This table is referred to; give it a caption or remove the references first.',
+    )
+    cleanup()
+  })
+
+  it('commits no caption when there was no label and the field is cleared', () => {
+    const { target, oncommit, cleanup } = mountBuilder({ ...initial, label: undefined })
+    type(field(target), '')
+    button(target, 'Update').click()
+    expect(oncommit.mock.calls[0][0].caption).toBeUndefined()
+    expect(oncommit.mock.calls[0][0].label).toBeUndefined()
+    cleanup()
+  })
+})
+
 describe('TableBuilder', () => {
   it('starts as 3 named columns and 2 empty rows', () => {
     const { target, cleanup } = mountBuilder()
