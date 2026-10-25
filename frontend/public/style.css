@@ -1000,9 +1000,14 @@ dialog::backdrop { background: var(--backdrop); }
   padding: 12px; border-radius: 6px; font-family: monospace; font-size: 13px;
 }
 
-.cite-error {
+.cite-error,
+.crossref-error {
   color: var(--doc-cite-error-fg); background: var(--doc-cite-error-bg); border-radius: 3px; padding: 0 3px;
 }
+
+/* A cross-reference is a link within the document; `.sheet a` already gives
+   it this colour, and this keeps it if the element ever stops being an <a>. */
+.sheet .crossref { color: var(--doc-link); }
 
 /* KaTeX writes its errorColor option as an inline `color` style on the
    element (see renderer.ts), which beats any ordinary rule here — the

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render } from './renderer'
+import { render, renderDocument } from './renderer'
 import { createCitationFormatter } from './citations'
 import { parseBib, type CSLEntry } from './bibliography'
 
@@ -480,5 +480,82 @@ describe('render: task lists and alerts', () => {
 
   it('leaves an unknown marker as an ordinary blockquote', () => {
     expect(render('> [!UNKNOWN]\n> hi')).not.toContain('markdown-alert')
+  })
+})
+
+describe('render: cross-references', () => {
+  const TWO = '![A](a.png){#fig:a}\n\n![B](b.png){#fig:b}'
+
+  it('resolves a reference that comes before its target', () => {
+    const html = render(`See @fig:b.\n\n${TWO}`)
+    expect(html).toContain('<a class="crossref" href="#fig:b">Figure 2</a>')
+  })
+
+  it('renders a group of one kind as one run, linked to the first label', () => {
+    const html = render(`[@fig:a; @fig:b]\n\n${TWO}`)
+    expect(html).toContain('<a class="crossref" href="#fig:a">Figures 1, 2</a>')
+  })
+
+  it('resolves tables and equations', () => {
+    const doc = '@tbl:t and @eq:e\n\n| a |\n|---|\n| 1 |\n\n: Counts {#tbl:t}\n\n$$ x $$ {#eq:e}\n'
+    const html = render(doc)
+    expect(html).toContain('<a class="crossref" href="#tbl:t">Table 1</a>')
+    expect(html).toContain('<a class="crossref" href="#eq:e">Equation 1</a>')
+  })
+
+  it('links a capitalised reference to the label as written in the document', () => {
+    const html = render(`@Fig:a\n\n${TWO}`)
+    expect(html).toContain('<a class="crossref" href="#fig:a">Figure 1</a>')
+  })
+
+  it('marks a missing label and reports it', () => {
+    const result = renderDocument('See @fig:nope.')
+    expect(result.html).toContain('<span class="crossref-error">Figure ??</span>')
+    expect(result.crossrefs.missing).toEqual([{ key: 'fig:nope', line: 1 }])
+  })
+
+  it('marks a group mixing references and citations, showing the raw text', () => {
+    const html = render(`[@fig:a; @smith]\n\n${TWO}`)
+    expect(html).toContain('<span class="crossref-error">[@fig:a; @smith]</span>')
+    expect(html).not.toContain('class="crossref"')
+  })
+
+  it('resolves references in a footnote, a list item and a table cell', () => {
+    const doc = [
+      'Text[^1] and^[inline @fig:a].',
+      '',
+      '- item @fig:b',
+      '',
+      '| c |',
+      '|---|',
+      '| @fig:a |',
+      '',
+      TWO,
+      '',
+      '[^1]: note @fig:b',
+    ].join('\n')
+    const result = renderDocument(doc)
+    expect(result.crossrefs.missing).toEqual([])
+    expect(result.html.match(/<a class="crossref" href="#fig:a">Figure 1<\/a>/g)).toHaveLength(2)
+    expect(result.html.match(/<a class="crossref" href="#fig:b">Figure 2<\/a>/g)).toHaveLength(2)
+  })
+
+  it('reports the line of a missing reference in a footnote', () => {
+    const result = renderDocument('Text^[see @fig:x].\n\nMore[^1]\n\n[^1]: and @tbl:y')
+    expect(result.crossrefs.missing).toEqual([
+      { key: 'fig:x', line: 1 },
+      { key: 'tbl:y', line: 5 },
+    ])
+  })
+
+  it('counts document lines, not body lines, for a missing reference', () => {
+    const result = renderDocument('---\ntoc: false\n---\nSee @fig:nope.')
+    expect(result.crossrefs.missing[0].line).toBe(4)
+  })
+
+  it('returns the targets', () => {
+    const result = renderDocument(TWO)
+    expect(result.crossrefs.targets.map((t) => t.label)).toEqual(['fig:a', 'fig:b'])
+    expect(result.crossrefs.targets[1]).toMatchObject({ kind: 'fig', number: 2, line: 3 })
   })
 })

@@ -58,7 +58,10 @@ function moveCaptions(state: StateCore): boolean {
     inline.level = table.level + 2
     inline.content = parsed.caption
     inline.map = null
-    if (parsed.label !== null) table.meta = { ...(table.meta ?? {}), label: parsed.label }
+    // The caption's own line, for crossrefTargets.ts: the inline's map is
+    // cleared below and the paragraph tokens are dropped.
+    table.meta = { ...(table.meta ?? {}), captionLine: para.map[0] }
+    if (parsed.label !== null) table.meta.label = parsed.label
     tokens.splice(i + 1, 3)
     tokens.splice(open + 1, 0, ...caption)
   }

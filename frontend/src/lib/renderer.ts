@@ -18,14 +18,15 @@ import { parseMermaidSource } from './mermaidSource'
 import { createKatexCache } from './katexCache'
 import { tableCaptionPlugin } from './tableCaptions'
 import { equationPlugin } from './equations'
-import type { TargetMeta } from './crossrefs'
+import { referenceText, type CrossrefTarget, type TargetMeta } from './crossrefs'
+import { crossrefPlugin, keyLabel, type CrossrefEnv, type CrossrefMeta, type MissingReference } from './crossrefTargets'
 
 /**
  * The per-render environment markdown-it threads through to the rules. Typed
  * once here rather than cast at each use: the fence renderer reads the chart
  * width out of it, and the source_line rule reads the frontmatter offset.
  */
-interface RenderEnv extends TocEnv {
+interface RenderEnv extends TocEnv, CrossrefEnv {
   citations?: CitationCluster[]
   outline?: OutlineEntry[]
   sourceLineOffset: number
@@ -74,6 +75,8 @@ md.core.ruler.push('source_line', (state) => {
 md.use(figurePlugin)
 md.use(tableCaptionPlugin)
 md.use(equationPlugin)
+// After the three rules above, whose stamps it collects.
+md.use(crossrefPlugin)
 md.use(outlinePlugin)
 // After outlinePlugin, so a future consumer of both sees consistent data;
 // after source_line always, since it reads the stamps.
@@ -140,6 +143,22 @@ function isDocumentRelative(src: string): boolean {
   if (src === '') return false
   if (src.startsWith('//') || src.startsWith('#')) return false
   return !/^[a-z][a-z0-9+.-]*:/i.test(src)
+}
+
+/**
+ * A reference reads as `Figure 2`, linked to the first label it names.
+ * Rendering runs after every core rule, so a reference above its target
+ * resolves. A group mixing references and citations shows its raw text.
+ */
+md.renderer.rules.crossref = (tokens, idx, _options, env) => {
+  const token = tokens[idx]
+  const meta = token.meta as CrossrefMeta
+  const lookup = (env as RenderEnv).crossrefLookup
+  if (meta.mixed) return `<span class="crossref-error">${md.utils.escapeHtml(token.content)}</span>`
+  const { text, missing } = referenceText(meta.keys, (label) => lookup?.get(label))
+  if (missing) return `<span class="crossref-error">${md.utils.escapeHtml(text)}</span>`
+  const href = md.utils.escapeHtml(`#${keyLabel(meta.keys[0])}`)
+  return `<a class="crossref" href="${href}">${md.utils.escapeHtml(text)}</a>`
 }
 
 const defaultFence = md.renderer.rules.fence!
@@ -290,6 +309,8 @@ export interface RenderResult {
   html: string
   /** The document's headings, for the outline panel. */
   outline: OutlineEntry[]
+  /** Cross-reference targets in document order, and references that miss. */
+  crossrefs: { targets: CrossrefTarget[]; missing: MissingReference[] }
 }
 
 /** render() for callers that only want the HTML — every test and most rules. */
@@ -315,6 +336,7 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
     html = tocNavHtml(listed, 1) + html
   }
   const outline = env.outline ?? []
+  const crossrefs = { targets: env.crossrefTargets ?? [], missing: env.crossrefMissing ?? [] }
   const clusters = env.citations ?? []
   const formatter = opts?.formatter
   // markdown-it-footnote appends its block to the end of the body. Cut it off
@@ -329,7 +351,7 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
       .replace('<section class="footnotes"', `<section class="footnotes" data-source-line="${docLines}"`)
     html = html.slice(0, sepAt)
   }
-  if (!formatter || clusters.length === 0) return { html: html + notes, outline }
+  if (!formatter || clusters.length === 0) return { html: html + notes, outline, crossrefs }
 
   const { texts, bibliographyHtml } = formatter.format(
     clusters.map((c) => (resolvable(formatter, c) ? c : { items: [] })),
@@ -365,7 +387,7 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
     // single interpolated interval hanging off the last real anchor.
     html += `<h2 data-source-line="${docLines}">References</h2>\n${bibliographyHtml}\n`
   }
-  return { html: html + notes, outline }
+  return { html: html + notes, outline, crossrefs }
 }
 
 function resolvable(f: CitationFormatter, c: CitationCluster): boolean {
