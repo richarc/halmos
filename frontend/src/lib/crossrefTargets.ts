@@ -82,18 +82,25 @@ function targetOf(token: Token, lines: string[]): CrossrefTarget | null {
   const target = meta?.target
   if (!target || !token.map) return null
   const [start, end] = token.map
+  const nested = token.level > 0
   if (token.type === 'fence') {
     const block = fenceLanguage(token.info) === 'mermaid' ? 'mermaid' : 'chart'
-    return { ...target, block, line: start + 1 }
+    return { ...target, block, line: start + 1, nested }
   }
   // An image figure: the paragraph, retagged.
-  if (token.type === 'paragraph_open') return { ...target, block: 'image', line: end }
+  if (token.type === 'paragraph_open') return { ...target, block: 'image', line: end, nested }
   if (token.type === 'table_open') {
     if (meta.captionLastLine == null) return null
-    return { ...target, block: 'table', line: meta.captionLastLine + 1 }
+    return { ...target, block: 'table', line: meta.captionLastLine + 1, nested }
   }
   if (token.type === 'math_block') {
-    return { ...target, block: 'equation', line: closingLine(lines, start, end) + 1, tex: (meta.tex ?? '').trim() }
+    return {
+      ...target,
+      block: 'equation',
+      line: closingLine(lines, start, end) + 1,
+      tex: (meta.tex ?? '').trim(),
+      nested,
+    }
   }
   return null
 }

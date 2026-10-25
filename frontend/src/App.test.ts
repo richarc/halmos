@@ -3373,6 +3373,21 @@ describe('picking a cross-reference', () => {
     expect(dialog.hasAttribute('open')).toBe(false)
   })
 
+  it("refuses a reference on an unlabelled table's own caption line, and says so", async () => {
+    const doc = '# Results\n\n| a |\n| --- |\n| 1 |\n\n: Crops, as @tbl:\n'
+    const { target, view } = await openAt(doc, doc.length - 1)
+    startCompletion(view)
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe("That reference is on the table's own line, so it wasn't added."),
+    )
+    expect(view.state.doc.toString()).toBe(doc)
+    closeCompletion(view)
+  })
+
   it('labels an unlabelled figure straight away when it is chosen', async () => {
     const doc = '# Results\n\nSee @fig:\n\n![Yield](a.png)\n'
     const { view } = await openAt(doc, doc.indexOf('@fig:') + 5)

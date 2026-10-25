@@ -23,12 +23,23 @@ export interface ReferenceChange {
   insert: string
 }
 
-export type ReferencePlan = { changes: ReferenceChange[] } | { error: 'moved' | 'taken' | 'invalid' | 'empty' }
+/**
+ * Why nothing was written: the target is gone or changed (`moved`), the
+ * reference sits on the unlabelled target's own line, where the label would
+ * land after it (`own-line`), or the equation name is unusable.
+ */
+export type ReferenceError = 'moved' | 'own-line' | 'taken' | 'invalid' | 'empty'
+
+export type ReferencePlan = { changes: ReferenceChange[] } | { error: ReferenceError }
 
 /** The target in the live text that `target` was, or null when it is gone. */
 function refind(live: CrossrefTarget[], target: CrossrefTarget): CrossrefTarget | null {
+  // A number alone can name another block once one is added or uncaptioned
+  // above, so the caption has to agree too.
   if (target.kind !== 'eq' || target.number !== null) {
-    return live.find((t) => t.kind === target.kind && t.number === target.number) ?? null
+    return (
+      live.find((t) => t.kind === target.kind && t.number === target.number && t.caption === target.caption) ?? null
+    )
   }
   // An unnamed equation has no number, so it is known by its formula; of two
   // equal formulas, the one nearer where it was.
@@ -40,12 +51,32 @@ function refind(live: CrossrefTarget[], target: CrossrefTarget): CrossrefTarget 
   return best
 }
 
-/** Offset of the label's place on 1-based `line` of `text`. */
-function labelOffset(text: string, line: number): number {
+/** Offset of the start of 1-based `line` of `text`. */
+function lineStart(text: string, line: number): number {
   let start = 0
   for (let n = 1; n < line; n++) start = text.indexOf('\n', start) + 1
+  return start
+}
+
+/** Offset of the label's place on 1-based `line` of `text`. */
+function labelOffset(text: string, line: number): number {
+  const start = lineStart(text, line)
   const end = text.indexOf('\n', start)
   return start + labelColumn(text.slice(start, end < 0 ? text.length : end))
+}
+
+// After these, or at a line start, an "@" reads as a reference.
+const OPENS_REFERENCE = /[\s([]/
+
+/**
+ * `@label`, spaced off a word when nothing was typed: from the menu the
+ * insertion can land right after one (`see|`), where it would not read as a
+ * reference. A typed `@` is left where it is; the source checked it.
+ */
+function referenceText(text: string, from: number, to: number, label: string): string {
+  const typedAt = text.startsWith('@', from) && from < to
+  const prev = from > 0 ? text[from - 1] : '\n'
+  return typedAt || OPENS_REFERENCE.test(prev) ? `@${label}` : ` @${label}`
 }
 
 /**
@@ -61,7 +92,7 @@ export function planReference(
   to: number,
   eqName?: string,
 ): ReferencePlan {
-  const refer = (label: string): ReferenceChange => ({ from, to, insert: `@${label}` })
+  const refer = (label: string): ReferenceChange => ({ from, to, insert: referenceText(text, from, to, label) })
   if (target.label !== null) return { changes: [refer(target.label)] }
 
   const live = collectTargets(text)
@@ -79,6 +110,11 @@ export function planReference(
   } else {
     label = slugLabel(found.kind, found.caption, taken)
   }
+  // On the target's own line the label would follow the reference and no
+  // longer attach to the block (a caption referring to its own table).
+  const start = lineStart(text, found.line)
+  const end = text.indexOf('\n', start)
+  if (from >= start && (end < 0 || from <= end)) return { error: 'own-line' }
   const at = labelOffset(text, found.line)
   const write = { from: at, to: at, insert: labelSuffix(found.block, label) }
   return { changes: [write, refer(label)].sort((a, b) => a.from - b.from) }
@@ -119,9 +155,12 @@ const NOT_BEFORE_BARE = /[\w.\-@]/
 const MENU_FILTER = /^[\w:.-]*$/
 const ORDER: CrossrefKind[] = ['fig', 'tbl', 'eq']
 
-/** A target can be picked when it has a number, or is an equation still to be named. */
+/**
+ * A target can be picked when it has a number, or is a top-level equation
+ * still to be named; a nested one would stay unnumbered once labelled.
+ */
 function pickable(t: CrossrefTarget): boolean {
-  return t.number !== null || (t.kind === 'eq' && t.label === null)
+  return t.number !== null || (t.kind === 'eq' && t.label === null && !t.nested)
 }
 
 /**
@@ -179,10 +218,12 @@ export function crossrefCompletionSource(
           target: t,
           apply: (view: EditorView, c: Completion, from: number, to: number) => {
             if (t.label === null) return pick(t, from, to)
-            const insert = `@${t.label}`
+            const plan = planReference(view.state.doc.toString(), t, from, to)
+            if ('error' in plan) return
+            const [change] = plan.changes
             view.dispatch({
-              changes: { from, to, insert },
-              selection: { anchor: from + insert.length },
+              changes: change,
+              selection: { anchor: from + change.insert.length },
               annotations: pickedCompletion.of(c),
               userEvent: 'input.complete',
             })

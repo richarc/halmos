@@ -105,6 +105,8 @@ export interface CrossrefTarget extends TargetMeta {
   line: number
   /** The formula, for equations. */
   tex?: string
+  /** Below the top level (in a list or quote), where nothing is numbered. */
+  nested?: boolean
 }
 
 /** `{#label}` as written after a block; an image's must touch the `)` for Pandoc. */

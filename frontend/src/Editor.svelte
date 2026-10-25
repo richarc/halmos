@@ -16,7 +16,7 @@
   import { fenceLanguage } from './lib/figures'
   import { citationCompletionSource, citationOptionClass, citationOptionTitle, type CitationContext } from './lib/citationCompletion'
   import { autocompletion, startCompletion, completionStatus } from '@codemirror/autocomplete'
-  import { crossrefCompletionSource, crossrefOptionClass, crossrefOptionFormula, planReference } from './lib/crossrefCompletion'
+  import { crossrefCompletionSource, crossrefOptionClass, crossrefOptionFormula, planReference, type ReferenceError } from './lib/crossrefCompletion'
   import type { CrossrefTarget } from './lib/crossrefs'
   import { citationHover, unknownKeyMarks, refreshCitationsEffect } from './lib/citationEditor'
   import { openSearchPanel, findNext, findPrevious } from '@codemirror/search'
@@ -619,7 +619,7 @@
     from: number,
     to: number,
     eqName?: string,
-  ): 'ok' | 'moved' | 'taken' | 'invalid' | 'empty' {
+  ): 'ok' | ReferenceError {
     const len = view.state.doc.length
     if (from < 0 || to > len || from > to) return 'moved'
     const plan = planReference(view.state.doc.toString(), target, from, to, eqName)

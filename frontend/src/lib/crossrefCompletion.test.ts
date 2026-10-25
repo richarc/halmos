@@ -49,6 +49,14 @@ describe('planReference', () => {
     expect(planReference(text, t, from, to)).toEqual({ error: 'moved' })
   })
 
+  // Figure 2 now names a different block: the caption is what tells them apart.
+  it('writes nothing when a figure was added above the target since the list was drawn', () => {
+    const t = target('See @fig:\n\n![Yield](a.png)\n\n![Rain](b.png)\n', 'fig', 1)
+    const text = 'See @fig:\n\n![New](n.png)\n\n![Yield](a.png)\n\n![Rain](b.png)\n'
+    const [from, to] = typed(text, '@fig:')
+    expect(planReference(text, t, from, to)).toEqual({ error: 'moved' })
+  })
+
   it('finds a figure by its number when lines have moved', () => {
     const t = target('See @fig:\n\n![Yield](a.png)\n', 'fig')
     const text = 'Intro.\n\nMore intro.\n\nSee @fig:\n\n![Yield](a.png)\n'
@@ -125,6 +133,38 @@ describe('planReference', () => {
     expect(apply(text, planReference(text, target(text, 'tbl'), from, to))).toBe(
       'See @tbl:crop-yields\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n: Crop yields {#tbl:crop-yields}  \n',
     )
+  })
+
+  // From the menu nothing was typed, so the "@" may land against a word,
+  // where it would not read as a reference.
+  it('spaces a reference off a word before it, but not after a space, a bracket or a line start', () => {
+    const fig = 'XX\n\n![Yield](a.png){#fig:yield}\n'
+    const at = (prefix: string) => {
+      const text = fig.replace('XX', prefix)
+      return apply(text, planReference(text, target(text, 'fig'), prefix.length, prefix.length)).split('\n')[0]
+    }
+    expect(at('see')).toBe('see @fig:yield')
+    expect(at('see,')).toBe('see, @fig:yield')
+    expect(at('see ')).toBe('see @fig:yield')
+    expect(at('(')).toBe('(@fig:yield')
+    expect(at('[')).toBe('[@fig:yield')
+    expect(at('')).toBe('@fig:yield')
+    // Typed: the "@" is already there and the source checked what precedes it.
+    const text = '"@fig:\n\n![Yield](a.png){#fig:yield}\n'
+    expect(apply(text, planReference(text, target(text, 'fig'), 1, 6)).split('\n')[0]).toBe('"@fig:yield')
+  })
+
+  it('spaces off an unlabelled target too, in the same edit as its label', () => {
+    const text = 'see\n\n![Yield](a.png)\n'
+    expect(apply(text, planReference(text, target(text, 'fig'), 3, 3))).toBe('see @fig:yield\n\n![Yield](a.png){#fig:yield}\n')
+  })
+
+  // The label would land after the reference, where Pandoc no longer reads
+  // it as the block's; refused rather than written in the wrong place.
+  it("refuses a reference on the unlabelled target's own line", () => {
+    const text = '| a |\n| --- |\n| 1 |\n\n: Crops, as @tbl:\n'
+    const [from, to] = typed(text, '@tbl:')
+    expect(planReference(text, target(text, 'tbl'), from, to)).toEqual({ error: 'own-line' })
   })
 
   it('inserts at an empty range when opened from the menu', () => {
@@ -216,6 +256,12 @@ describe('crossrefCompletionSource', () => {
     expect(run('See @smith|')).toBeNull()
   })
 
+  it('leaves out an unlabelled equation below the top level', () => {
+    const doc = '> $$\n> a\n> $$\n\n$$\nb\n$$\n'
+    const r = run('See @eq:|', { targets: collectTargets(doc) })
+    expect(r?.options.map((o) => (o as unknown as { target: CrossrefTarget }).target.tex)).toEqual(['b'])
+  })
+
   it('leaves out labelled targets that have no number', () => {
     const targets: CrossrefTarget[] = [
       { kind: 'eq', number: null, caption: '', label: 'eq:nested', block: 'equation', line: 3, tex: 'x' },
@@ -260,7 +306,8 @@ describe('crossrefCompletionSource', () => {
     const pick = vi.fn()
     const r = run('See @fig:|', { pick })!
     const dispatched: unknown[] = []
-    const view = { dispatch: (tr: unknown) => dispatched.push(tr) } as never
+    const state = EditorState.create({ doc: 'See @fig:' })
+    const view = { state, dispatch: (tr: unknown) => dispatched.push(tr) } as never
     const [labelled, unlabelled] = r.options as Completion[]
     ;(labelled.apply as (v: never, c: Completion, f: number, t: number) => void)(view, labelled, 4, 9)
     expect(dispatched).toHaveLength(1)

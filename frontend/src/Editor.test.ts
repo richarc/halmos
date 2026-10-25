@@ -975,6 +975,20 @@ describe('Editor cross-references', () => {
     cleanup()
   })
 
+  it('from the menu, a reference chosen right after a word is spaced off it', async () => {
+    const doc = 'see\n\n![Yield](a.png){#fig:yield}\n'
+    const { editor, target, text, cleanup } = mountEditor({ crossrefs: () => collectTargets(doc) })
+    editor.setContent(doc)
+    const view = viewOf(target)
+    view.dispatch({ selection: { anchor: 3 } })
+    editor.openCrossrefList()
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    expect(text()).toBe('see @fig:yield\n\n![Yield](a.png){#fig:yield}\n')
+    cleanup()
+  })
+
   it('choosing an unlabelled figure from the list hands it to onpickcrossref', async () => {
     const doc = 'See @fig:\n\n![Yield](a.png)\n'
     const onpickcrossref = vi.fn()

@@ -23,6 +23,14 @@ describe('collectTargets', () => {
     expect(targets[0]).toMatchObject({ kind: 'eq', block: 'equation', number: null, tex: 'a+b', line: 5 })
   })
 
+  // Below the top level nothing is numbered, so a nested equation could
+  // never be referred to; the flag is what keeps it out of the list.
+  it('marks an equation below the top level as nested', () => {
+    const [quoted, top] = collectTargets('> $$\n> a\n> $$\n\n$$\nb\n$$\n')
+    expect(quoted).toMatchObject({ kind: 'eq', tex: 'a', nested: true })
+    expect(top).toMatchObject({ kind: 'eq', tex: 'b', nested: false })
+  })
+
   // A labelled one-line equation has a map running a line past it.
   it('puts a one-line equation on its own line, not the line after', () => {
     const targets = collectTargets('Text\n\n$$ a+b $$ {#eq:sum}\n')

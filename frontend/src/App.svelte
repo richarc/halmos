@@ -460,8 +460,14 @@
   let equationAsk = $state<{ target: CrossrefTarget; from: number; to: number; typed: string } | null>(null)
   let equationError = $state<NameError | null>(null)
 
-  function movedToast(t: CrossrefTarget) {
-    toast(`That ${KIND_WORD[t.kind].toLowerCase()} moved, so no reference was added.`)
+  // What was refused by the editor, said with the target's kind word.
+  function refusedToast(t: CrossrefTarget, why: 'moved' | 'own-line') {
+    const word = KIND_WORD[t.kind].toLowerCase()
+    toast(
+      why === 'moved'
+        ? `That ${word} moved, so no reference was added.`
+        : `That reference is on the ${word}'s own line, so it wasn't added.`,
+    )
   }
 
   // A target without a label was chosen: a figure or table is labelled from
@@ -473,7 +479,8 @@
       equationAsk = { target, from, to, typed: editor.textInRange(from, to) }
       return
     }
-    if (editor.applyReference(target, from, to) === 'moved') movedToast(target)
+    const result = editor.applyReference(target, from, to)
+    if (result === 'moved' || result === 'own-line') refusedToast(target, result)
   }
 
   function nameEquation(name: string) {
@@ -484,9 +491,9 @@
       editor.textInRange(ask.from, ask.to) === ask.typed
         ? editor.applyReference(ask.target, ask.from, ask.to, name)
         : 'moved'
-    if (result === 'ok' || result === 'moved') {
+    if (result === 'ok' || result === 'moved' || result === 'own-line') {
       equationAsk = null
-      if (result === 'moved') movedToast(ask.target)
+      if (result !== 'ok') refusedToast(ask.target, result)
       return
     }
     equationError = result
