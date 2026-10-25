@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render } from './renderer'
-import { EQUATION_LABEL } from './equations'
+import { EQUATION_LABEL, equationPlugin } from './equations'
+import { createMarkdownParser } from './markdownParser'
 
 describe('EQUATION_LABEL', () => {
   it('matches a label after the closing $$', () => {
@@ -49,5 +50,29 @@ describe('equation labels', () => {
     const out = render('- item\n\n  $$\n  a\n  $$ {#eq:in}\n')
     expect(out).toContain('id="eq:in"')
     expect(out).not.toContain('equation-number')
+  })
+
+  it('does not swallow the lines after a one-line labelled equation', () => {
+    const out = render('$$ a+b $$ {#eq:sum}\n\nFollowing paragraph.\n')
+    expect(out).toMatch(/<\/div>\n<p data-source-line="3">Following paragraph\.<\/p>/)
+  })
+
+  it('parses a one-line labelled equation as a block of one line', () => {
+    const tokens = createMarkdownParser().use(equationPlugin).parse('$$ a+b $$ {#eq:sum}  \n\ntext\n', {})
+    const block = tokens.find((t) => t.type === 'math_block')!
+    expect(block.map).toEqual([0, 1])
+    expect(block.content).toBe('a+b\n')
+  })
+
+  it('numbers two one-line labelled equations in a row', () => {
+    const out = render('$$ a $$ {#eq:a}\n$$ b $$ {#eq:b}\n')
+    expect(out).toContain('(1)')
+    expect(out).toContain('(2)')
+  })
+
+  it('renders an unlabelled one-line equation as a plain block', () => {
+    const out = render('$$ a+b $$\n\ntext\n')
+    expect(out).toMatch(/^<p data-source-line="1" class="katex-block">/)
+    expect(out).not.toContain('equation')
   })
 })
