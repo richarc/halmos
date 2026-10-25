@@ -62,6 +62,13 @@ describe('replaceDiagramFences', () => {
     expect(markdown).toBe('```js\nlet x = 1\n```\n\n![Rates](diagrams/1.png)\n')
   })
 
+  it('finds a fence whose opening line carries a label', () => {
+    const md = '```vega-lite {#fig:a}\n{"title": "Growth", "mark": "bar"}\n```\n'
+    const { markdown, images } = replaceDiagramFences(md, ['AAA'])
+    expect(markdown).toBe('![Growth](diagrams/1.png)\n')
+    expect(images).toEqual({ 'diagrams/1.png': 'AAA' })
+  })
+
   it('sends no pictures when the preview and the text disagree on how many there are', () => {
     const md = `${CHART}\n\n${MERMAID}\n`
     expect(replaceDiagramFences(md, ['AAA'])).toEqual({ markdown: md, images: {} })

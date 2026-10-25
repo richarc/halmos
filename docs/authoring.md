@@ -170,7 +170,7 @@ mean to put in it.
 A document that has never been saved has no folder to resolve against, so save
 it before referring to a local image.
 
-Do not also write "Figure 1 — …" in prose; Halmos numbers and renders the
+Do not also write "Figure 1: …" in prose; Halmos numbers and renders the
 caption itself, and the number would be wrong as soon as a figure is inserted
 above it.
 
@@ -363,6 +363,6 @@ flowchart LR
 Fidelity fell with distance, remaining above the classical bound throughout.
 ````
 
-That document produces two numbered figures — "Figure 1 — Synchronisation
-pipeline" and "Figure 2 — Fidelity against fibre length" — two resolved
+That document produces two numbered figures — "Figure 1: Synchronisation
+pipeline" and "Figure 2: Fidelity against fibre length" — two resolved
 citations, a display equation, and a generated reference list.

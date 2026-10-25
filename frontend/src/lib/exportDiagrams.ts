@@ -6,7 +6,7 @@
 
 import { parseFrontmatter } from './frontmatter'
 import { createMarkdownParser } from './markdownParser'
-import { chartCaption } from './figures'
+import { chartCaption, fenceLanguage } from './figures'
 import { parseMermaidSource } from './mermaidSource'
 import { canvasToPng, toPng } from './rasterise'
 
@@ -58,7 +58,7 @@ export function replaceDiagramFences(
   const head = markdown.slice(0, markdown.length - body.length)
   const fences = md
     .parse(body, {})
-    .filter((t) => t.type === 'fence' && t.map && DIAGRAM_INFO.has(t.info.trim()))
+    .filter((t) => t.type === 'fence' && t.map && DIAGRAM_INFO.has(fenceLanguage(t.info)))
   // One picture per block, matched by position. If the preview drew a
   // different number than the text has — it was edited and has not caught
   // up — no picture can be trusted to land on its own block.
@@ -73,7 +73,7 @@ export function replaceDiagramFences(
     const [start, end] = t.map!
     const indent = /^\s*/.exec(lines[start])?.[0] ?? ''
     const key = `diagrams/${n + 1}.png`
-    lines.splice(start, end - start, `${indent}![${caption(t.info.trim(), t.content)}](${key})`)
+    lines.splice(start, end - start, `${indent}![${caption(fenceLanguage(t.info), t.content)}](${key})`)
     keyed.unshift({ key, png })
   }
   return {

@@ -72,8 +72,8 @@ describe('mermaidCaption', () => {
 })
 
 describe('figureLabel', () => {
-  it('reads "Figure N — caption", with an em dash', () => {
-    expect(figureLabel(2, 'Recovered sources')).toBe('Figure 2 — Recovered sources')
+  it('reads "Figure N: caption"', () => {
+    expect(figureLabel(2, 'Recovered sources')).toBe('Figure 2: Recovered sources')
   })
 })
 
@@ -114,15 +114,15 @@ describe('figures: what becomes one', () => {
   it('captions a chart whose spec has a title', () => {
     const html = render(fence('{"title":"Recovered sources","mark":"bar"}'))
     expect(html).toContain('<figure')
-    expect(html).toContain('<figcaption>Figure 1 — Recovered sources</figcaption>')
+    expect(html).toContain('<figcaption>Figure 1: Recovered sources</figcaption>')
   })
 
   it('accepts all three title shapes', () => {
     expect(render(fence('{"title":{"text":"Sources"},"mark":"bar"}'))).toContain(
-      'Figure 1 — Sources',
+      'Figure 1: Sources',
     )
     expect(render(fence('{"title":{"text":["one","two"]},"mark":"bar"}'))).toContain(
-      'Figure 1 — one two',
+      'Figure 1: one two',
     )
   })
 
@@ -147,7 +147,7 @@ describe('figures: what becomes one', () => {
   it('captions an image that is alone in its paragraph', () => {
     const html = render('![Recovered map](map.png)\n')
     expect(html).toContain('<figure')
-    expect(html).toContain('<figcaption>Figure 1 — Recovered map</figcaption>')
+    expect(html).toContain('<figcaption>Figure 1: Recovered map</figcaption>')
   })
 
   it('keeps the alt attribute as well as adding the caption', () => {
@@ -186,26 +186,26 @@ describe('figures: numbering', () => {
       '\n\n![Recovered map](map.png)\n\n' +
       fence('{"title":"Yield","mark":"line"}')
     const html = render(doc)
-    expect(html).toContain('Figure 1 — Sources')
-    expect(html).toContain('Figure 2 — Recovered map')
-    expect(html).toContain('Figure 3 — Yield')
+    expect(html).toContain('Figure 1: Sources')
+    expect(html).toContain('Figure 2: Recovered map')
+    expect(html).toContain('Figure 3: Yield')
   })
 
   it('does not spend a number on an uncaptioned block', () => {
     const doc = fence('{"mark":"bar"}') + '\n\n![Recovered map](map.png)\n'
-    expect(render(doc)).toContain('Figure 1 — Recovered map')
+    expect(render(doc)).toContain('Figure 1: Recovered map')
   })
 
   it('renumbers everything below a figure inserted above them', () => {
     const below = '![Recovered map](map.png)\n'
-    expect(render(below)).toContain('Figure 1 — Recovered map')
+    expect(render(below)).toContain('Figure 1: Recovered map')
     const html = render('![Overview](overview.png)\n\n' + below)
     // Both figures must exist, not just the second one's number: a bug that
     // dropped the first image as a figure while still incrementing the
-    // counter would make the lone 'Figure 2 —' assertion pass regardless.
+    // counter would make the lone 'Figure 2:' assertion pass regardless.
     expect(html.match(/<figure/g)).toHaveLength(2)
-    expect(html).toContain('Figure 1 — Overview')
-    expect(html).toContain('Figure 2 — Recovered map')
+    expect(html).toContain('Figure 1: Overview')
+    expect(html).toContain('Figure 2: Recovered map')
   })
 })
 
@@ -214,7 +214,7 @@ describe('figures: the title never renders twice', () => {
     // Left in, Vega-Lite draws the caption inside the SVG as well.
     const html = render(fence('{"title":"Sources","mark":"bar"}'))
     expect(html).not.toContain('&quot;title&quot;')
-    expect(html).toContain('Figure 1 — Sources')
+    expect(html).toContain('Figure 1: Sources')
   })
 
   it('leaves the title in place on a chart that is not a figure', () => {
@@ -228,7 +228,7 @@ describe('figures: the title never renders twice', () => {
     // would silently take `subtitle` with it (see rewriteChartSpec).
     const html = render(fence('{"title":{"text":"Sources","subtitle":"n=42"},"mark":"bar"}'))
     // The caption is drawn exactly once, below the chart.
-    expect(html.match(/Figure 1 — Sources/g)).toHaveLength(1)
+    expect(html.match(/Figure 1: Sources/g)).toHaveLength(1)
     expect(html).not.toContain('&quot;text&quot;')
     expect(html).toContain('&quot;subtitle&quot;:&quot;n=42&quot;')
   })
@@ -299,5 +299,40 @@ describe('figures: caption text is escaped', () => {
     const html = render('![a <b> & c](map.png)\n')
     expect(html).toContain('&lt;b&gt; &amp; c')
     expect(html).not.toContain('<b>')
+  })
+})
+
+describe('figures: {#fig:} labels', () => {
+  it('gives a labelled chart an id and a colon caption', () => {
+    const html = render('```vega-lite {#fig:yield}\n{"title":"Yield","mark":"bar"}\n```')
+    expect(html).toMatch(/<figure[^>]* id="fig:yield"/)
+    expect(html).toContain('vega-lite-chart')
+    expect(html).toContain('<figcaption>Figure 1: Yield</figcaption>')
+  })
+
+  it('ignores a label on a chart with no title', () => {
+    const html = render('```vega-lite {#fig:x}\n{"mark":"bar"}\n```')
+    expect(html).not.toContain('<figure')
+    expect(html).not.toContain('fig:x')
+    expect(html).toContain('<div class="vega-lite-chart"')
+  })
+
+  it('gives a labelled mermaid diagram an id', () => {
+    const html = render('```mermaid {#fig:flow}\n---\ntitle: Flow\n---\ngraph TD; A-->B\n```')
+    expect(html).toMatch(/<figure[^>]* id="fig:flow"/)
+    expect(html).toContain('Figure 1: Flow')
+  })
+
+  it('reads a label on an image and removes its text', () => {
+    const html = render('![Field plot](plot.png){#fig:field}')
+    expect(html).toMatch(/<figure[^>]* id="fig:field"/)
+    expect(html).toContain('Figure 1: Field plot')
+    expect(html).not.toContain('{#fig:field}')
+  })
+
+  it('is not a figure for an empty alt, but still removes the label text', () => {
+    const html = render('![](plot.png){#fig:x}')
+    expect(html).not.toContain('<figure')
+    expect(html).not.toContain('{#fig:x}')
   })
 })

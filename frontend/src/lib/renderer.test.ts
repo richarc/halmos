@@ -241,7 +241,7 @@ describe('mermaid fences', () => {
 
   it('wraps a titled diagram in a figure with a numbered caption', () => {
     const html = render('```mermaid\n---\ntitle: Stages\n---\nflowchart LR\n```\n')
-    expect(html).toContain('<figcaption>Figure 1 — Stages</figcaption>')
+    expect(html).toContain('<figcaption>Figure 1: Stages</figcaption>')
     expect(html).toContain('<figure')
   })
 
@@ -260,9 +260,9 @@ describe('mermaid fences', () => {
       '```mermaid\n---\ntitle: Stages\n---\nflowchart LR\n```\n\n' +
       '```vega-lite\n{"title": "A chart", "mark": "line"}\n```\n'
     const html = render(doc)
-    expect(html).toContain('Figure 1 — A photo')
-    expect(html).toContain('Figure 2 — Stages')
-    expect(html).toContain('Figure 3 — A chart')
+    expect(html).toContain('Figure 1: A photo')
+    expect(html).toContain('Figure 2: Stages')
+    expect(html).toContain('Figure 3: A chart')
   })
 
   it('leaves an untitled diagram unnumbered and unwrapped', () => {
@@ -363,7 +363,7 @@ describe('local images', () => {
   // test above.
   it('still becomes a captioned figure after the rewrite', () => {
     const html = render('![Recovered sources](fig1.png)\n', { docPath: DOC })
-    expect(html).toContain('<figcaption>Figure 1 — Recovered sources</figcaption>')
+    expect(html).toContain('<figcaption>Figure 1: Recovered sources</figcaption>')
     expect(html).toContain('_hermes/image')
   })
 

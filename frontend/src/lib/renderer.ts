@@ -7,6 +7,7 @@ import type { CitationFormatter, CitationCluster } from './citations'
 import { createMarkdownParser } from './markdownParser'
 import {
   chartWidthPx,
+  fenceLanguage,
   figureLabel,
   figureOf,
   figurePlugin,
@@ -138,7 +139,7 @@ function isDocumentRelative(src: string): boolean {
 
 const defaultFence = md.renderer.rules.fence!
 md.renderer.rules.fence = (tokens, idx, options, env, self) => {
-  const info = tokens[idx].info.trim()
+  const info = fenceLanguage(tokens[idx].info)
   if (info === 'vega-lite') return renderChartFence(tokens[idx], env as RenderEnv)
   if (info === 'mermaid') return renderMermaidFence(tokens[idx])
   return defaultFence(tokens, idx, options, env, self)
@@ -155,7 +156,8 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
  */
 function wrapAsFigure(anchor: string, child: string, figure: FigureMeta): string {
   const caption = md.utils.escapeHtml(figureLabel(figure.number, figure.caption))
-  return `<figure${anchor}>` + child + `<figcaption>${caption}</figcaption>` + `</figure>\n`
+  const id = figure.label ? ` id="${md.utils.escapeHtml(figure.label)}"` : ''
+  return `<figure${anchor}${id}>` + child + `<figcaption>${caption}</figcaption>` + `</figure>\n`
 }
 
 function renderChartFence(token: Token, env: RenderEnv): string {
