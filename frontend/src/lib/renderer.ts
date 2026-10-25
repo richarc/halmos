@@ -19,7 +19,7 @@ import { createKatexCache } from './katexCache'
 import { tableCaptionPlugin } from './tableCaptions'
 import { equationPlugin } from './equations'
 import { referenceText, type CrossrefTarget, type TargetMeta } from './crossrefs'
-import { crossrefPlugin, keyLabel, type CrossrefEnv, type CrossrefMeta, type MissingReference } from './crossrefTargets'
+import { crossrefPlugin, keyLabel, type CrossrefEnv, type CrossrefMeta, type DuplicateLabel, type MissingReference } from './crossrefTargets'
 
 /**
  * The per-render environment markdown-it threads through to the rules. Typed
@@ -309,8 +309,11 @@ export interface RenderResult {
   html: string
   /** The document's headings, for the outline panel. */
   outline: OutlineEntry[]
-  /** Cross-reference targets in document order, and references that miss. */
-  crossrefs: { targets: CrossrefTarget[]; missing: MissingReference[] }
+  /**
+   * Cross-reference targets in document order, references that miss, and
+   * targets whose label an earlier one already has.
+   */
+  crossrefs: { targets: CrossrefTarget[]; missing: MissingReference[]; duplicates: DuplicateLabel[] }
 }
 
 /** render() for callers that only want the HTML — every test and most rules. */
@@ -336,7 +339,11 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
     html = tocNavHtml(listed, 1) + html
   }
   const outline = env.outline ?? []
-  const crossrefs = { targets: env.crossrefTargets ?? [], missing: env.crossrefMissing ?? [] }
+  const crossrefs = {
+    targets: env.crossrefTargets ?? [],
+    missing: env.crossrefMissing ?? [],
+    duplicates: env.crossrefDuplicates ?? [],
+  }
   const clusters = env.citations ?? []
   const formatter = opts?.formatter
   // markdown-it-footnote appends its block to the end of the body. Cut it off

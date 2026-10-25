@@ -77,17 +77,17 @@ function numberTables(state: StateCore): boolean {
     if (caption?.type !== 'table_caption_open') continue
     const label = (token.meta?.label as string | undefined) ?? null
     // Only top-level tables are numbered, as with figures; a quoted table
-    // keeps its caption text but takes no number.
-    if (token.level !== 0) continue
-    count += 1
+    // keeps its caption text but takes no number, and no id.
+    const nested = token.level !== 0
+    if (!nested) count += 1
     const target: TargetMeta = {
       kind: 'tbl',
-      number: count,
+      number: nested ? null : count,
       caption: state.tokens[i + 2].content,
       label,
     }
     token.meta = { ...token.meta, target }
-    if (label !== null) token.attrSet('id', label)
+    if (label !== null && !nested) token.attrSet('id', label)
   }
   return true
 }

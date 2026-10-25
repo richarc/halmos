@@ -16,7 +16,14 @@
   import { fenceLanguage } from './lib/figures'
   import { citationCompletionSource, citationOptionClass, citationOptionTitle, type CitationContext } from './lib/citationCompletion'
   import { autocompletion, startCompletion, completionStatus } from '@codemirror/autocomplete'
-  import { crossrefCompletionSource, crossrefOptionClass, crossrefOptionFormula, planReference, type ReferenceError } from './lib/crossrefCompletion'
+  import {
+    crossrefCompletionSource,
+    crossrefOptionClass,
+    crossrefOptionFormula,
+    planReference,
+    referenceAllowed,
+    type ReferenceError,
+  } from './lib/crossrefCompletion'
   import type { CrossrefTarget } from './lib/crossrefs'
   import { citationHover, unknownKeyMarks, refreshCitationsEffect } from './lib/citationEditor'
   import { openSearchPanel, findNext, findPrevious } from '@codemirror/search'
@@ -602,11 +609,16 @@
   // lists every kind at the cursor rather than waiting for `@fig:`.
   let crossrefAllKinds = false
 
-  /** Opens the cross-reference list at the cursor, every kind in it. */
-  export function openCrossrefList(): void {
+  /**
+   * Opens the cross-reference list at the cursor, every kind in it. False,
+   * and nothing opened, when the cursor is in code, frontmatter or maths.
+   */
+  export function openCrossrefList(): boolean {
+    if (!referenceAllowed(view.state, view.state.selection.main.head)) return false
     crossrefAllKinds = true
     view.focus()
     startCompletion(view)
+    return true
   }
 
   /**
@@ -647,6 +659,7 @@
     () => crossrefs?.() ?? [],
     () => crossrefAllKinds,
     (t, from, to) => onpickcrossref?.(t, from, to),
+    () => (crossrefAllKinds = false),
   )
 
   function editorExtensions() {

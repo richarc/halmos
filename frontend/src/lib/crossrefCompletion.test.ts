@@ -277,6 +277,17 @@ describe('crossrefCompletionSource', () => {
     expect(r?.to ?? 4).toBe(4)
   })
 
+  it('in the menu list, says when it declines, so the all-kinds mode can end', () => {
+    const declined = vi.fn()
+    const source = crossrefCompletionSource(() => collectTargets(DOC), () => true, () => {}, declined)
+    const state = EditorState.create({ doc: '```\ncode\n```\nSee ', extensions: [markdown()] })
+    ensureSyntaxTree(state, state.doc.length, 5000)
+    expect(source(new CompletionContext(state, 5, true))).toBeNull()
+    expect(declined).toHaveBeenCalledTimes(1)
+    expect(source(new CompletionContext(state, state.doc.length, true))).not.toBeNull()
+    expect(declined).toHaveBeenCalledTimes(1)
+  })
+
   it('in the menu list, filters by what is typed after the cursor', () => {
     const source = crossrefCompletionSource(() => collectTargets(DOC), () => true, () => {})
     const opened = EditorState.create({ doc: 'See ', extensions: [markdown()] })

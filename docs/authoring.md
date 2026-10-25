@@ -228,6 +228,18 @@ the target:
 | Table | at the end of the caption line: `: Results by group {#tbl:results}` |
 | Display equation | after the closing `$$`: `$$ … $$ {#eq:bayes}` |
 
+An image's label must touch the `)`, with no space before the brace. With a
+space, Pandoc does not read it as a label, so Halmos shows the braces as text
+and the image is not a figure.
+
+Each label names one target. If two targets share a label, references go to
+the first one, and the second is listed with the missing references (see
+below).
+
+Targets inside a list item or a blockquote are not numbered, even with a
+label, so a reference to one shows "Figure ??". Halmos does not show the
+label, and Word export leaves those targets unnumbered too.
+
 You seldom type a label. When you pick a figure or table that has none,
 Halmos writes one made from its caption, such as `fig:yield-by-variety`
 (with `-2` added if that name is taken). When you pick an equation, Halmos
@@ -266,7 +278,8 @@ to stay unnumbered.
   works as before.
 - A reference to a label that does not exist shows "Figure ??". The status
   bar counts them ("2 missing cross-references"); click it for a list that
-  jumps to each.
+  jumps to each. A label used by two targets is counted there too, and
+  listed as "used twice" at the second one.
 - Bibliography keys that start `fig:`, `tbl:`, `eq:` or `sec:` cannot be
   cited, because those prefixes mean a reference. Halmos names any such key
   when the bibliography loads. Rename the key in the `.bib` file.

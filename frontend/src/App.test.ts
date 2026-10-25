@@ -2789,7 +2789,9 @@ describe('missing cross-references in the status bar', () => {
     flushSync()
     const dlg = target.querySelector<HTMLDialogElement>('dialog[aria-label="Missing cross-references"]')!
     expect(dlg.open).toBe(true)
-    expect(dlg.textContent).toContain('No figure, table or equation has this label. Click one to go to it.')
+    expect(dlg.textContent).toContain(
+      'No figure, table or equation has this label, or two share it. Click one to go to it.',
+    )
     expect(dlg.textContent).toContain('@fig:nope')
     expect(dlg.textContent).toContain('Line 5')
     dlg.querySelector<HTMLButtonElement>('.unknown-list button')!.click()
@@ -2797,6 +2799,23 @@ describe('missing cross-references in the status bar', () => {
     expect(dlg.open).toBe(false)
     const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
     expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(5)
+  })
+
+  it('counts and lists a label used twice with the missing ones', async () => {
+    const target = await openDoc('# Results\n\nSee @fig:nope.\n\n![A](a.png){#fig:d}\n\n![B](b.png){#fig:d}\n')
+    const btn = await vi.waitFor(() => {
+      const b = [...target.querySelectorAll<HTMLButtonElement>('.status-bar button')].find((x) =>
+        x.textContent?.includes('2 cross-reference problems'),
+      )
+      expect(b).toBeTruthy()
+      return b!
+    })
+    btn.click()
+    flushSync()
+    const dlg = target.querySelector<HTMLDialogElement>('dialog[aria-label="Cross-reference problems"]')!
+    expect(dlg.open).toBe(true)
+    const entries = [...dlg.querySelectorAll('.unknown-entry')].map((e) => e.textContent?.replace(/\s+/g, ' ').trim())
+    expect(entries).toEqual(['@fig:nope Line 3', '{#fig:d} used twice Line 7'])
   })
 })
 
@@ -3377,6 +3396,29 @@ describe('picking a cross-reference', () => {
       ),
     )
     expect(completionStatus(view.state)).toBeNull()
+  })
+
+  it('Insert → Cross-reference… in code says a reference cannot go there', async () => {
+    const doc = '# Results\n\n```\ncode\n```\n\n![Yield](a.png)\n'
+    const { target, view } = await openAt(doc, doc.indexOf('code'))
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe(
+        "Cross-references can't go inside code, maths or frontmatter.",
+      ),
+    )
+    expect(completionStatus(view.state)).toBeNull()
+  })
+
+  it('Insert → Cross-reference… in maths says a reference cannot go there', async () => {
+    const doc = '# Results\n\nSee $x + y$ here.\n\n![Yield](a.png)\n'
+    const { target } = await openAt(doc, doc.indexOf('+'))
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe(
+        "Cross-references can't go inside code, maths or frontmatter.",
+      ),
+    )
   })
 
   it('does not say so when the menu is refused for another reason', async () => {

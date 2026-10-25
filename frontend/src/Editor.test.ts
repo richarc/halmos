@@ -38,7 +38,7 @@ interface EditorApi {
   replaceRange(from: number, to: number, text: string): void
   find(cmd: 'open' | 'replace' | 'next' | 'previous'): boolean
   refreshCitations(): void
-  openCrossrefList(): void
+  openCrossrefList(): boolean
   applyReference(target: CrossrefTarget, from: number, to: number, eqName?: string): string
 }
 
@@ -969,6 +969,28 @@ describe('Editor cross-references', () => {
     // Closing the list ends the all-kinds mode: an explicit request at a
     // plain word offers nothing.
     closeCompletion(view)
+    startCompletion(view)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(completionStatus(view.state)).toBeNull()
+    cleanup()
+  })
+
+  // The list cannot open in code; the all-kinds mode must not outlive that
+  // and turn a later Ctrl-Space at a plain word into the cross-reference list.
+  it.each([
+    ['code', 'code'],
+    ['frontmatter', 'title'],
+    ['maths', 'x + y'],
+  ])('openCrossrefList in %s leaves no all-kinds mode behind', async (_, at) => {
+    const doc = '---\ntitle: T\n---\nSee \n\n```js\ncode\n```\n\n$x + y$\n\n![Yield](a.png)\n'
+    const { editor, target, cleanup } = mountEditor({ crossrefs: () => collectTargets(doc) })
+    editor.setContent(doc)
+    const view = viewOf(target)
+    view.dispatch({ selection: { anchor: doc.indexOf(at) + 1 } })
+    editor.openCrossrefList()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(completionStatus(view.state)).toBeNull()
+    view.dispatch({ selection: { anchor: doc.indexOf('See ') + 4 } })
     startCompletion(view)
     await new Promise((r) => setTimeout(r, 50))
     expect(completionStatus(view.state)).toBeNull()

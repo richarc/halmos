@@ -27,6 +27,48 @@ describe('labelForExport', () => {
     expect(labelForExport(md)).toBe(md)
   })
 
+  // pandoc-crossref would number a labelled nested target; the preview does
+  // not, so the export copy drops the label and both number alike.
+  it('removes the label from nested targets so Word numbers what the preview numbers', () => {
+    const md = [
+      '- ![A](a.png){#fig:n}',
+      '',
+      '> | a |',
+      '> |---|',
+      '> | 1 |',
+      '>',
+      '> : Counts {#tbl:q}',
+      '',
+      '> $$',
+      '> x',
+      '> $$ {#eq:e}',
+      '',
+      '![Top](t.png)',
+    ].join('\n')
+    expect(labelForExport(md)).toBe(
+      [
+        '- ![A](a.png)',
+        '',
+        '> | a |',
+        '> |---|',
+        '> | 1 |',
+        '>',
+        '> : Counts',
+        '',
+        '> $$',
+        '> x',
+        '> $$',
+        '',
+        '![Top](t.png){#fig:halmos-1}',
+      ].join('\n'),
+    )
+  })
+
+  it('removes a nested chart label from its fence line', () => {
+    const md = '- item\n\n  ```vega-lite {#fig:c}\n  {"title":"C","mark":"bar"}\n  ```\n'
+    expect(labelForExport(md)).toBe('- item\n\n  ```vega-lite\n  {"title":"C","mark":"bar"}\n  ```\n')
+  })
+
   it('returns a document with no targets unchanged', () => {
     expect(labelForExport('Just text.\n')).toBe('Just text.\n')
   })

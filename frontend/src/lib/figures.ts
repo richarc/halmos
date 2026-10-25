@@ -98,6 +98,13 @@ export function cssTextAlign(alignment: string | undefined): 'left' | 'center' |
 /** What the numbering pass stamps onto a token it decided is a figure. */
 export type FigureMeta = TargetMeta & { kind: 'fig'; number: number }
 
+/** The `{#fig:…}` text that may follow a lone image: it must touch the `)`. */
+function imageLabel(text: string): string | null {
+  if (!text.startsWith('{')) return null
+  const parsed = trailingLabel(text, 'fig')
+  return parsed.text === '' ? parsed.label : null
+}
+
 /** The first word of a fence's info string: its language. */
 export function fenceLanguage(info: string): string {
   return info.trim().split(/\s+/)[0] ?? ''
@@ -108,10 +115,14 @@ function fenceLabel(info: string): string | null {
   return trailingLabel(info.trim().replace(/^\S+/, ''), 'fig').label
 }
 
-/** Reads that stamp back, for a renderer that hand-builds its own HTML. */
+/**
+ * Reads that stamp back, for a renderer that hand-builds its own HTML. A
+ * nested block is stamped unnumbered, as a target only, and is not a figure.
+ */
 export function figureOf(token: Token): FigureMeta | null {
-  const meta = token.meta as { target?: FigureMeta } | null | undefined
-  return meta?.target ?? null
+  const meta = token.meta as { target?: TargetMeta } | null | undefined
+  const target = meta?.target
+  return target && target.number !== null ? (target as FigureMeta) : null
 }
 
 /**
@@ -138,8 +149,9 @@ function numberFigures(state: StateCore): boolean {
     const token = state.tokens[i]
     // Only top-level blocks are figures — the same level-0 restriction the
     // source_line rule uses, so a chart quoted inside a blockquote or a list
-    // item stays a plain chart rather than claiming a figure number.
-    if (token.level !== 0) continue
+    // item stays a plain chart rather than claiming a figure number. A nested
+    // one is still stamped, unnumbered, so export can find its label.
+    const nested = token.level !== 0
 
     if (token.type === 'fence') {
       const language = fenceLanguage(token.info)
@@ -148,10 +160,10 @@ function numberFigures(state: StateCore): boolean {
         language === 'vega-lite' ? chartCaption(token.content) : mermaidCaption(token.content)
       // No caption, no figure: a label on such a fence is ignored.
       if (caption === '') continue
-      count += 1
-      const target: FigureMeta = {
+      if (!nested) count += 1
+      const target: TargetMeta = {
         kind: 'fig',
-        number: count,
+        number: nested ? null : count,
         caption,
         label: fenceLabel(token.info),
       }
@@ -171,14 +183,12 @@ function numberFigures(state: StateCore): boolean {
     // when it is non-empty — so a lone image really is a single child.
     const children = inline.children ?? []
     // A trailing `{#fig:…}` is a separate text child; take it off before the
-    // lone-image test, whether or not the image goes on to be a figure.
+    // lone-image test, at any level and whether or not the image goes on to
+    // be a figure. After a space it is not a label, as in Pandoc, and stays.
     let label: string | null = null
     if (children.length === 2 && children[0].type === 'image' && children[1].type === 'text') {
-      const parsed = trailingLabel(children[1].content, 'fig')
-      if (parsed.label !== null && parsed.text === '') {
-        label = parsed.label
-        children.pop()
-      }
+      label = imageLabel(children[1].content)
+      if (label !== null) children.pop()
     }
     if (children.length !== 1 || children[0].type !== 'image') continue
 
@@ -190,6 +200,11 @@ function numberFigures(state: StateCore): boolean {
     // Empty alt stays decorative and unnumbered — the accessibility
     // convention, and it stops a spacer image consuming a figure number.
     if (alt === '') continue
+    if (nested) {
+      const target: TargetMeta = { kind: 'fig', number: null, caption: alt, label }
+      token.meta = { ...(token.meta ?? {}), target }
+      continue
+    }
 
     count += 1
     // Retagging keeps the paragraph's attributes, which is exactly what is

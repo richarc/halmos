@@ -168,17 +168,30 @@
     html = result.html
     outline = result.outline
     crossrefTargets = result.crossrefs.targets
-    missingRefs = result.crossrefs.missing
-    if (result.crossrefs.missing.length === 0) missingOpen = false
+    // Missing references and labels used twice share the status-bar count
+    // and the dialog, in line order, each shown as it is written.
+    const { missing, duplicates } = result.crossrefs
+    const problems = [
+      ...missing.map((m) => ({ key: `@${m.key}`, line: m.line })),
+      ...duplicates.map((d) => ({ key: `{#${d.key}} used twice`, line: d.line })),
+    ].sort((a, b) => a.line - b.line)
+    missingRefs = problems
+    duplicateLabels = duplicates.length > 0
+    if (problems.length === 0) missingOpen = false
   }
 
   // The last render's cross-reference targets, read by the editor's list when
   // it opens. Not reactive: nothing redraws when they change.
   let crossrefTargets: CrossrefTarget[] = []
 
-  // References whose label no figure, table or equation has, from the last
-  // render, so no extra parse is needed.
+  // References whose label no figure, table or equation has, and labels a
+  // second target repeats, from the last render, so no extra parse is needed.
   let missingRefs = $state<{ key: string; line: number }[]>([])
+  let duplicateLabels = $state(false)
+  const missingCount = $derived(
+    `${missingRefs.length} ${duplicateLabels ? 'cross-reference problem' : 'missing cross-reference'}` +
+      (missingRefs.length === 1 ? '' : 's'),
+  )
   let missingOpen = $state(false)
   function jumpToMissing(line: number) {
     missingOpen = false
@@ -485,7 +498,7 @@
       toast("There's nothing to refer to yet. Give a figure or table a caption, or add a display equation.")
       return
     }
-    editor.openCrossrefList()
+    if (!editor.openCrossrefList()) toast("Cross-references can't go inside code, maths or frontmatter.")
   }
 
   // An unnamed equation chosen from the list waits here while its name is
@@ -1858,7 +1871,7 @@
     {/if}
     {#if missingRefs.length > 0}
       <button class="link-button unknown-count" onclick={() => (missingOpen = true)}
-        >{missingRefs.length} missing cross-reference{missingRefs.length === 1 ? '' : 's'}</button
+        >{missingCount}</button
       >
     {/if}
   </footer>
@@ -2036,9 +2049,9 @@
     items={missingRefs}
     onclose={() => (missingOpen = false)}
     onjump={jumpToMissing}
-    title="Missing cross-references"
-    hint="No figure, table or equation has this label. Click one to go to it."
-    display={(key) => `@${key}`}
+    title={duplicateLabels ? 'Cross-reference problems' : 'Missing cross-references'}
+    hint="No figure, table or equation has this label, or two share it. Click one to go to it."
+    display={(key) => key}
   />
   <UnknownCitations open={unknownOpen} items={unknown} onclose={() => (unknownOpen = false)} onjump={jumpToUnknown} />
 

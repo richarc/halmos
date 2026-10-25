@@ -12,6 +12,7 @@ import katex from 'katex'
 import type { Completion, CompletionContext, CompletionResult, CompletionSource } from '@codemirror/autocomplete'
 import { pickedCompletion } from '@codemirror/autocomplete'
 import type { EditorView } from '@codemirror/view'
+import type { EditorState } from '@codemirror/state'
 import { inFrontmatter, isInCode } from './markdownCommands'
 import { inLocalMaths } from './citationCompletion'
 import { collectTargets } from './crossrefTargets'
@@ -163,19 +164,26 @@ export function pickable(t: CrossrefTarget): boolean {
   return t.number !== null || (t.kind === 'eq' && t.label === null && !t.nested)
 }
 
+/** Whether a reference can start at `pos`: not in code, frontmatter or maths. */
+export function referenceAllowed(state: EditorState, pos: number): boolean {
+  return !inFrontmatter(state, pos) && !isInCode(state, pos) && !inLocalMaths(state, pos)
+}
+
 /**
  * `get` gives the targets of the last render; `all` is true while the list
  * was opened from the menu; `pick` receives a chosen target that has no label,
- * with the range to replace.
+ * with the range to replace; `declined` is told when the menu's list is asked
+ * for and nothing is offered, since then no list opens and none closes.
  */
 export function crossrefCompletionSource(
   get: () => CrossrefTarget[],
   all: () => boolean,
   pick: (t: CrossrefTarget, from: number, to: number) => void,
+  declined: () => void = () => {},
 ): CompletionSource {
   // Where the menu's list was opened; what is typed after it filters the list.
   let anchor = -1
-  return (cc: CompletionContext): CompletionResult | null => {
+  const source = (cc: CompletionContext): CompletionResult | null => {
     const line = cc.state.doc.lineAt(cc.pos)
     const before = line.text.slice(0, cc.pos - line.from)
     let from: number
@@ -235,5 +243,10 @@ export function crossrefCompletionSource(
     // Filtered here, in document order, so CodeMirror must re-ask on every
     // keystroke rather than re-sort by its own match score.
     return { from, options, filter: false }
+  }
+  return (cc) => {
+    const result = source(cc)
+    if (result === null && all()) declined()
+    return result
   }
 }

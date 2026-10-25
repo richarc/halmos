@@ -548,6 +548,18 @@ describe('render: cross-references', () => {
     ])
   })
 
+  it('takes the first of two targets with one label, and reports the second', () => {
+    const doc = 'See @fig:d.\n\n![A](a.png){#fig:d}\n\n![B](b.png){#fig:d}\n'
+    const result = renderDocument(doc)
+    expect(result.html).toContain('<a class="crossref" href="#fig:d">Figure\u00a01</a>')
+    expect(result.crossrefs.duplicates).toEqual([{ key: 'fig:d', line: 5 }])
+    expect(result.crossrefs.missing).toEqual([])
+  })
+
+  it('reports no duplicates when every label is used once', () => {
+    expect(renderDocument(TWO).crossrefs.duplicates).toEqual([])
+  })
+
   it('counts document lines, not body lines, for a missing reference', () => {
     const result = renderDocument('---\ntoc: false\n---\nSee @fig:nope.')
     expect(result.crossrefs.missing[0].line).toBe(4)

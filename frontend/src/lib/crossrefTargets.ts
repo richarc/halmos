@@ -26,10 +26,18 @@ export interface MissingReference {
   line: number
 }
 
+/** A label a target shares with an earlier one, at the later target's line. */
+export interface DuplicateLabel {
+  key: string
+  /** 1-based document line of the later target. */
+  line: number
+}
+
 export interface CrossrefEnv {
   sourceLineOffset?: number
   crossrefTargets?: CrossrefTarget[]
   crossrefMissing?: MissingReference[]
+  crossrefDuplicates?: DuplicateLabel[]
   /** Numbered, labelled targets by label; what a reference resolves against. */
   crossrefLookup?: Map<string, { kind: CrossrefKind; number: number }>
   footnotes?: { list?: { tokens?: Token[] }[] }
@@ -60,9 +68,20 @@ function collect(state: StateCore): boolean {
     const target = targetOf(token, lines)
     if (target) targets.push({ ...target, line: target.line + offset })
   }
+  // The first target with a label is the one a reference means: its id is
+  // the first in the page, so the number and the link agree. Any later one
+  // is reported, since it can never be referred to.
   const lookup = new Map<string, { kind: CrossrefKind; number: number }>()
+  const seen = new Set<string>()
+  const duplicates: DuplicateLabel[] = []
   for (const t of targets) {
-    if (t.label !== null && t.number !== null) lookup.set(t.label, { kind: t.kind, number: t.number })
+    if (t.label === null) continue
+    if (seen.has(t.label)) {
+      duplicates.push({ key: t.label, line: t.line })
+      continue
+    }
+    seen.add(t.label)
+    if (t.number !== null) lookup.set(t.label, { kind: t.kind, number: t.number })
   }
   const missing: MissingReference[] = []
   for (const { token, line } of references(state.tokens, env)) {
@@ -73,6 +92,7 @@ function collect(state: StateCore): boolean {
   env.crossrefTargets = targets
   env.crossrefLookup = lookup
   env.crossrefMissing = missing
+  env.crossrefDuplicates = duplicates
   return true
 }
 

@@ -335,4 +335,21 @@ describe('figures: {#fig:} labels', () => {
     expect(html).not.toContain('<figure')
     expect(html).not.toContain('{#fig:x}')
   })
+
+  // Pandoc attaches attributes only when they touch the `)`; after a space
+  // the paragraph is an image and some text, and the text stays as written.
+  it('ignores an image label after a space, as Pandoc does', () => {
+    const html = render('![A](a.png) {#fig:s}\n\n![B](b.png)')
+    expect(html).not.toContain('id="fig:s"')
+    expect(html).toContain('{#fig:s}')
+    expect(html).toContain('Figure 1: B')
+    expect(html).not.toContain('Figure 2')
+  })
+
+  it('removes the label text from a nested image, which still takes no number', () => {
+    const html = render('- ![A](a.png){#fig:n}\n')
+    expect(html).not.toContain('{#fig:n}')
+    expect(html).not.toContain('<figure')
+    expect(html).not.toContain('Figure 1')
+  })
 })

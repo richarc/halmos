@@ -93,7 +93,7 @@ export function equationLabel(
 
 export interface TargetMeta {
   kind: CrossrefKind
-  /** Null only for an unlabelled equation. */
+  /** Null below the top level, and for an unlabelled equation. */
   number: number | null
   caption: string
   label: string | null

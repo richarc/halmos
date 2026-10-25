@@ -37,6 +37,36 @@ describe('collectTargets', () => {
     expect(targets[0]).toMatchObject({ kind: 'eq', number: 1, label: 'eq:sum', tex: 'a+b', line: 3 })
   })
 
+  it('does not list an image whose label sits after a space', () => {
+    expect(collectTargets('![A](a.png) {#fig:s}\n')).toEqual([])
+  })
+
+  // Nothing below the top level is numbered; the flag says so for every kind.
+  it('lists nested figures and tables, unnumbered and marked nested', () => {
+    const doc = [
+      '- ![A](a.png){#fig:n}',
+      '',
+      '> ```vega-lite {#fig:c}',
+      '> {"title":"C","mark":"bar"}',
+      '> ```',
+      '',
+      '> | a |',
+      '> |---|',
+      '> | 1 |',
+      '>',
+      '> : Counts {#tbl:q}',
+      '',
+      '![Top](t.png)',
+    ].join('\n')
+    const targets = collectTargets(doc)
+    expect(targets).toMatchObject([
+      { kind: 'fig', block: 'image', label: 'fig:n', number: null, nested: true, line: 1 },
+      { kind: 'fig', block: 'chart', label: 'fig:c', number: null, nested: true, line: 3 },
+      { kind: 'tbl', block: 'table', label: 'tbl:q', number: null, nested: true, line: 11 },
+      { kind: 'fig', block: 'image', label: null, number: 1, nested: false, line: 13 },
+    ])
+  })
+
   it('lists an image at the last line of its paragraph', () => {
     const targets = collectTargets('![Yield\nby group](a.png){#fig:a}\n')
     expect(targets[0]).toMatchObject({
