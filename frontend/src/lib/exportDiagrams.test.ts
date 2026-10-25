@@ -65,7 +65,7 @@ describe('replaceDiagramFences', () => {
   it('finds a fence whose opening line carries a label', () => {
     const md = '```vega-lite {#fig:a}\n{"title": "Growth", "mark": "bar"}\n```\n'
     const { markdown, images } = replaceDiagramFences(md, ['AAA'])
-    expect(markdown).toBe('![Growth](diagrams/1.png)\n')
+    expect(markdown).toBe('![Growth](diagrams/1.png){#fig:a}\n')
     expect(images).toEqual({ 'diagrams/1.png': 'AAA' })
   })
 

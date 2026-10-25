@@ -8,6 +8,7 @@ import { parseFrontmatter } from './frontmatter'
 import { createMarkdownParser } from './markdownParser'
 import { chartCaption, fenceLanguage } from './figures'
 import { parseMermaidSource } from './mermaidSource'
+import { trailingLabel } from './crossrefs'
 import { canvasToPng, toPng } from './rasterise'
 
 const md = createMarkdownParser()
@@ -73,7 +74,10 @@ export function replaceDiagramFences(
     const [start, end] = t.map!
     const indent = /^\s*/.exec(lines[start])?.[0] ?? ''
     const key = `diagrams/${n + 1}.png`
-    lines.splice(start, end - start, `${indent}![${caption(fenceLanguage(t.info), t.content)}](${key})`)
+    // A label after the language moves onto the picture, where pandoc-crossref reads it.
+    const label = trailingLabel(t.info.trim().replace(/^\S+\s*/, ''), 'fig').label
+    const suffix = label ? `{#${label}}` : ''
+    lines.splice(start, end - start, `${indent}![${caption(fenceLanguage(t.info), t.content)}](${key})${suffix}`)
     keyed.unshift({ key, png })
   }
   return {

@@ -12,6 +12,7 @@
     type ExportFormat, type ResolvedImage, type ConvertBody,
   } from './lib/exportRequest'
   import { diagramImages, replaceDiagramFences } from './lib/exportDiagrams'
+  import { labelForExport } from './lib/exportCrossrefs'
   import { toPng } from './lib/rasterise'
   import { messageFor, problemMessage } from './lib/portalMessages'
   import Editor from './Editor.svelte'
@@ -797,6 +798,7 @@
   // and only the cited part of the bibliography.
   async function buildConvertBody(format: ExportFormat, docPath: string, source: string): Promise<ConvertBody> {
     let markdown = source
+    markdown = labelForExport(markdown)
     const images: Record<string, string> = {}
     if (format === 'docx') {
       const root = await preview.exportRoot()
