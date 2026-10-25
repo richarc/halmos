@@ -171,7 +171,7 @@ writing books in Markdown with Sphinx, and moved from v1.1.0 on 2026-10-24.
 They are free in the preview and PDF; the portal's conversion carries them
 into Word and LaTeX (its M0.15 section).
 
-- [ ] **Numbered table captions.** Tables have no caption and no number,
+- [x] **Numbered table captions.** Tables have no caption and no number,
       and journals require both. Use Pandoc's caption syntax (a
       `: Caption` line directly after the table) so the conversion keeps
       it. Decide whether tables share the figures' number sequence (they
@@ -181,7 +181,9 @@ into Word and LaTeX (its M0.15 section).
       (2026-10-25): pandoc-crossref puts a table's label on its caption line
       (`: Results by group {#tbl:results}`), so referring to a table needs
       its caption first.
-- [ ] **Cross-references to figures, tables and equations.**
+      *Done 2026-10-25*: built on branch `crossrefs`. A blank line, then
+      `: Caption {#tbl:name}`; the table builder has a Caption field.
+- [x] **Cross-references to figures, tables and equations.**
       Halmos numbers figures but gives no way to refer to one. The
       authoring guide rightly says not to write "Figure 1" by hand, which
       leaves no correct way to write "as shown in Figure 3". Add a label
@@ -206,6 +208,11 @@ into Word and LaTeX (its M0.15 section).
       headings and section references" in the Backlog. Captions change
       to "Figure 2: Caption" with a colon, as papers and the Word output
       write them.
+      *Done 2026-10-25*: built on branch `crossrefs`. References and
+      lists in `lib/crossrefs.ts` and its neighbours; Insert →
+      Cross-reference… is ⇧⌘R. Word gets generated labels on unlabelled
+      figures and tables. In LaTeX a reference to a chart or diagram does
+      not resolve (see the Backlog).
 - [ ] **Title, authors and abstract as document metadata.** Today the
       whole frontmatter is removed before rendering, and `title:` and
       `author:` are dropped (`docs/authoring.md`, "Frontmatter: exactly

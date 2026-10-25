@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Table captions. A blank line after a table, then `: Caption`, makes it
+  "Table 1: Caption". Tables are numbered apart from figures. The table
+  builder has a Caption field.
+- Cross-references to figures, tables and equations. Label a target with
+  `{#fig:name}`, `{#tbl:name}` or `{#eq:name}` and refer to it with
+  `@fig:name`; the preview, PDF and HTML show "Figure 2" as a link to it.
+  `[@fig:a; @fig:b]` shows "Figures 1, 2". Typing `@fig:`, `@tbl:` or `@eq:`
+  lists that kind, and Insert → Cross-reference… (⇧⌘R) lists all three.
+  Halmos writes the label when you pick an unlabelled figure or table, and
+  asks for a short name for an equation. A labelled equation shows its
+  number. A reference with no target shows "Figure ??", and the status bar
+  counts them and lists where they are. In Word, figures and tables are
+  numbered as in the preview. In LaTeX, a reference to a chart or diagram
+  shows as missing, because those stay as code there. Section references
+  are not included.
 - Halmos follows changes made to the open file by another program. With no
   unsaved edits the file reloads on its own, keeping the cursor and scroll
   position. With unsaved edits it asks once: Keep Mine or Use File (which
@@ -21,6 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Page numbers, headers and footers in Export PDF: set `header` and
   `footer` in the frontmatter, using `{title}`, `{date}`, `{page}` and
   `{pages}` (for example `footer: Page {page} of {pages}`).
+
+### Changed
+
+- Figure captions read "Figure 2: Caption", with a colon, in the preview,
+  PDF and HTML export. They had a dash.
+- Bibliography keys that start `fig:`, `tbl:`, `eq:` or `sec:` can no longer
+  be cited, because those prefixes mean a cross-reference. Halmos names any
+  such key when the bibliography loads.
+- A chart or diagram fence may carry a label after its name
+  (```` ```vega-lite {#fig:name} ````). The chart builder keeps it.
 
 ### Fixed
 
