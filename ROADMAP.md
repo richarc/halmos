@@ -171,6 +171,16 @@ writing books in Markdown with Sphinx, and moved from v1.1.0 on 2026-10-24.
 They are free in the preview and PDF; the portal's conversion carries them
 into Word and LaTeX (its M0.15 section).
 
+- [ ] **Numbered table captions.** Tables have no caption and no number,
+      and journals require both. Use Pandoc's caption syntax (a
+      `: Caption` line directly after the table) so the conversion keeps
+      it. Decide whether tables share the figures' number sequence (they
+      should not: "Table 1" and "Figure 1" are numbered separately). The
+      table builder (`TableBuilder.svelte`, `lib/pipeTable.ts`) gains a
+      caption field. Designed with the cross-references below
+      (2026-10-25): pandoc-crossref puts a table's label on its caption line
+      (`: Results by group {#tbl:results}`), so referring to a table needs
+      its caption first.
 - [ ] **Cross-references to figures, tables, sections and equations.**
       Halmos numbers figures but gives no way to refer to one. The
       authoring guide rightly says not to write "Figure 1" by hand, which
@@ -189,13 +199,6 @@ into Word and LaTeX (its M0.15 section).
       - Autocomplete for labels after `@`, beside the citation completion,
         and the unknown-citation check extended to unknown labels.
       - Word and LaTeX: see the portal's M0.15 cross-references item.
-- [ ] **Numbered table captions.** Tables have no caption and no number,
-      and journals require both. Use Pandoc's caption syntax (a
-      `: Caption` line directly after the table) so the conversion keeps
-      it. Decide whether tables share the figures' number sequence (they
-      should not: "Table 1" and "Figure 1" are numbered separately). The
-      table builder (`TableBuilder.svelte`, `lib/pipeTable.ts`) gains a
-      caption field.
 - [ ] **Title, authors and abstract as document metadata.** Today the
       whole frontmatter is removed before rendering, and `title:` and
       `author:` are dropped (`docs/authoring.md`, "Frontmatter: exactly
