@@ -16,6 +16,7 @@ import {
 } from './figures'
 import { parseMermaidSource } from './mermaidSource'
 import { createKatexCache } from './katexCache'
+import { tableCaptionPlugin } from './tableCaptions'
 
 /**
  * The per-render environment markdown-it threads through to the rules. Typed
@@ -69,6 +70,7 @@ md.core.ruler.push('source_line', (state) => {
 // Pushed after source_line so a paragraph that becomes a <figure> already
 // carries its anchor, and the retag carries it along.
 md.use(figurePlugin)
+md.use(tableCaptionPlugin)
 md.use(outlinePlugin)
 // After outlinePlugin, so a future consumer of both sees consistent data;
 // after source_line always, since it reads the stamps.

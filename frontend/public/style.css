@@ -550,6 +550,14 @@ textarea:focus-visible,
   color: var(--doc-muted);
 }
 
+/* A table caption sits above the table, in the same voice as a figure's. */
+.sheet table > caption {
+  caption-side: top;
+  margin-bottom: 0.5em;
+  font-size: 0.9em;
+  color: var(--doc-muted);
+}
+
 /* A fixed-width chart can exceed a narrowed preview pane, and .preview-pane
    scrolls — so without this the whole pane scrolls sideways. Scaling an
    oversized chart down shrinks its label text slightly at extreme pane
