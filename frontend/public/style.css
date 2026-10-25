@@ -1032,6 +1032,11 @@ dialog::backdrop { background: var(--backdrop); }
 .sheet .katex-display { overflow-x: auto; overflow-y: hidden; }
 .preview-pane .csl-bib-body { line-height: 1.7; }
 .preview-pane .csl-entry { margin-bottom: 0.5em; }
+/* A numbered style (IEEE, APS) gives the number and the reference a block
+   each, so without these the text starts on the line below "[1]". The number
+   hangs in the margin and wrapped lines stay aligned with the text. */
+.preview-pane .csl-left-margin { float: left; min-width: 2.5em; }
+.preview-pane .csl-right-inline { margin-left: 2.5em; }
 
 @media print {
   /* What is left here is only what is genuinely print-specific. The document
