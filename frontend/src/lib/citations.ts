@@ -2,6 +2,7 @@ import type MarkdownIt from 'markdown-it'
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs'
 import type Token from 'markdown-it/lib/token.mjs'
 import type { CSLEntry } from './bibliography'
+import { isCrossrefKey } from './crossrefs'
 
 interface CiteprocEngine {
   /**
@@ -314,6 +315,25 @@ function pushCitation(
 }
 
 /**
+ * Emits a `crossref` token in place of a citation: `@fig:a`, `[@tbl:b]`. The
+ * citation grammar decides where the match starts and stops; this decides what
+ * it is. Nothing goes on `env.citations`, so the formatter never sees it.
+ * `mixed` is true when a bracket group also holds real citation keys, which
+ * the preview shows as an error rather than half-resolving.
+ */
+function pushCrossref(state: StateInline, keys: string[], raw: string, start: number): void {
+  const token = state.push('crossref', '', 0)
+  token.meta = {
+    keys,
+    mixed: !keys.every(isCrossrefKey),
+    src: state.src,
+    start,
+    end: state.pos,
+  }
+  token.content = raw
+}
+
+/**
  * Finds the `]` that balances the `[` at `open`, tracking nested `[`/`]`
  * pairs. Returns -1 if the source runs out before the brackets balance
  * (e.g. an unclosed `[` — never absorbs unrelated trailing content).
@@ -358,7 +378,14 @@ function bracketRule(state: StateInline, silent: boolean): boolean {
   const items = parseBracketContent(content)
   if (!items) return false
   state.pos = close + 1
-  if (!silent) pushCitation(state, 'citation', { items }, src.slice(pos, close + 1), pos)
+  if (!silent) {
+    const raw = src.slice(pos, close + 1)
+    if (items.some((item) => isCrossrefKey(item.key))) {
+      pushCrossref(state, items.map((item) => item.key), raw, pos)
+    } else {
+      pushCitation(state, 'citation', { items }, raw, pos)
+    }
+  }
   return true
 }
 
@@ -379,7 +406,9 @@ function narrativeRule(state: StateInline, silent: boolean): boolean {
   const parsed = parseKey(src.slice(pos + 1))
   if (!parsed) return false
   state.pos = pos + 1 + parsed.key.length
-  if (!silent) {
+  if (!silent && isCrossrefKey(parsed.key)) {
+    pushCrossref(state, [parsed.key], `@${parsed.key}`, pos)
+  } else if (!silent) {
     pushCitation(
       state,
       'citation_narrative',
@@ -410,4 +439,6 @@ export function citationPlugin(md: MarkdownIt): void {
   }
   md.renderer.rules.citation = renderCitation
   md.renderer.rules.citation_narrative = renderCitation
+  // A stand-in: renderer.ts replaces it with the numbered reference.
+  md.renderer.rules.crossref = (tokens, idx) => md.utils.escapeHtml(tokens[idx].content)
 }

@@ -4,7 +4,7 @@ import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 import { ensureSyntaxTree } from '@codemirror/language'
 import { CompletionContext, type CompletionResult } from '@codemirror/autocomplete'
-import { citationCompletionSource, citationOptionClass, citationOptionTitle, MAX_OPTIONS, type CitationContext } from './citationCompletion'
+import { citationCompletionSource, shadowedKeys, citationOptionClass, citationOptionTitle, MAX_OPTIONS, type CitationContext } from './citationCompletion'
 import type { CSLEntry } from './bibliography'
 
 const smith: CSLEntry = {
@@ -124,5 +124,26 @@ describe('citationCompletionSource', () => {
   it('replaces only the typed key, not the brackets', () => {
     const r = run('see [@smi|')!
     expect(r.from).toBe('see [@'.length)
+  })
+
+  it('stays silent on a cross-reference key', () => {
+    expect(run('see @fig:|', ctxOf([smith, { ...jones, id: 'fig:old' }]))).toBeNull()
+    expect(run('see [@Tbl:a|')).toBeNull()
+  })
+
+  it('still lists a key that merely starts with "fig"', () => {
+    const r = run('see @fig|', ctxOf([{ ...jones, id: 'figueroa2019' }]))
+    expect(r?.options.map((o) => o.label)).toEqual(['figueroa2019'])
+  })
+
+  it('never offers an entry whose id is a cross-reference key', () => {
+    const r = run('see @|', ctxOf([{ ...jones, id: 'fig:old' }, smith]))
+    expect(r?.options.map((o) => o.label)).toEqual(['smith2020'])
+  })
+})
+
+describe('shadowedKeys', () => {
+  it('lists the ids a cross-reference would shadow, in entry order', () => {
+    expect(shadowedKeys([{ id: 'fig:old' }, { id: 'smith' }, { id: 'EQ:x' }] as CSLEntry[])).toEqual(['fig:old', 'EQ:x'])
   })
 })
