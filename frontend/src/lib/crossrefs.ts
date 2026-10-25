@@ -112,6 +112,11 @@ export function labelSuffix(block: CrossrefTarget['block'], label: string): stri
   return block === 'image' ? `{#${label}}` : ` {#${label}}`
 }
 
+/** Where on a target's line its label goes: before any trailing whitespace, which includes a CR line ending. */
+export function labelColumn(line: string): number {
+  return line.trimEnd().length
+}
+
 /**
  * What a reference reads as: `Figure 2`, `Figures 1, 2`, `Figure 1, Table 1`.
  * Lookup is by the lower-cased prefix and the id as written. Adjacent keys of

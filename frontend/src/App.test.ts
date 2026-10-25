@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, unmount, flushSync } from 'svelte'
 import { EditorView } from '@codemirror/view'
-import { completionStatus } from '@codemirror/autocomplete'
+import { completionStatus, acceptCompletion, closeCompletion, startCompletion } from '@codemirror/autocomplete'
 
 const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.hoisted(() => {
   const listeners: Record<string, (ev: { data: unknown }) => void> = {}
@@ -3243,5 +3243,146 @@ describe('Word and LaTeX export', () => {
     buttonByText(d, 'Sign Out')!.click()
     await vi.waitFor(() => expect(PortalService.SignOut).toHaveBeenCalled())
     await vi.waitFor(() => expect(dialog(target, 'Halmos account')?.textContent).toContain('Not connected'))
+  })
+})
+
+// CodeMirror ignores accept and move keys for interactionDelay (75 ms)
+// after the list opens, so a test waits that out the way a person would.
+const listReady = () => new Promise((r) => setTimeout(r, 100))
+
+describe('picking a cross-reference', () => {
+  // jsdom's Range has no geometry; CodeMirror measures the selection with it.
+  beforeEach(() => {
+    Range.prototype.getClientRects = () => ({ length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] }) as unknown as DOMRectList
+    Range.prototype.getBoundingClientRect = () => new DOMRect()
+  })
+
+  const DOC = '# Results\n\nSee \n\n$$\na = b\n$$\n'
+
+  async function openAt(content: string, at: number) {
+    const target = await openDoc(content)
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ selection: { anchor: at } })
+    return { target, view }
+  }
+
+  function nameField(target: HTMLElement) {
+    return target.querySelector<HTMLInputElement>('input[placeholder="bayes"]')!
+  }
+
+  function typeName(target: HTMLElement, name: string) {
+    const input = nameField(target)
+    input.value = name
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    flushSync()
+  }
+
+  it('Insert → Cross-reference… lists the targets at the cursor', async () => {
+    const { target, view } = await openAt(DOC, DOC.indexOf('See ') + 4)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    expect(target.querySelector('li.cm-crossref-option .cm-completionLabel')?.textContent).toBe('Unnamed equation')
+  })
+
+  it('does nothing while the table builder is open', async () => {
+    const { view } = await openAt(DOC, DOC.indexOf('See ') + 4)
+    listeners['menu:insert-table']({ data: null })
+    flushSync()
+    listeners['menu:insert-crossref']({ data: null })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(completionStatus(view.state)).toBeNull()
+  })
+
+  it('asks for a name before referring to an unnamed equation, and keeps asking until it is usable', async () => {
+    const { target, view } = await openAt(DOC, DOC.indexOf('See ') + 4)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    const dialog = target.querySelector('dialog[aria-label="Name this equation"]')!
+    expect(dialog.hasAttribute('open')).toBe(true)
+    expect(dialog.textContent).toContain('Halmos writes {#eq:name} after the equation.')
+
+    buttonByText(dialog as HTMLElement, 'Insert')!.click()
+    flushSync()
+    expect(dialog.textContent).toContain('Type a name.')
+
+    typeName(target, 'a b')
+    buttonByText(dialog as HTMLElement, 'Insert')!.click()
+    flushSync()
+    expect(dialog.textContent).toContain('Use letters, digits, - _ or . only, no spaces.')
+    expect(dialog.hasAttribute('open')).toBe(true)
+
+    typeName(target, 'bayes')
+    buttonByText(dialog as HTMLElement, 'Insert')!.click()
+    flushSync()
+    expect(view.state.doc.toString()).toBe('# Results\n\nSee @eq:bayes\n\n$$\na = b\n$$ {#eq:bayes}\n')
+    expect(dialog.hasAttribute('open')).toBe(false)
+  })
+
+  it('says so when another equation has the name', async () => {
+    const doc = DOC + '\n$$\nc\n$$ {#eq:bayes}\n'
+    const { target, view } = await openAt(doc, doc.indexOf('See ') + 4)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    // In document order: the unnamed equation, then the named one.
+    const options = [...target.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
+    expect(options).toEqual(['Unnamed equation', 'Equation 1'])
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    typeName(target, 'bayes')
+    const dialog = target.querySelector('dialog[aria-label="Name this equation"]') as HTMLElement
+    buttonByText(dialog, 'Insert')!.click()
+    flushSync()
+    expect(dialog.textContent).toContain('Another equation already has that name.')
+  })
+
+  it('Cancel leaves the document as it was', async () => {
+    const { target, view } = await openAt(DOC, DOC.indexOf('See ') + 4)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    const dialog = target.querySelector('dialog[aria-label="Name this equation"]') as HTMLElement
+    buttonByText(dialog, 'Cancel')!.click()
+    flushSync()
+    expect(dialog.hasAttribute('open')).toBe(false)
+    expect(view.state.doc.toString()).toBe(DOC)
+  })
+
+  it('toasts and writes nothing when the equation went away while the name was asked', async () => {
+    const { target, view } = await openAt(DOC, DOC.indexOf('See ') + 4)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    const eq = view.state.doc.toString().indexOf('a = b')
+    view.dispatch({ changes: { from: eq, to: eq + 5, insert: 'c = d' } })
+    typeName(target, 'bayes')
+    const dialog = target.querySelector('dialog[aria-label="Name this equation"]') as HTMLElement
+    buttonByText(dialog, 'Insert')!.click()
+    flushSync()
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe('That equation moved, so no reference was added.'),
+    )
+    expect(view.state.doc.toString()).toBe('# Results\n\nSee \n\n$$\nc = d\n$$\n')
+    expect(dialog.hasAttribute('open')).toBe(false)
+  })
+
+  it('labels an unlabelled figure straight away when it is chosen', async () => {
+    const doc = '# Results\n\nSee @fig:\n\n![Yield](a.png)\n'
+    const { view } = await openAt(doc, doc.indexOf('@fig:') + 5)
+    // Typing opens the list; here it is asked for directly.
+    startCompletion(view)
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    expect(view.state.doc.toString()).toBe('# Results\n\nSee @fig:yield\n\n![Yield](a.png){#fig:yield}\n')
+    closeCompletion(view)
   })
 })

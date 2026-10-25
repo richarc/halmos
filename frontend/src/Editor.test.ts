@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, unmount, flushSync } from 'svelte'
 import { EditorView, type Command } from '@codemirror/view'
 import { foldCode, forceParsing } from '@codemirror/language'
 import { undo } from '@codemirror/commands'
 import { setSearchQuery, SearchQuery } from '@codemirror/search'
-import { startCompletion, completionStatus } from '@codemirror/autocomplete'
+import { startCompletion, completionStatus, closeCompletion, acceptCompletion } from '@codemirror/autocomplete'
 import Editor from './Editor.svelte'
 import { toggleBold } from './lib/markdownCommands'
+import { collectTargets } from './lib/crossrefTargets'
+import type { CrossrefTarget } from './lib/crossrefs'
 
 interface ChartBlock {
   from: number
@@ -36,6 +38,8 @@ interface EditorApi {
   replaceRange(from: number, to: number, text: string): void
   find(cmd: 'open' | 'replace' | 'next' | 'previous'): boolean
   refreshCitations(): void
+  openCrossrefList(): void
+  applyReference(target: CrossrefTarget, from: number, to: number, eqName?: string): string
 }
 
 /**
@@ -885,6 +889,104 @@ describe('Editor unknown citation keys', () => {
     known = true
     editor.refreshCitations()
     expect(marks(target)).toEqual([])
+    cleanup()
+  })
+})
+
+// CodeMirror ignores accept and move keys for interactionDelay (75 ms)
+// after the list opens, so a test waits that out the way a person would.
+const listReady = () => new Promise((r) => setTimeout(r, 100))
+
+describe('Editor cross-references', () => {
+  // jsdom's Range has no geometry; CodeMirror measures the list's position with it.
+  beforeEach(() => {
+    Range.prototype.getClientRects = () => ({ length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] }) as unknown as DOMRectList
+    Range.prototype.getBoundingClientRect = () => new DOMRect()
+  })
+
+  const DOC = 'See @fig:\n\n![Yield](a.png)\n\n![Rain](b.png){#fig:rain}\n'
+
+  function viewOf(target: HTMLElement) {
+    return EditorView.findFromDOM(target.querySelector('.cm-editor') as HTMLElement)!
+  }
+
+  it('applyReference writes the label and the reference as one undo step', () => {
+    const { editor, target, text, cleanup } = mountEditor()
+    editor.setContent(DOC)
+    const from = DOC.indexOf('@fig:')
+    const fig = collectTargets(DOC)[0]
+    expect(editor.applyReference(fig, from, from + 5)).toBe('ok')
+    expect(text()).toBe('See @fig:yield\n\n![Yield](a.png){#fig:yield}\n\n![Rain](b.png){#fig:rain}\n')
+    const view = viewOf(target)
+    // The caret follows the reference, not the label.
+    expect(view.state.selection.main.head).toBe(from + '@fig:yield'.length)
+    undo(view)
+    expect(view.state.doc.toString()).toBe(DOC)
+    cleanup()
+  })
+
+  it('applyReference reports a target that is gone and writes nothing', () => {
+    const { editor, target, cleanup } = mountEditor()
+    editor.setContent('See @fig:\n\nNo figure here.\n')
+    const gone = collectTargets(DOC)[0]
+    expect(editor.applyReference(gone, 4, 9)).toBe('moved')
+    expect(viewOf(target).state.doc.toString()).toBe('See @fig:\n\nNo figure here.\n')
+    cleanup()
+  })
+
+  it('applyReference passes on a bad equation name', () => {
+    const { editor, cleanup } = mountEditor()
+    const doc = 'See @eq:\n\n$$ x $$\n'
+    editor.setContent(doc)
+    expect(editor.applyReference(collectTargets(doc)[0], 4, 8, 'a b')).toBe('invalid')
+    cleanup()
+  })
+
+  it('typing @fig: opens a list of figures', async () => {
+    let targets: CrossrefTarget[] = []
+    const { editor, target, cleanup } = mountEditor({ crossrefs: () => targets })
+    editor.setContent(DOC, 'end')
+    targets = collectTargets(DOC)
+    const view = viewOf(target)
+    view.dispatch({ selection: { anchor: DOC.indexOf('@fig:') + 5 } })
+    startCompletion(view)
+    await vi.waitFor(() => expect(target.querySelector('li.cm-crossref-option')).not.toBeNull())
+    const labels = [...target.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
+    expect(labels).toEqual(['Figure 1', 'Figure 2'])
+    cleanup()
+  })
+
+  it('openCrossrefList lists every kind at the cursor, once', async () => {
+    const doc = 'See \n\n![Yield](a.png)\n\n$$ x $$\n'
+    const { editor, target, cleanup } = mountEditor({ crossrefs: () => collectTargets(doc) })
+    editor.setContent(doc)
+    const view = viewOf(target)
+    view.dispatch({ selection: { anchor: 4 } })
+    editor.openCrossrefList()
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    const labels = [...target.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
+    expect(labels).toEqual(['Figure 1', 'Unnamed equation'])
+    // Closing the list ends the all-kinds mode: an explicit request at a
+    // plain word offers nothing.
+    closeCompletion(view)
+    startCompletion(view)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(completionStatus(view.state)).toBeNull()
+    cleanup()
+  })
+
+  it('choosing an unlabelled figure from the list hands it to onpickcrossref', async () => {
+    const doc = 'See @fig:\n\n![Yield](a.png)\n'
+    const onpickcrossref = vi.fn()
+    const { editor, target, cleanup } = mountEditor({ crossrefs: () => collectTargets(doc), onpickcrossref })
+    editor.setContent(doc)
+    const view = viewOf(target)
+    view.dispatch({ selection: { anchor: 9 } })
+    startCompletion(view)
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    expect(onpickcrossref).toHaveBeenCalledWith(expect.objectContaining({ kind: 'fig', number: 1 }), 4, 9)
     cleanup()
   })
 })

@@ -176,60 +176,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	edit.AddSeparator()
 	edit.AddRole(application.SpeechMenu)
 
-	insert := menu.AddSubmenu("Insert")
-	insert.Add("Citation…").SetAccelerator("shift+cmdorctrl+c").OnClick(func(*application.Context) {
-		docEmit("menu:insert-citation", nil)
-	})
-	// No accelerator: an invented chord cannot be checked against every macOS
-	// binding, and the menu item is the discoverable route — the same reasoning
-	// as Blockquote in the Format menu.
-	insert.Add("Chart…").OnClick(func(*application.Context) {
-		docEmit("menu:insert-chart", nil)
-	})
-	insert.Add("Table…").OnClick(func(*application.Context) {
-		docEmit("menu:insert-table", nil)
-	})
-
-	// A submenu rather than a dialog: a code fence is a delimiter and a
-	// language name, and the only part carrying value is choosing the language
-	// — which a submenu does natively, needing no new UI. Curated rather than
-	// the ~150 language-data knows about, which would be unusable as a menu
-	// and would need a filter field, i.e. the dialog this avoids.
-	//
-	// Every token below was checked against loadGrammar's lookup (by name or
-	// alias) and resolves. One that did not would insert a block that silently
-	// never colours — which is why MATLAB is absent: no grammar ships for it.
-	codeBlock := insert.AddSubmenu("Code Block")
-	codeLanguages := []struct {
-		label string
-		token string
-	}{
-		{"Python", "python"},
-		{"R", "r"},
-		{"Julia", "julia"},
-		{"Fortran", "fortran"},
-		{"C++", "c++"},
-		{"JavaScript", "javascript"},
-		{"Go", "go"},
-		{"Rust", "rust"},
-		{"Shell", "shell"},
-		{"SQL", "sql"},
-		{"JSON", "json"},
-		{"YAML", "yaml"},
-		{"LaTeX", "latex"},
-	}
-	for _, l := range codeLanguages {
-		token := l.token
-		codeBlock.Add(l.label).OnClick(func(*application.Context) {
-			docEmit("menu:insert-code", token)
-		})
-	}
-	// Separated for the same reason Paragraph is separated from the headings
-	// below: it is the "no language" option, not another language.
-	codeBlock.AddSeparator()
-	codeBlock.Add("Plain text").OnClick(func(*application.Context) {
-		docEmit("menu:insert-code", "")
-	})
+	addInsertMenu(menu, docEmit)
 
 	format := menu.AddSubmenu("Format")
 	heading := format.AddSubmenu("Heading")
@@ -665,5 +612,69 @@ func addExportMenu(menu *application.Menu, emit func(name string, data ...any)) 
 	})
 	export.Add("Export LaTeX…").OnClick(func(*application.Context) {
 		emit("menu:export-pandoc", "latex")
+	})
+}
+
+// addInsertMenu adds the Insert menu; emit is installMenu's docEmit, so a
+// hidden window drops these like every other document action.
+func addInsertMenu(menu *application.Menu, emit func(name string, data ...any)) {
+	insert := menu.AddSubmenu("Insert")
+	insert.Add("Citation…").SetAccelerator("shift+cmdorctrl+c").OnClick(func(*application.Context) {
+		emit("menu:insert-citation", nil)
+	})
+	// Lists the document's figures, tables and equations at the cursor, the
+	// way typing @fig: does; the frontend owns the list.
+	insert.Add("Cross-reference…").SetAccelerator("shift+cmdorctrl+r").OnClick(func(*application.Context) {
+		emit("menu:insert-crossref", nil)
+	})
+	// No accelerator: an invented chord cannot be checked against every macOS
+	// binding, and the menu item is the discoverable route — the same reasoning
+	// as Blockquote in the Format menu.
+	insert.Add("Chart…").OnClick(func(*application.Context) {
+		emit("menu:insert-chart", nil)
+	})
+	insert.Add("Table…").OnClick(func(*application.Context) {
+		emit("menu:insert-table", nil)
+	})
+
+	// A submenu rather than a dialog: a code fence is a delimiter and a
+	// language name, and the only part carrying value is choosing the language
+	// — which a submenu does natively, needing no new UI. Curated rather than
+	// the ~150 language-data knows about, which would be unusable as a menu
+	// and would need a filter field, i.e. the dialog this avoids.
+	//
+	// Every token below was checked against loadGrammar's lookup (by name or
+	// alias) and resolves. One that did not would insert a block that silently
+	// never colours — which is why MATLAB is absent: no grammar ships for it.
+	codeBlock := insert.AddSubmenu("Code Block")
+	codeLanguages := []struct {
+		label string
+		token string
+	}{
+		{"Python", "python"},
+		{"R", "r"},
+		{"Julia", "julia"},
+		{"Fortran", "fortran"},
+		{"C++", "c++"},
+		{"JavaScript", "javascript"},
+		{"Go", "go"},
+		{"Rust", "rust"},
+		{"Shell", "shell"},
+		{"SQL", "sql"},
+		{"JSON", "json"},
+		{"YAML", "yaml"},
+		{"LaTeX", "latex"},
+	}
+	for _, l := range codeLanguages {
+		token := l.token
+		codeBlock.Add(l.label).OnClick(func(*application.Context) {
+			emit("menu:insert-code", token)
+		})
+	}
+	// Separated for the same reason Paragraph is separated from the headings
+	// below: it is the "no language" option, not another language.
+	codeBlock.AddSeparator()
+	codeBlock.Add("Plain text").OnClick(func(*application.Context) {
+		emit("menu:insert-code", "")
 	})
 }

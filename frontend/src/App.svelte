@@ -64,6 +64,8 @@
   import { parsePipeTable, serializePipeTable, type PipeTable } from './lib/pipeTable'
   import Dialog from './Dialog.svelte'
   import UnknownCitations from './UnknownCitations.svelte'
+  import EquationName, { type NameError } from './EquationName.svelte'
+  import { KIND_WORD, type CrossrefTarget } from './lib/crossrefs'
   import { unknownCitations } from './lib/citationKeys'
   import { readSpec, type BuilderState } from './lib/chartSpec'
   import { refusalMessage } from './lib/chartLabels'
@@ -163,7 +165,12 @@
     const result = timed('render', () => renderDocument(text, opts))
     html = result.html
     outline = result.outline
+    crossrefTargets = result.crossrefs.targets
   }
+
+  // The last render's cross-reference targets, read by the editor's list when
+  // it opens. Not reactive: nothing redraws when they change.
+  let crossrefTargets: CrossrefTarget[] = []
 
   // The panel's own arrows. The View menu owns the same setting, so this is a
   // read-modify-write of the whole value — the menu only ever changes the
@@ -439,6 +446,50 @@
       if (status === 'ready') toast(String(e))
       else zoteroHelp = status === 'no-better-bibtex' ? 'no-better-bibtex' : 'not-running'
     }
+  }
+
+  // Insert → Cross-reference…: the editor's list at the cursor, every kind in
+  // it. Refused while anything modal is up, as insertCitation is.
+  function insertCrossref() {
+    if (showWelcome || chartOpen || tableOpen || newOpen || pendingAction || equationAsk) return
+    editor.openCrossrefList()
+  }
+
+  // An unnamed equation chosen from the list waits here while its name is
+  // asked. `typed` is what `[from, to)` held then, checked again before writing.
+  let equationAsk = $state<{ target: CrossrefTarget; from: number; to: number; typed: string } | null>(null)
+  let equationError = $state<NameError | null>(null)
+
+  function movedToast(t: CrossrefTarget) {
+    toast(`That ${KIND_WORD[t.kind].toLowerCase()} moved, so no reference was added.`)
+  }
+
+  // A target without a label was chosen: a figure or table is labelled from
+  // its caption straight away; an equation needs a name first.
+  function pickCrossref(target: CrossrefTarget, from: number, to: number) {
+    if (showWelcome || chartOpen || tableOpen || newOpen || pendingAction || equationAsk) return
+    if (target.kind === 'eq') {
+      equationError = null
+      equationAsk = { target, from, to, typed: editor.textInRange(from, to) }
+      return
+    }
+    if (editor.applyReference(target, from, to) === 'moved') movedToast(target)
+  }
+
+  function nameEquation(name: string) {
+    const ask = equationAsk
+    if (!ask) return
+    // The document may have changed under the dialog (a reload from disk).
+    const result =
+      editor.textInRange(ask.from, ask.to) === ask.typed
+        ? editor.applyReference(ask.target, ask.from, ask.to, name)
+        : 'moved'
+    if (result === 'ok' || result === 'moved') {
+      equationAsk = null
+      if (result === 'moved') movedToast(ask.target)
+      return
+    }
+    equationError = result
   }
 
   const FORMAT_COMMANDS: Record<string, StateCommand> = {
@@ -1614,6 +1665,7 @@
     Events.On('recents:changed', () => void refreshRecents())
     Events.On('bib:changed', () => void reloadBibliography())
     Events.On('menu:insert-citation', () => void insertCitation())
+    Events.On('menu:insert-crossref', () => insertCrossref())
     Events.On('menu:export-pdf', () => exportPDF())
     Events.On('menu:export-html', () => void exportHTML())
     Events.On('menu:export-pandoc', (ev: { data: unknown }) => {
@@ -1739,7 +1791,7 @@
       <Outline entries={outline} onjump={jumpToLine} />
     {/if}
     <section class="editor-pane" style="width: {editorWidth}%">
-      <Editor bind:this={editor} citations={() => citationContext} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} onpasteimage={pasteImage} spellcheck={spellCheck} />
+      <Editor bind:this={editor} citations={() => citationContext} crossrefs={() => crossrefTargets} onpickcrossref={pickCrossref} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} onpasteimage={pasteImage} spellcheck={spellCheck} />
     </section>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -- WAI-ARIA "window splitter" pattern: a focusable separator with arrow-key resizing is the recommended markup -->
     <div
@@ -1926,6 +1978,13 @@
       <button class="primary" onclick={() => answerOverwrite(true)}>Overwrite</button>
     {/snippet}
   </Dialog>
+
+  <EquationName
+    open={equationAsk !== null}
+    error={equationError}
+    oninsert={nameEquation}
+    oncancel={() => (equationAsk = null)}
+  />
 
   <UnknownCitations open={unknownOpen} items={unknown} onclose={() => (unknownOpen = false)} onjump={jumpToUnknown} />
 

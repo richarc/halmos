@@ -112,7 +112,7 @@ function rank(item: Searchable, q: string): number {
 const MAX_BLOCK_LINES = 40
 
 /** True when `at` sits inside a maths span found in the blank-line-bounded block around it. */
-function inLocalMaths(state: EditorState, at: number): boolean {
+export function inLocalMaths(state: EditorState, at: number): boolean {
   const { doc } = state
   const here = doc.lineAt(at).number
   let first = here

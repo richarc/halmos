@@ -5,7 +5,7 @@
 // never changed.
 
 import { collectTargets } from './crossrefTargets'
-import { labelSuffix } from './crossrefs'
+import { labelColumn, labelSuffix } from './crossrefs'
 
 /** labelForExport appends `{#fig:halmos-<n>}` or `{#tbl:halmos-<n>}` to each unlabelled numbered target. */
 export function labelForExport(markdown: string): string {
@@ -27,8 +27,7 @@ export function labelForExport(markdown: string): string {
     .map((line, i) => {
       const add = additions.get(i + 1)
       if (add === undefined) return line
-      // Before any trailing whitespace, which includes a CR line ending.
-      const end = line.trimEnd().length
+      const end = labelColumn(line)
       return line.slice(0, end) + add + line.slice(end)
     })
     .join('\n')

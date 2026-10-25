@@ -15,7 +15,9 @@
   import { parseCaptionLine } from './lib/tableCaptions'
   import { fenceLanguage } from './lib/figures'
   import { citationCompletionSource, citationOptionClass, citationOptionTitle, type CitationContext } from './lib/citationCompletion'
-  import { autocompletion } from '@codemirror/autocomplete'
+  import { autocompletion, startCompletion, completionStatus } from '@codemirror/autocomplete'
+  import { crossrefCompletionSource, crossrefOptionClass, crossrefOptionFormula, planReference } from './lib/crossrefCompletion'
+  import type { CrossrefTarget } from './lib/crossrefs'
   import { citationHover, unknownKeyMarks, refreshCitationsEffect } from './lib/citationEditor'
   import { openSearchPanel, findNext, findPrevious } from '@codemirror/search'
 
@@ -26,6 +28,8 @@
     onpasteimage,
     spellcheck = true,
     citations,
+    crossrefs,
+    onpickcrossref,
   }: {
     onchange: (text: string) => void
     onformat?: (name: string) => void
@@ -33,6 +37,10 @@
     onpasteimage?: (file: Blob, type: string) => void
     spellcheck?: boolean
     citations?: () => CitationContext | null
+    /** The targets of the last render, for the cross-reference list. */
+    crossrefs?: () => CrossrefTarget[]
+    /** A target without a label was chosen from the list; `[from, to)` is what it replaces. */
+    onpickcrossref?: (target: CrossrefTarget, from: number, to: number) => void
   } = $props()
 
   // Menu accelerators normally win, because AppKit dispatches them before the
@@ -160,6 +168,11 @@
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap',
     },
+    // A cross-reference suggestion: `Figure 2` and its caption, or an
+    // equation's formula drawn small after it.
+    '.cm-crossref-option .cm-completionIcon': { display: 'none' },
+    '.cm-crossref-option .cm-completionDetail': { fontStyle: 'normal', color: 'var(--muted)' },
+    '.cm-crossref-formula': { marginLeft: '12px', fontSize: '12px' },
     '.cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail, .cm-tooltip-autocomplete ul li[aria-selected] .cm-citation-title':
       { color: 'var(--on-accent)' },
     '.cm-cite-unknown': { textDecoration: 'underline wavy var(--cite-error-fg)' },
@@ -585,6 +598,43 @@
     view.focus()
   }
 
+  // True from Insert → Cross-reference… until its list closes: the source then
+  // lists every kind at the cursor rather than waiting for `@fig:`.
+  let crossrefAllKinds = false
+
+  /** Opens the cross-reference list at the cursor, every kind in it. */
+  export function openCrossrefList(): void {
+    crossrefAllKinds = true
+    view.focus()
+    startCompletion(view)
+  }
+
+  /**
+   * Refers to `target` from `[from, to)`, writing its label first if it has
+   * none (an equation's from `eqName`). One transaction, so one undo step;
+   * the caret ends after the reference. Anything but 'ok' changed nothing.
+   */
+  export function applyReference(
+    target: CrossrefTarget,
+    from: number,
+    to: number,
+    eqName?: string,
+  ): 'ok' | 'moved' | 'taken' | 'invalid' | 'empty' {
+    const len = view.state.doc.length
+    if (from < 0 || to > len || from > to) return 'moved'
+    const plan = planReference(view.state.doc.toString(), target, from, to, eqName)
+    if ('error' in plan) return plan.error
+    const changes = view.state.changes(plan.changes)
+    view.dispatch({
+      changes,
+      selection: { anchor: changes.mapPos(to, 1) },
+      userEvent: 'input.complete',
+      scrollIntoView: true,
+    })
+    view.focus()
+    return 'ok'
+  }
+
   /**
    * The editor's full extension set.
    *
@@ -593,6 +643,11 @@
    * extensions to build it with.
    */
   const citationSource = citationCompletionSource(() => citations?.() ?? null)
+  const crossrefSource = crossrefCompletionSource(
+    () => crossrefs?.() ?? [],
+    () => crossrefAllKinds,
+    (t, from, to) => onpickcrossref?.(t, from, to),
+  )
 
   function editorExtensions() {
     return [
@@ -605,10 +660,22 @@
       spellcheckCompartment.of(spellcheckFor(spellcheck)),
       // basicSetup already installs autocompletion() and its keymap; a source
       // is added through language data so there is only one of each.
-      EditorState.languageData.of(() => [{ autocomplete: citationSource }]),
+      // One object per source: an array under one `autocomplete` key would be
+      // read as a list of completions, not of sources.
+      EditorState.languageData.of(() => [{ autocomplete: citationSource }, { autocomplete: crossrefSource }]),
       // Extra options for that same autocompletion() (its config facet
-      // merges): citation rows get a class and a title line of their own.
-      autocompletion({ optionClass: citationOptionClass, addToOptions: [citationOptionTitle] }),
+      // merges): citation rows get a class and a title line of their own,
+      // cross-reference rows a class and an equation's formula.
+      autocompletion({
+        optionClass: (c) => citationOptionClass(c) || crossrefOptionClass(c),
+        addToOptions: [citationOptionTitle, crossrefOptionFormula],
+      }),
+      // The menu's list is over once it closes, however it closed.
+      EditorView.updateListener.of((u) => {
+        if (crossrefAllKinds && completionStatus(u.state) === null && completionStatus(u.startState) !== null) {
+          crossrefAllKinds = false
+        }
+      }),
       citationHover(() => citations?.() ?? null),
       unknownKeyMarks(() => citations?.() ?? null),
       // A clipboard holding an image and no text is a screenshot or a copied
