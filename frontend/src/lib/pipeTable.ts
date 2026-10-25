@@ -14,6 +14,10 @@ export interface PipeTable {
   /** One entry per column; null means no marker in the delimiter row. */
   align: Alignment[]
   rows: string[][]
+  /** The `: Caption` paragraph after the table; absent or '' for none. */
+  caption?: string
+  /** The caption's `{#tbl:id}` label, `tbl:` included. Only written with a caption. */
+  label?: string
 }
 
 export type ParsePipeResult =
@@ -113,7 +117,8 @@ function delimiter(align: Alignment, w: number): string {
  * Writes a padded pipe table: every column as wide as its widest cell (never
  * narrower than 3, so the delimiter is always at least `---`), alignment
  * colons in the delimiter row, `|` inside a cell escaped. No trailing
- * newline — the caller decides how the block is placed.
+ * newline — the caller decides how the block is placed. A caption goes on one
+ * line, a blank line after the table, with its label if there is one.
  */
 export function serializePipeTable(table: PipeTable): string {
   const cols = table.header.length
@@ -124,9 +129,11 @@ export function serializePipeTable(table: PipeTable): string {
   )
   const line = (cells: string[]) =>
     '| ' + cells.map((cell, c) => pad(cell, widths[c])).join(' | ') + ' |'
-  return [
+  const text = [
     line(header),
     line(widths.map((w, c) => delimiter(table.align[c] ?? null, w))),
     ...rows.map(line),
   ].join('\n')
+  if (!table.caption) return text
+  return `${text}\n\n: ${table.caption}${table.label ? ` {#${table.label}}` : ''}`
 }

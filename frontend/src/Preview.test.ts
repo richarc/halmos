@@ -179,6 +179,24 @@ describe('in-document links', () => {
     cleanup()
   })
 
+  it('scrolls to a cross-reference target whose id has a colon', async () => {
+    const { target, pane, cleanup } = mountPreview(
+      '<p><a class="crossref" href="#fig:yield">Figure\u00a01</a></p><figure id="fig:yield"></figure>',
+    )
+    const { Browser } = await import('@wailsio/runtime')
+    const figure = target.querySelector('figure') as HTMLElement
+    figure.getBoundingClientRect = () => ({ top: 700 }) as DOMRect
+    pane.getBoundingClientRect = () => ({ top: 100 }) as DOMRect
+
+    target.querySelector('a.crossref')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true }),
+    )
+
+    expect(Browser.OpenURL).not.toHaveBeenCalled()
+    expect(pane.scrollTop).toBe(600)
+    cleanup()
+  })
+
   it('ignores a fragment with no matching id', async () => {
     const { target, pane, cleanup } = mountPreview('<a href="#missing">gone</a>')
     const { Browser } = await import('@wailsio/runtime')

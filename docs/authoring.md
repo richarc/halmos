@@ -170,9 +170,12 @@ mean to put in it.
 A document that has never been saved has no folder to resolve against, so save
 it before referring to a local image.
 
-Do not also write "Figure 1 — …" in prose; Halmos numbers and renders the
-caption itself, and the number would be wrong as soon as a figure is inserted
-above it.
+Captions read "Figure 1: Caption", with a colon.
+
+Do not write "Figure 1" in prose. Halmos numbers the figure itself, and a
+number typed by hand is wrong as soon as a figure is inserted above it. To
+refer to a figure, use a reference; see "Referring to figures, tables and
+equations" below.
 
 Only top-level blocks are numbered. A chart or diagram inside a list item or a
 blockquote still renders, but takes no figure number.
@@ -190,6 +193,99 @@ it for editing and Update replaces it. Cells hold ordinary markdown, so
 | :------ | --: | ---: |
 | Control | 12  | 4.1  |
 | Treated | 11  | 6.3  |
+
+### Table captions
+
+A caption makes a table a numbered table. Leave one blank line after the
+table, then write the caption on a line that starts with a colon:
+
+```markdown
+| Sample  | n   | Mean |
+| :------ | --: | ---: |
+| Control | 12  | 4.1  |
+
+: Results by group
+```
+
+This renders as "Table 1: Results by group", above the table. Tables are
+numbered in document order, separately from figures. A table without a
+caption is not numbered. The Table… builder has a Caption field, and it
+will not clear the caption of a table that has a label (see below).
+
+## Referring to figures, tables and equations
+
+A reference shows the number of a figure, table or equation and links to it.
+It renumbers itself when something is inserted above.
+
+**Give the target a label.** The label is a name in braces, written with
+the target:
+
+| Target | Where the label goes |
+|---|---|
+| Image | after the image: `![Recovered sources](fig1.png){#fig:recovered}` |
+| Chart | on the opening fence line: ` ```vega-lite {#fig:fidelity} ` |
+| Diagram | on the opening fence line: ` ```mermaid {#fig:pipeline} ` |
+| Table | at the end of the caption line: `: Results by group {#tbl:results}` |
+| Display equation | after the closing `$$`: `$$ … $$ {#eq:bayes}` |
+
+An image's label must touch the `)`, with no space before the brace. With a
+space, Pandoc does not read it as a label, so Halmos shows the braces as text
+and the image is not a figure.
+
+Each label names one target. If two targets share a label, references go to
+the first one, and the second is listed with the missing references (see
+below).
+
+Targets inside a list item or a blockquote are not numbered, even with a
+label, so a reference to one shows "Figure ??". Halmos does not show the
+label, and Word export leaves those targets unnumbered too.
+
+You seldom type a label. When you pick a figure or table that has none,
+Halmos writes one made from its caption, such as `fig:yield-by-variety`
+(with `-2` added if that name is taken). When you pick an equation, Halmos
+asks for a short name and writes `eq:` plus that name. The label stays the
+same if you reword the caption later.
+
+**Write the reference.** Use `@` and the label:
+
+```markdown
+As @fig:recovered shows, the yield fell. See @tbl:results and @eq:bayes.
+Both curves agree [@fig:recovered; @fig:fidelity].
+```
+
+These render as "Figure 1", "Table 1" and "Equation 1". The grouped form
+renders "Figures 1, 2". Write `@Fig:recovered` for a capital letter at the
+start of a sentence.
+
+**Pick instead of typing.**
+
+- Type `@fig:`, `@tbl:` or `@eq:` to get a list of that kind, with each
+  number and caption. Equations show the formula.
+- Choose Insert → Cross-reference… (⇧⌘R) to list all kinds together. If
+  there is nothing to refer to, it says so.
+
+Only top-level figures and tables that have a caption are listed, and
+top-level display equations. A reference written on the target's own line
+is refused with a message.
+
+**Equation numbers.** A display equation is numbered only once it has a
+label, and the number shows at the right as "(1)". Equations you never refer
+to stay unnumbered.
+
+**Things to know.**
+
+- `@fig` with no colon is still a citation, so a key such as `figueroa2019`
+  works as before.
+- A reference to a label that does not exist shows "Figure ??". The status
+  bar counts them ("2 missing cross-references"); click it for a list that
+  jumps to each. A label used by two targets is counted there too, and
+  listed as "used twice" at the second one.
+- Bibliography keys that start `fig:`, `tbl:`, `eq:` or `sec:` cannot be
+  cited, because those prefixes mean a reference. Halmos names any such key
+  when the bibliography loads. Rename the key in the `.bib` file.
+- References to sections are not supported yet. `@sec:` shows "Section ??".
+- In LaTeX export, charts and diagrams stay as code, so a reference to one
+  shows as missing there. Word export numbers them as the preview does.
 
 ## A table of contents
 
@@ -307,7 +403,9 @@ is not case-sensitive, and nothing else may share its line.
   `<div align="center">`, no `<sub>`. Use Markdown, or maths for subscripts.
 - **A hand-written References section.** It is generated.
 - **`title:` or `author:` in frontmatter.** Silently dropped.
-- **Figure numbers written by hand.** They are generated.
+- **Figure and table numbers written by hand.** They are generated. Use a
+  reference instead.
+- **Cross-references to charts and diagrams in LaTeX.** See above.
 
 ## A complete example
 
@@ -363,6 +461,6 @@ flowchart LR
 Fidelity fell with distance, remaining above the classical bound throughout.
 ````
 
-That document produces two numbered figures — "Figure 1 — Synchronisation
-pipeline" and "Figure 2 — Fidelity against fibre length" — two resolved
+That document produces two numbered figures — "Figure 1: Synchronisation
+pipeline" and "Figure 2: Fidelity against fibre length" — two resolved
 citations, a display equation, and a generated reference list.

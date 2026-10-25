@@ -6,8 +6,9 @@
 
 import { parseFrontmatter } from './frontmatter'
 import { createMarkdownParser } from './markdownParser'
-import { chartCaption } from './figures'
+import { chartCaption, fenceLanguage } from './figures'
 import { parseMermaidSource } from './mermaidSource'
+import { trailingLabel } from './crossrefs'
 import { canvasToPng, toPng } from './rasterise'
 
 const md = createMarkdownParser()
@@ -58,7 +59,7 @@ export function replaceDiagramFences(
   const head = markdown.slice(0, markdown.length - body.length)
   const fences = md
     .parse(body, {})
-    .filter((t) => t.type === 'fence' && t.map && DIAGRAM_INFO.has(t.info.trim()))
+    .filter((t) => t.type === 'fence' && t.map && DIAGRAM_INFO.has(fenceLanguage(t.info)))
   // One picture per block, matched by position. If the preview drew a
   // different number than the text has — it was edited and has not caught
   // up — no picture can be trusted to land on its own block.
@@ -73,7 +74,10 @@ export function replaceDiagramFences(
     const [start, end] = t.map!
     const indent = /^\s*/.exec(lines[start])?.[0] ?? ''
     const key = `diagrams/${n + 1}.png`
-    lines.splice(start, end - start, `${indent}![${caption(t.info.trim(), t.content)}](${key})`)
+    // A label after the language moves onto the picture, where pandoc-crossref reads it.
+    const label = trailingLabel(t.info.trim().replace(/^\S+\s*/, ''), 'fig').label
+    const suffix = label ? `{#${label}}` : ''
+    lines.splice(start, end - start, `${indent}![${caption(fenceLanguage(t.info), t.content)}](${key})${suffix}`)
     keyed.unshift({ key, png })
   }
   return {

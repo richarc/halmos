@@ -12,8 +12,19 @@
   import { codeHighlightStyleSpecs } from './lib/syntaxTags'
   import { spellcheckExtension } from './lib/spellcheck'
   import { minimalChange } from './lib/textDiff'
+  import { parseCaptionLine } from './lib/tableCaptions'
+  import { fenceLanguage } from './lib/figures'
   import { citationCompletionSource, citationOptionClass, citationOptionTitle, type CitationContext } from './lib/citationCompletion'
-  import { autocompletion } from '@codemirror/autocomplete'
+  import { autocompletion, startCompletion, completionStatus } from '@codemirror/autocomplete'
+  import {
+    crossrefCompletionSource,
+    crossrefOptionClass,
+    crossrefOptionFormula,
+    planReference,
+    referenceAllowed,
+    type ReferenceError,
+  } from './lib/crossrefCompletion'
+  import type { CrossrefTarget } from './lib/crossrefs'
   import { citationHover, unknownKeyMarks, refreshCitationsEffect } from './lib/citationEditor'
   import { openSearchPanel, findNext, findPrevious } from '@codemirror/search'
 
@@ -24,6 +35,8 @@
     onpasteimage,
     spellcheck = true,
     citations,
+    crossrefs,
+    onpickcrossref,
   }: {
     onchange: (text: string) => void
     onformat?: (name: string) => void
@@ -31,6 +44,10 @@
     onpasteimage?: (file: Blob, type: string) => void
     spellcheck?: boolean
     citations?: () => CitationContext | null
+    /** The targets of the last render, for the cross-reference list. */
+    crossrefs?: () => CrossrefTarget[]
+    /** A target without a label was chosen from the list; `[from, to)` is what it replaces. */
+    onpickcrossref?: (target: CrossrefTarget, from: number, to: number) => void
   } = $props()
 
   // Menu accelerators normally win, because AppKit dispatches them before the
@@ -158,6 +175,11 @@
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap',
     },
+    // A cross-reference suggestion: `Figure 2` and its caption, or an
+    // equation's formula drawn small after it.
+    '.cm-crossref-option .cm-completionIcon': { display: 'none' },
+    '.cm-crossref-option .cm-completionDetail': { fontStyle: 'normal', color: 'var(--muted)' },
+    '.cm-crossref-formula': { marginLeft: '12px', fontSize: '12px' },
     '.cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail, .cm-tooltip-autocomplete ul li[aria-selected] .cm-citation-title':
       { color: 'var(--on-accent)' },
     '.cm-cite-unknown': { textDecoration: 'underline wavy var(--cite-error-fg)' },
@@ -423,6 +445,8 @@
     from: number
     to: number
     spec: string
+    /** The opening fence's whole info string, trimmed: `vega-lite {#fig:id}` when labelled. */
+    info: string
   }
 
   /**
@@ -460,12 +484,13 @@
           bodyTo = c.to
         }
       }
-      if (info.trim() !== 'vega-lite') continue
+      if (fenceLanguage(info.trim()) !== 'vega-lite') continue
 
       return {
         from: node.from,
         to: node.to,
         spec: bodyFrom >= 0 ? view.state.doc.sliceString(bodyFrom, bodyTo) : '',
+        info: info.trim(),
       }
     }
     return null
@@ -474,11 +499,18 @@
   export interface TableBlock {
     from: number
     to: number
+    /** Where the table itself ends, before any caption. */
+    tableTo: number
     text: string
+    /** The `: Caption {#tbl:id}` paragraph after the table, whose text `to` and `text` include. */
+    caption: { caption: string; label: string | null } | null
   }
 
   /**
-   * The GFM table containing the cursor, or null.
+   * The GFM table containing the cursor, or null. A table's caption is the
+   * paragraph `: Caption {#tbl:id}` one blank line after it; when there is
+   * one, `to` and `text` run on to the end of it, and a cursor on the caption
+   * counts as being in the table.
    *
    * Same two load-bearing details as enclosingChartBlock, for the same
    * reasons: forceParsing first, because a table late in a long paper is not
@@ -491,15 +523,55 @@
   export function enclosingTable(): TableBlock | null {
     forceParsing(view, view.state.doc.length, 5000)
     const tree = syntaxTree(view.state)
+    const doc = view.state.doc
     const pos = view.state.selection.main.head
 
+    let table: SyntaxNode | null = null
     for (const side of [1, -1] as const) {
       let node: SyntaxNode | null = tree.resolveInner(pos, side)
       while (node && node.name !== 'Table') node = node.parent
-      if (!node) continue
-      return { from: node.from, to: node.to, text: view.state.doc.sliceString(node.from, node.to) }
+      if (node) {
+        table = node
+        break
+      }
     }
-    return null
+    if (!table) table = tableCaptionedAt(pos)
+    if (!table) return null
+
+    let to = table.to
+    let caption: TableBlock['caption'] = null
+    // The caption is the Paragraph node after the table with at most one
+    // blank line between, the preview's own rule: a heading, fence, list or
+    // quote on the next line ends the paragraph, and stays outside the range.
+    const para = table.nextSibling
+    if (para?.name === 'Paragraph' && doc.lineAt(para.from).number - doc.lineAt(table.to).number <= 2) {
+      const lines = doc.sliceString(para.from, para.to).split('\n').map((l) => l.trim())
+      if (parseCaptionLine(lines[0])) {
+        caption = parseCaptionLine(lines.join(' '))
+        if (caption) to = para.to
+      }
+    }
+    return { from: table.from, to, tableTo: table.to, text: doc.sliceString(table.from, to), caption }
+  }
+
+  /**
+   * The Table node whose caption paragraph holds `pos`, or null: walk up to
+   * the paragraph's first line, which must be a caption line, and look past
+   * at most one blank line for the table that ends there.
+   */
+  function tableCaptionedAt(pos: number): SyntaxNode | null {
+    const doc = view.state.doc
+    let line = doc.lineAt(pos)
+    if (line.text.trim() === '') return null
+    while (line.number > 1 && doc.line(line.number - 1).text.trim() !== '') line = doc.line(line.number - 1)
+    if (!parseCaptionLine(line.text)) return null
+    let above = line.number - 1
+    if (above >= 1 && doc.line(above).text.trim() === '') above--
+    if (above < 1) return null
+    let node: SyntaxNode | null = syntaxTree(view.state).resolveInner(doc.line(above).to, -1)
+    while (node && node.name !== 'Table') node = node.parent
+    // Directly above the caption: a table that ends earlier is not its table.
+    return node && node.to === doc.line(above).to ? node : null
   }
 
   /**
@@ -533,6 +605,48 @@
     view.focus()
   }
 
+  // True from Insert → Cross-reference… until its list closes: the source then
+  // lists every kind at the cursor rather than waiting for `@fig:`.
+  let crossrefAllKinds = false
+
+  /**
+   * Opens the cross-reference list at the cursor, every kind in it. False,
+   * and nothing opened, when the cursor is in code, frontmatter or maths.
+   */
+  export function openCrossrefList(): boolean {
+    if (!referenceAllowed(view.state, view.state.selection.main.head)) return false
+    crossrefAllKinds = true
+    view.focus()
+    startCompletion(view)
+    return true
+  }
+
+  /**
+   * Refers to `target` from `[from, to)`, writing its label first if it has
+   * none (an equation's from `eqName`). One transaction, so one undo step;
+   * the caret ends after the reference. Anything but 'ok' changed nothing.
+   */
+  export function applyReference(
+    target: CrossrefTarget,
+    from: number,
+    to: number,
+    eqName?: string,
+  ): 'ok' | ReferenceError {
+    const len = view.state.doc.length
+    if (from < 0 || to > len || from > to) return 'moved'
+    const plan = planReference(view.state.doc.toString(), target, from, to, eqName)
+    if ('error' in plan) return plan.error
+    const changes = view.state.changes(plan.changes)
+    view.dispatch({
+      changes,
+      selection: { anchor: changes.mapPos(to, 1) },
+      userEvent: 'input.complete',
+      scrollIntoView: true,
+    })
+    view.focus()
+    return 'ok'
+  }
+
   /**
    * The editor's full extension set.
    *
@@ -541,6 +655,12 @@
    * extensions to build it with.
    */
   const citationSource = citationCompletionSource(() => citations?.() ?? null)
+  const crossrefSource = crossrefCompletionSource(
+    () => crossrefs?.() ?? [],
+    () => crossrefAllKinds,
+    (t, from, to) => onpickcrossref?.(t, from, to),
+    () => (crossrefAllKinds = false),
+  )
 
   function editorExtensions() {
     return [
@@ -553,10 +673,22 @@
       spellcheckCompartment.of(spellcheckFor(spellcheck)),
       // basicSetup already installs autocompletion() and its keymap; a source
       // is added through language data so there is only one of each.
-      EditorState.languageData.of(() => [{ autocomplete: citationSource }]),
+      // One object per source: an array under one `autocomplete` key would be
+      // read as a list of completions, not of sources.
+      EditorState.languageData.of(() => [{ autocomplete: citationSource }, { autocomplete: crossrefSource }]),
       // Extra options for that same autocompletion() (its config facet
-      // merges): citation rows get a class and a title line of their own.
-      autocompletion({ optionClass: citationOptionClass, addToOptions: [citationOptionTitle] }),
+      // merges): citation rows get a class and a title line of their own,
+      // cross-reference rows a class and an equation's formula.
+      autocompletion({
+        optionClass: (c) => citationOptionClass(c) || crossrefOptionClass(c),
+        addToOptions: [citationOptionTitle, crossrefOptionFormula],
+      }),
+      // The menu's list is over once it closes, however it closed.
+      EditorView.updateListener.of((u) => {
+        if (crossrefAllKinds && completionStatus(u.state) === null && completionStatus(u.startState) !== null) {
+          crossrefAllKinds = false
+        }
+      }),
       citationHover(() => citations?.() ?? null),
       unknownKeyMarks(() => citations?.() ?? null),
       // A clipboard holding an image and no text is a screenshot or a copied

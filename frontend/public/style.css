@@ -455,6 +455,9 @@ textarea:focus-visible,
 .sheet pre,
 .sheet table,
 .sheet .katex-display { margin-bottom: 0.9em; }
+.sheet .equation { display: flex; align-items: center; }
+.sheet .equation > .katex-block { flex: 1 1 auto; min-width: 0; }
+.sheet .equation-number { flex: none; margin-left: 1em; margin-bottom: 0.9em; }
 .sheet h1, .sheet h2, .sheet h3,
 .sheet h4, .sheet h5, .sheet h6 {
   margin: 1.3em 0 0.5em; line-height: 1.25; font-weight: 600;
@@ -546,6 +549,14 @@ textarea:focus-visible,
 .sheet figure { margin-bottom: 0.9em; }
 .sheet figcaption {
   margin-top: 0.5em;
+  font-size: 0.9em;
+  color: var(--doc-muted);
+}
+
+/* A table caption sits above the table, in the same voice as a figure's. */
+.sheet table > caption {
+  caption-side: top;
+  margin-bottom: 0.5em;
   font-size: 0.9em;
   color: var(--doc-muted);
 }
@@ -956,6 +967,12 @@ dialog::backdrop { background: var(--backdrop); }
 .table-actions .paste-toggle { margin-left: auto; }
 .table-hint { margin-top: 8px; }
 
+.table-caption { margin-bottom: 12px; }
+.table-caption label { display: block; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
+.table-caption input { width: 100%; }
+.table-caption input[aria-invalid="true"] { border-color: var(--cite-error-fg); }
+.table-caption .field-error { color: var(--cite-error-fg); margin-top: 4px; }
+
 .table-import { margin-top: 16px; }
 .table-import label { display: block; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
 .table-import textarea { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
@@ -989,9 +1006,14 @@ dialog::backdrop { background: var(--backdrop); }
   padding: 12px; border-radius: 6px; font-family: monospace; font-size: 13px;
 }
 
-.cite-error {
+.cite-error,
+.crossref-error {
   color: var(--doc-cite-error-fg); background: var(--doc-cite-error-bg); border-radius: 3px; padding: 0 3px;
 }
+
+/* A cross-reference is a link within the document; `.sheet a` already gives
+   it this colour, and this keeps it if the element ever stops being an <a>. */
+.sheet .crossref { color: var(--doc-link); }
 
 /* KaTeX writes its errorColor option as an inline `color` style on the
    element (see renderer.ts), which beats any ordinary rule here — the

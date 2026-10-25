@@ -259,7 +259,13 @@ pasted.
 
 **Insert → Table…** opens a grid where you type the cells and set each
 column's alignment; it writes a Markdown pipe table into the document. Put
-the cursor inside an existing table and use the same item to edit it.
+the cursor inside an existing table and use the same item to edit it. The
+grid has a Caption field; a captioned table is numbered "Table 1: …".
+
+To refer to a figure, table or equation, type `@fig:`, `@tbl:` or `@eq:` and
+pick from the list, or choose **Insert → Cross-reference…** (⇧⌘R). Halmos
+writes the label for you and the reference shows "Figure 2" or "Table 1".
+See the writing guide for the details.
 
 ### Maths
 

@@ -7,6 +7,7 @@ import type { CitationFormatter, CitationCluster } from './citations'
 import { createMarkdownParser } from './markdownParser'
 import {
   chartWidthPx,
+  fenceLanguage,
   figureLabel,
   figureOf,
   figurePlugin,
@@ -15,13 +16,17 @@ import {
 } from './figures'
 import { parseMermaidSource } from './mermaidSource'
 import { createKatexCache } from './katexCache'
+import { tableCaptionPlugin } from './tableCaptions'
+import { equationPlugin } from './equations'
+import { referenceText, type CrossrefTarget, type TargetMeta } from './crossrefs'
+import { crossrefPlugin, keyLabel, type CrossrefEnv, type CrossrefMeta, type DuplicateLabel, type MissingReference } from './crossrefTargets'
 
 /**
  * The per-render environment markdown-it threads through to the rules. Typed
  * once here rather than cast at each use: the fence renderer reads the chart
  * width out of it, and the source_line rule reads the frontmatter offset.
  */
-interface RenderEnv extends TocEnv {
+interface RenderEnv extends TocEnv, CrossrefEnv {
   citations?: CitationCluster[]
   outline?: OutlineEntry[]
   sourceLineOffset: number
@@ -68,6 +73,10 @@ md.core.ruler.push('source_line', (state) => {
 // Pushed after source_line so a paragraph that becomes a <figure> already
 // carries its anchor, and the retag carries it along.
 md.use(figurePlugin)
+md.use(tableCaptionPlugin)
+md.use(equationPlugin)
+// After the three rules above, whose stamps it collects.
+md.use(crossrefPlugin)
 md.use(outlinePlugin)
 // After outlinePlugin, so a future consumer of both sees consistent data;
 // after source_line always, since it reads the stamps.
@@ -136,9 +145,25 @@ function isDocumentRelative(src: string): boolean {
   return !/^[a-z][a-z0-9+.-]*:/i.test(src)
 }
 
+/**
+ * A reference reads as `Figure 2`, linked to the first label it names.
+ * Rendering runs after every core rule, so a reference above its target
+ * resolves. A group mixing references and citations shows its raw text.
+ */
+md.renderer.rules.crossref = (tokens, idx, _options, env) => {
+  const token = tokens[idx]
+  const meta = token.meta as CrossrefMeta
+  const lookup = (env as RenderEnv).crossrefLookup
+  if (meta.mixed) return `<span class="crossref-error">${md.utils.escapeHtml(token.content)}</span>`
+  const { text, missing } = referenceText(meta.keys, (label) => lookup?.get(label))
+  if (missing) return `<span class="crossref-error">${md.utils.escapeHtml(text)}</span>`
+  const href = md.utils.escapeHtml(`#${keyLabel(meta.keys[0])}`)
+  return `<a class="crossref" href="${href}">${md.utils.escapeHtml(text)}</a>`
+}
+
 const defaultFence = md.renderer.rules.fence!
 md.renderer.rules.fence = (tokens, idx, options, env, self) => {
-  const info = tokens[idx].info.trim()
+  const info = fenceLanguage(tokens[idx].info)
   if (info === 'vega-lite') return renderChartFence(tokens[idx], env as RenderEnv)
   if (info === 'mermaid') return renderMermaidFence(tokens[idx])
   return defaultFence(tokens, idx, options, env, self)
@@ -155,7 +180,8 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
  */
 function wrapAsFigure(anchor: string, child: string, figure: FigureMeta): string {
   const caption = md.utils.escapeHtml(figureLabel(figure.number, figure.caption))
-  return `<figure${anchor}>` + child + `<figcaption>${caption}</figcaption>` + `</figure>\n`
+  const id = figure.label ? ` id="${md.utils.escapeHtml(figure.label)}"` : ''
+  return `<figure${anchor}${id}>` + child + `<figcaption>${caption}</figcaption>` + `</figure>\n`
 }
 
 function renderChartFence(token: Token, env: RenderEnv): string {
@@ -256,6 +282,14 @@ const defaultMathBlock = md.renderer.rules.math_block!
 md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
   const line = tokens[idx].attrGet('data-source-line')
   const rendered = defaultMathBlock(tokens, idx, options, env, self)
+  // A labelled equation gets a wrapper that carries the id, the number and
+  // the anchor, so the anchor appears once and the inner <p> stays bare.
+  const target = tokens[idx].meta?.target as TargetMeta | undefined
+  if (target?.label) {
+    const anchor = line ? ` data-source-line="${md.utils.escapeHtml(line)}"` : ''
+    const number = target.number != null ? `<span class="equation-number">(${target.number})</span>` : ''
+    return `<div class="equation" id="${md.utils.escapeHtml(target.label)}"${anchor}>${rendered}${number}</div>\n`
+  }
   if (!line) return rendered
   return rendered.replace(/^<p /, `<p data-source-line="${md.utils.escapeHtml(line)}" `)
 }
@@ -275,6 +309,11 @@ export interface RenderResult {
   html: string
   /** The document's headings, for the outline panel. */
   outline: OutlineEntry[]
+  /**
+   * Cross-reference targets in document order, references that miss, and
+   * targets whose label an earlier one already has.
+   */
+  crossrefs: { targets: CrossrefTarget[]; missing: MissingReference[]; duplicates: DuplicateLabel[] }
 }
 
 /** render() for callers that only want the HTML — every test and most rules. */
@@ -300,6 +339,11 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
     html = tocNavHtml(listed, 1) + html
   }
   const outline = env.outline ?? []
+  const crossrefs = {
+    targets: env.crossrefTargets ?? [],
+    missing: env.crossrefMissing ?? [],
+    duplicates: env.crossrefDuplicates ?? [],
+  }
   const clusters = env.citations ?? []
   const formatter = opts?.formatter
   // markdown-it-footnote appends its block to the end of the body. Cut it off
@@ -314,7 +358,7 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
       .replace('<section class="footnotes"', `<section class="footnotes" data-source-line="${docLines}"`)
     html = html.slice(0, sepAt)
   }
-  if (!formatter || clusters.length === 0) return { html: html + notes, outline }
+  if (!formatter || clusters.length === 0) return { html: html + notes, outline, crossrefs }
 
   const { texts, bibliographyHtml } = formatter.format(
     clusters.map((c) => (resolvable(formatter, c) ? c : { items: [] })),
@@ -350,7 +394,7 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
     // single interpolated interval hanging off the last real anchor.
     html += `<h2 data-source-line="${docLines}">References</h2>\n${bibliographyHtml}\n`
   }
-  return { html: html + notes, outline }
+  return { html: html + notes, outline, crossrefs }
 }
 
 function resolvable(f: CitationFormatter, c: CitationCluster): boolean {

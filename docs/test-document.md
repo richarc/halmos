@@ -691,7 +691,88 @@ this is not a valid diagram type
 
 If you can read this line with normal styling, error containment works. ✅
 
-## 12. Beyond the page
+## 12. Cross-references
+
+A caption gives a table or figure a number, and a label lets the text refer
+to it. A table's caption is a blank line, then `: Caption`, with the label at
+the end. Tables are numbered apart from figures. A reference written before
+its target works the same.
+
+### Markdown
+
+````markdown
+As @fig:cr-chart shows, B leads. @Tbl:cr-table gives the counts and @eq:cr-bayes
+the rule used. Both plots agree [@fig:cr-chart; @fig:cr-image], and a forward
+reference works too: see @tbl:cr-later. This one has no target: @fig:cr-nowhere.
+
+| Group | n |
+|-------|--:|
+| A | 12 |
+| B | 27 |
+
+: Counts by group {#tbl:cr-table}
+
+```vega-lite {#fig:cr-chart}
+{
+  "title": "Counts by group",
+  "data": {"values": [{"g": "A", "n": 12}, {"g": "B", "n": 27}]},
+  "mark": "bar",
+  "encoding": {
+    "x": {"field": "g", "type": "nominal"},
+    "y": {"field": "n", "type": "quantitative"}
+  }
+}
+```
+
+![A placeholder photograph](https://placehold.co/400x250){#fig:cr-image}
+
+$$ P(A|B) = \frac{P(B|A)\,P(A)}{P(B)} $$ {#eq:cr-bayes}
+
+| Step | Result |
+|------|--------|
+| One | Done |
+
+: A table referred to from above {#tbl:cr-later}
+````
+
+### Rendered
+
+As @fig:cr-chart shows, B leads. @Tbl:cr-table gives the counts and @eq:cr-bayes
+the rule used. Both plots agree [@fig:cr-chart; @fig:cr-image], and a forward
+reference works too: see @tbl:cr-later. This one has no target: @fig:cr-nowhere.
+
+| Group | n |
+|-------|--:|
+| A | 12 |
+| B | 27 |
+
+: Counts by group {#tbl:cr-table}
+
+```vega-lite {#fig:cr-chart}
+{
+  "title": "Counts by group",
+  "data": {"values": [{"g": "A", "n": 12}, {"g": "B", "n": 27}]},
+  "mark": "bar",
+  "encoding": {
+    "x": {"field": "g", "type": "nominal"},
+    "y": {"field": "n", "type": "quantitative"}
+  }
+}
+```
+
+![A placeholder photograph](https://placehold.co/400x250){#fig:cr-image}
+
+$$ P(A|B) = \frac{P(B|A)\,P(A)}{P(B)} $$ {#eq:cr-bayes}
+
+| Step | Result |
+|------|--------|
+| One | Done |
+
+: A table referred to from above {#tbl:cr-later}
+
+The missing reference shows "Figure ??" and the status bar counts it.
+
+## 13. Beyond the page
 
 Some of Halmos lives in the editor rather than on the page, and a PDF cannot
 show it. Briefly, for completeness:

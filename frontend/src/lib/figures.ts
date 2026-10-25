@@ -12,6 +12,7 @@ import type MarkdownIt from 'markdown-it'
 import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs'
 import type Token from 'markdown-it/lib/token.mjs'
 import { parseMermaidSource } from './mermaidSource'
+import { trailingLabel, type TargetMeta } from './crossrefs'
 
 export type ChartWidth = 'small' | 'medium' | 'large'
 export type FigureAlignment = 'left' | 'centre' | 'right'
@@ -74,13 +75,13 @@ export function mermaidCaption(source: string): string {
 }
 
 /**
- * "Figure 2 — Recovered sources".
+ * "Figure 2: Recovered sources".
  *
  * Written into the HTML as real text rather than produced by a CSS counter,
  * so it survives copy-paste and PDF text extraction.
  */
 export function figureLabel(n: number, caption: string): string {
-  return `Figure ${n} — ${caption}`
+  return `Figure ${n}: ${caption}`
 }
 
 /**
@@ -95,15 +96,33 @@ export function cssTextAlign(alignment: string | undefined): 'left' | 'center' |
 }
 
 /** What the numbering pass stamps onto a token it decided is a figure. */
-export interface FigureMeta {
-  number: number
-  caption: string
+export type FigureMeta = TargetMeta & { kind: 'fig'; number: number }
+
+/** The `{#fig:…}` text that may follow a lone image: it must touch the `)`. */
+function imageLabel(text: string): string | null {
+  if (!text.startsWith('{')) return null
+  const parsed = trailingLabel(text, 'fig')
+  return parsed.text === '' ? parsed.label : null
 }
 
-/** Reads that stamp back, for a renderer that hand-builds its own HTML. */
+/** The first word of a fence's info string: its language. */
+export function fenceLanguage(info: string): string {
+  return info.trim().split(/\s+/)[0] ?? ''
+}
+
+/** The `{#fig:…}` label on a fence's opening line, after the language. */
+function fenceLabel(info: string): string | null {
+  return trailingLabel(info.trim().replace(/^\S+/, ''), 'fig').label
+}
+
+/**
+ * Reads that stamp back, for a renderer that hand-builds its own HTML. A
+ * nested block is stamped unnumbered, as a target only, and is not a figure.
+ */
 export function figureOf(token: Token): FigureMeta | null {
-  const meta = token.meta as { figure?: FigureMeta } | null | undefined
-  return meta?.figure ?? null
+  const meta = token.meta as { target?: TargetMeta } | null | undefined
+  const target = meta?.target
+  return target && target.number !== null ? (target as FigureMeta) : null
 }
 
 /**
@@ -130,22 +149,25 @@ function numberFigures(state: StateCore): boolean {
     const token = state.tokens[i]
     // Only top-level blocks are figures — the same level-0 restriction the
     // source_line rule uses, so a chart quoted inside a blockquote or a list
-    // item stays a plain chart rather than claiming a figure number.
-    if (token.level !== 0) continue
+    // item stays a plain chart rather than claiming a figure number. A nested
+    // one is still stamped, unnumbered, so export can find its label.
+    const nested = token.level !== 0
 
-    if (token.type === 'fence' && token.info.trim() === 'vega-lite') {
-      const caption = chartCaption(token.content)
+    if (token.type === 'fence') {
+      const language = fenceLanguage(token.info)
+      if (language !== 'vega-lite' && language !== 'mermaid') continue
+      const caption =
+        language === 'vega-lite' ? chartCaption(token.content) : mermaidCaption(token.content)
+      // No caption, no figure: a label on such a fence is ignored.
       if (caption === '') continue
-      count += 1
-      token.meta = { ...(token.meta ?? {}), figure: { number: count, caption } }
-      continue
-    }
-
-    if (token.type === 'fence' && token.info.trim() === 'mermaid') {
-      const caption = mermaidCaption(token.content)
-      if (caption === '') continue
-      count += 1
-      token.meta = { ...(token.meta ?? {}), figure: { number: count, caption } }
+      if (!nested) count += 1
+      const target: TargetMeta = {
+        kind: 'fig',
+        number: nested ? null : count,
+        caption,
+        label: fenceLabel(token.info),
+      }
+      token.meta = { ...(token.meta ?? {}), target }
       continue
     }
 
@@ -160,6 +182,14 @@ function numberFigures(state: StateCore): boolean {
     // either — the inline parser only flushes `pending` into a text token
     // when it is non-empty — so a lone image really is a single child.
     const children = inline.children ?? []
+    // A trailing `{#fig:…}` is a separate text child; take it off before the
+    // lone-image test, at any level and whether or not the image goes on to
+    // be a figure. After a space it is not a label, as in Pandoc, and stays.
+    let label: string | null = null
+    if (children.length === 2 && children[0].type === 'image' && children[1].type === 'text') {
+      label = imageLabel(children[1].content)
+      if (label !== null) children.pop()
+    }
     if (children.length !== 1 || children[0].type !== 'image') continue
 
     // renderInlineAsText is how markdown-it's own image renderer derives the
@@ -170,6 +200,11 @@ function numberFigures(state: StateCore): boolean {
     // Empty alt stays decorative and unnumbered — the accessibility
     // convention, and it stops a spacer image consuming a figure number.
     if (alt === '') continue
+    if (nested) {
+      const target: TargetMeta = { kind: 'fig', number: null, caption: alt, label }
+      token.meta = { ...(token.meta ?? {}), target }
+      continue
+    }
 
     count += 1
     // Retagging keeps the paragraph's attributes, which is exactly what is
@@ -179,6 +214,9 @@ function numberFigures(state: StateCore): boolean {
     close.tag = 'figure'
     const caption = new state.Token('figcaption', 'figcaption', 0)
     caption.content = figureLabel(count, alt)
+    const target: FigureMeta = { kind: 'fig', number: count, caption: alt, label }
+    token.meta = { ...(token.meta ?? {}), target }
+    if (label !== null) token.attrSet('id', label)
     state.tokens.splice(i + 2, 0, caption)
   }
   return true

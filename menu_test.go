@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unsafe"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -361,5 +362,46 @@ func TestFileMenuHasNoExportItems(t *testing.T) {
 	}
 	if !strings.Contains(string(src), `file.Add("Print…")`) {
 		t.Error("Print… is no longer in File")
+	}
+}
+
+// clickItem runs a menu item's OnClick callback as AppKit would. Wails keeps
+// the callback unexported and its click path needs a running app, so the
+// field is reached directly; the test fails, rather than passing vacuously,
+// if a Wails upgrade renames it.
+func clickItem(t *testing.T, item *application.MenuItem) {
+	t.Helper()
+	field := reflect.ValueOf(item).Elem().FieldByName("callback")
+	if !field.IsValid() {
+		t.Fatal("application.MenuItem has no callback field; update clickItem for this Wails version")
+	}
+	callback := reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(func(*application.Context))
+	callback(nil)
+}
+
+// Insert lists Cross-reference… right after Citation…, on ⇧⌘R.
+func TestInsertMenuHasCrossReference(t *testing.T) {
+	testApp()
+	menu := application.NewMenu()
+	var emitted []string
+	addInsertMenu(menu, func(name string, _ ...any) { emitted = append(emitted, name) })
+	item := menu.ItemAt(0)
+	if item == nil || !item.IsSubmenu() || item.Label() != "Insert" {
+		t.Fatal("no Insert menu")
+	}
+	insert := item.GetSubmenu()
+	if l := insert.ItemAt(0).Label(); l != "Citation…" {
+		t.Errorf("first item %q, want Citation…", l)
+	}
+	crossref := insert.ItemAt(1)
+	if crossref == nil || crossref.Label() != "Cross-reference…" {
+		t.Fatal("second Insert item is not Cross-reference…")
+	}
+	if acc := crossref.GetAccelerator(); acc != "shift+cmdorctrl+r" && acc != "Cmd+Shift+R" {
+		t.Errorf("Cross-reference… accelerator %q, want shift+cmdorctrl+r", acc)
+	}
+	clickItem(t, crossref)
+	if !reflect.DeepEqual(emitted, []string{"menu:insert-crossref"}) {
+		t.Errorf("Cross-reference… emitted %v, want [menu:insert-crossref]", emitted)
 	}
 }

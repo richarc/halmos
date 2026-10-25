@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, unmount, flushSync } from 'svelte'
 import { EditorView } from '@codemirror/view'
-import { completionStatus } from '@codemirror/autocomplete'
+import { completionStatus, acceptCompletion, closeCompletion, startCompletion } from '@codemirror/autocomplete'
 
 const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.hoisted(() => {
   const listeners: Record<string, (ev: { data: unknown }) => void> = {}
@@ -1022,6 +1022,29 @@ describe('chart builder', () => {
     expect(target.textContent).toContain('Insert chart')
   })
 
+  it('keeps the fence label when updating a labelled chart', async () => {
+    const labelled = WITH_CHART.replace('```vega-lite', '```vega-lite {#fig:yield}')
+    const target = await openDoc(labelled)
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ selection: { anchor: labelled.indexOf('"mark"') } })
+    listeners['menu:insert-chart']({ data: null })
+    flushSync()
+    expect(target.textContent).toContain('Edit chart')
+
+    const markSelect = target.querySelector<HTMLSelectElement>('select[data-field="chart-type"]')!
+    markSelect.value = 'bar'
+    markSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    flushSync()
+    ;[...target.querySelectorAll('button')]
+      .find((b) => b.textContent?.trim() === 'Update')!
+      .click()
+    flushSync()
+
+    const doc = view.state.doc.toString()
+    expect(doc).toContain('```vega-lite {#fig:yield}\n')
+    expect(doc).toContain('"mark": "bar"')
+  })
+
   it('replaces exactly the target block in place on an edited-chart commit, leaving prose intact', async () => {
     const target = await openDoc(WITH_CHART)
     const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
@@ -1301,6 +1324,40 @@ describe('table builder', () => {
     expect(doc).toContain('| a   | b   |\n| --- | --- |\n| 1   | 42  |')
     expect(doc).not.toContain('| 1 | 2 |')
     expect(doc).toContain('After.')
+  })
+
+  async function openCaptioned(text: string, at: string) {
+    const target = await openDoc(text)
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ selection: { anchor: text.indexOf(at) } })
+    listeners['menu:insert-table']({ data: null })
+    flushSync()
+    return { target, view }
+  }
+
+  it('opens a captioned table with the caption in its field, not as a row', async () => {
+    const text = '# Results\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n: Yield {#tbl:y}\n'
+    const { target } = await openCaptioned(text, '| 1')
+    expect(target.querySelectorAll('input.td-cell')).toHaveLength(2)
+    expect(target.querySelector<HTMLInputElement>('input[data-field="caption"]')!.value).toBe('Yield')
+  })
+
+  it('keeps a heading right after the caption when the builder commits', async () => {
+    const text = '# Results\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n: Yield {#tbl:y}\n## Methods\n'
+    const { target, view } = await openCaptioned(text, '| 1')
+    buttonByText(target, 'Update')!.click()
+    flushSync()
+    expect(view.state.doc.toString()).toBe(
+      '# Results\n\n| a   | b   |\n| --- | --- |\n| 1   | 2   |\n\n: Yield {#tbl:y}\n## Methods\n',
+    )
+  })
+
+  it('round-trips a wrapped caption and its label', async () => {
+    const text = '# Results\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n: Yield by\ngroup {#tbl:y}\n\nAfter.\n'
+    const { target, view } = await openCaptioned(text, '| 1')
+    buttonByText(target, 'Update')!.click()
+    flushSync()
+    expect(view.state.doc.toString()).toContain('\n\n: Yield by group {#tbl:y}\n\nAfter.\n')
   })
 
   it('refuses to commit when the target moved while open', async () => {
@@ -2707,6 +2764,109 @@ describe('unknown citations in the status bar', () => {
   })
 })
 
+describe('missing cross-references in the status bar', () => {
+  const statusText = (t: HTMLElement) => t.querySelector('.status-bar')?.textContent ?? ''
+
+  it('counts references with no label, singular and plural, without a bibliography', async () => {
+    const target = await openDoc('# Results\n\nSee @fig:nope.\n')
+    await vi.waitFor(() => expect(statusText(target)).toContain('1 missing cross-reference'))
+    expect(statusText(target)).not.toContain('cross-references')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: view.state.doc.length, insert: '\nAnd @tbl:gone.\n' } })
+    await vi.waitFor(() => expect(statusText(target)).toContain('2 missing cross-references'))
+  })
+
+  it('lists them in the dialog and jumps to the line', async () => {
+    const target = await openDoc('# Results\n\nOne.\n\nSee @fig:nope.\n')
+    const btn = await vi.waitFor(() => {
+      const b = [...target.querySelectorAll<HTMLButtonElement>('.status-bar button')].find((x) =>
+        x.textContent?.includes('missing cross-reference'),
+      )
+      expect(b).toBeTruthy()
+      return b!
+    })
+    btn.click()
+    flushSync()
+    const dlg = target.querySelector<HTMLDialogElement>('dialog[aria-label="Missing cross-references"]')!
+    expect(dlg.open).toBe(true)
+    expect(dlg.textContent).toContain(
+      'No figure, table or equation has this label, or two share it. Click one to go to it.',
+    )
+    expect(dlg.textContent).toContain('@fig:nope')
+    expect(dlg.textContent).toContain('Line 5')
+    dlg.querySelector<HTMLButtonElement>('.unknown-list button')!.click()
+    flushSync()
+    expect(dlg.open).toBe(false)
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(5)
+  })
+
+  it('counts and lists a label used twice with the missing ones', async () => {
+    const target = await openDoc('# Results\n\nSee @fig:nope.\n\n![A](a.png){#fig:d}\n\n![B](b.png){#fig:d}\n')
+    const btn = await vi.waitFor(() => {
+      const b = [...target.querySelectorAll<HTMLButtonElement>('.status-bar button')].find((x) =>
+        x.textContent?.includes('2 cross-reference problems'),
+      )
+      expect(b).toBeTruthy()
+      return b!
+    })
+    btn.click()
+    flushSync()
+    const dlg = target.querySelector<HTMLDialogElement>('dialog[aria-label="Cross-reference problems"]')!
+    expect(dlg.open).toBe(true)
+    const entries = [...dlg.querySelectorAll('.unknown-entry')].map((e) => e.textContent?.replace(/\s+/g, ' ').trim())
+    expect(entries).toEqual(['@fig:nope Line 3', '{#fig:d} used twice Line 7'])
+  })
+})
+
+describe('bibliography keys that look like cross-references', () => {
+  const entry = (id: string) => `@article{${id}, title={T}, author={Doe, Jane}, year={2020}}\n`
+  const fm = '---\nbibliography: refs.bib\n---\n# Results\n\nText.\n'
+  const toastText = (t: HTMLElement) => t.querySelector('.toast')?.textContent ?? ''
+  const WARNING = "These references can't be cited because their keys look like cross-references"
+  afterEach(() => DocumentService.ReadBibliography.mockResolvedValue(''))
+
+  async function dismiss(target: HTMLElement) {
+    // Toasts clear themselves; wait for the current one to go.
+    await vi.waitFor(() => expect(target.querySelector('.toast')).toBeNull(), { timeout: 8000 })
+  }
+
+  it('warns once per set of keys, and again when the set changes', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(entry('a') + entry('fig:old'))
+    const target = await openDoc(fm)
+    await vi.waitFor(() =>
+      expect(toastText(target)).toBe(
+        `${WARNING} (fig:, tbl:, eq:, sec:): fig:old. Rename them in your reference manager.`,
+      ),
+    )
+    await dismiss(target)
+    listeners['bib:changed']({ data: null })
+    await new Promise((r) => setTimeout(r, 100))
+    expect(toastText(target)).toBe('')
+
+    DocumentService.ReadBibliography.mockResolvedValue(entry('a') + entry('fig:old') + entry('tbl:t'))
+    listeners['bib:changed']({ data: null })
+    await vi.waitFor(() => expect(toastText(target)).toContain('fig:old, tbl:t.'))
+  })
+
+  it('names at most five keys, then how many more', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(
+      ['fig:1', 'fig:2', 'fig:3', 'fig:4', 'fig:5', 'fig:6', 'fig:7'].map(entry).join(''),
+    )
+    const target = await openDoc(fm)
+    await vi.waitFor(() =>
+      expect(toastText(target)).toContain('fig:1, fig:2, fig:3, fig:4, fig:5 and 2 more. Rename them'),
+    )
+  })
+
+  it('stays quiet when no key looks like a reference', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(entry('a'))
+    const target = await openDoc(fm)
+    await new Promise((r) => setTimeout(r, 200))
+    expect(toastText(target)).not.toContain(WARNING)
+  })
+})
+
 describe('reloading the bibliography', () => {
   const bib = '@article{a, title={A}, author={Doe, Jane}, year={2020}}'
   const fm = '---\nbibliography: refs.bib\n---\n'
@@ -3186,5 +3346,204 @@ describe('Word and LaTeX export', () => {
     buttonByText(d, 'Sign Out')!.click()
     await vi.waitFor(() => expect(PortalService.SignOut).toHaveBeenCalled())
     await vi.waitFor(() => expect(dialog(target, 'Halmos account')?.textContent).toContain('Not connected'))
+  })
+})
+
+// CodeMirror ignores accept and move keys for interactionDelay (75 ms)
+// after the list opens, so a test waits that out the way a person would.
+const listReady = () => new Promise((r) => setTimeout(r, 100))
+
+describe('picking a cross-reference', () => {
+  // jsdom's Range has no geometry; CodeMirror measures the selection with it.
+  beforeEach(() => {
+    Range.prototype.getClientRects = () => ({ length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] }) as unknown as DOMRectList
+    Range.prototype.getBoundingClientRect = () => new DOMRect()
+  })
+
+  const DOC = '# Results\n\nSee \n\n$$\na = b\n$$\n'
+
+  async function openAt(content: string, at: number) {
+    const target = await openDoc(content)
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ selection: { anchor: at } })
+    return { target, view }
+  }
+
+  function nameField(target: HTMLElement) {
+    return target.querySelector<HTMLInputElement>('input[placeholder="bayes"]')!
+  }
+
+  function typeName(target: HTMLElement, name: string) {
+    const input = nameField(target)
+    input.value = name
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    flushSync()
+  }
+
+  it('Insert → Cross-reference… lists the targets at the cursor', async () => {
+    const { target, view } = await openAt(DOC, DOC.indexOf('See ') + 4)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    expect(target.querySelector('li.cm-crossref-option .cm-completionLabel')?.textContent).toBe('Unnamed equation')
+  })
+
+  it('Insert → Cross-reference… says so when there is nothing to refer to', async () => {
+    const { target, view } = await openAt('# Results\n\nSee \n', 15)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe(
+        "There's nothing to refer to yet. Give a figure or table a caption, or add a display equation.",
+      ),
+    )
+    expect(completionStatus(view.state)).toBeNull()
+  })
+
+  it('Insert → Cross-reference… in code says a reference cannot go there', async () => {
+    const doc = '# Results\n\n```\ncode\n```\n\n![Yield](a.png)\n'
+    const { target, view } = await openAt(doc, doc.indexOf('code'))
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe(
+        "Cross-references can't go inside code, maths or frontmatter.",
+      ),
+    )
+    expect(completionStatus(view.state)).toBeNull()
+  })
+
+  it('Insert → Cross-reference… in maths says a reference cannot go there', async () => {
+    const doc = '# Results\n\nSee $x + y$ here.\n\n![Yield](a.png)\n'
+    const { target } = await openAt(doc, doc.indexOf('+'))
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe(
+        "Cross-references can't go inside code, maths or frontmatter.",
+      ),
+    )
+  })
+
+  it('does not say so when the menu is refused for another reason', async () => {
+    const { target } = await openAt('# Results\n\nSee \n', 15)
+    listeners['menu:insert-table']({ data: null })
+    flushSync()
+    listeners['menu:insert-crossref']({ data: null })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(target.querySelector('.toast')?.textContent ?? '').not.toContain('nothing to refer to')
+  })
+
+  it('does nothing while the table builder is open', async () => {
+    const { view } = await openAt(DOC, DOC.indexOf('See ') + 4)
+    listeners['menu:insert-table']({ data: null })
+    flushSync()
+    listeners['menu:insert-crossref']({ data: null })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(completionStatus(view.state)).toBeNull()
+  })
+
+  it('asks for a name before referring to an unnamed equation, and keeps asking until it is usable', async () => {
+    const { target, view } = await openAt(DOC, DOC.indexOf('See ') + 4)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    const dialog = target.querySelector('dialog[aria-label="Name this equation"]')!
+    expect(dialog.hasAttribute('open')).toBe(true)
+    expect(dialog.textContent).toContain('Halmos writes {#eq:name} after the equation.')
+
+    buttonByText(dialog as HTMLElement, 'Insert')!.click()
+    flushSync()
+    expect(dialog.textContent).toContain('Type a name.')
+
+    typeName(target, 'a b')
+    buttonByText(dialog as HTMLElement, 'Insert')!.click()
+    flushSync()
+    expect(dialog.textContent).toContain('Use letters, digits, - _ or . only, no spaces.')
+    expect(dialog.hasAttribute('open')).toBe(true)
+
+    typeName(target, 'bayes')
+    buttonByText(dialog as HTMLElement, 'Insert')!.click()
+    flushSync()
+    expect(view.state.doc.toString()).toBe('# Results\n\nSee @eq:bayes\n\n$$\na = b\n$$ {#eq:bayes}\n')
+    expect(dialog.hasAttribute('open')).toBe(false)
+  })
+
+  it('says so when another equation has the name', async () => {
+    const doc = DOC + '\n$$\nc\n$$ {#eq:bayes}\n'
+    const { target, view } = await openAt(doc, doc.indexOf('See ') + 4)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    // In document order: the unnamed equation, then the named one.
+    const options = [...target.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
+    expect(options).toEqual(['Unnamed equation', 'Equation 1'])
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    typeName(target, 'bayes')
+    const dialog = target.querySelector('dialog[aria-label="Name this equation"]') as HTMLElement
+    buttonByText(dialog, 'Insert')!.click()
+    flushSync()
+    expect(dialog.textContent).toContain('Another equation already has that name.')
+  })
+
+  it('Cancel leaves the document as it was', async () => {
+    const { target, view } = await openAt(DOC, DOC.indexOf('See ') + 4)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    const dialog = target.querySelector('dialog[aria-label="Name this equation"]') as HTMLElement
+    buttonByText(dialog, 'Cancel')!.click()
+    flushSync()
+    expect(dialog.hasAttribute('open')).toBe(false)
+    expect(view.state.doc.toString()).toBe(DOC)
+  })
+
+  it('toasts and writes nothing when the equation went away while the name was asked', async () => {
+    const { target, view } = await openAt(DOC, DOC.indexOf('See ') + 4)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    const eq = view.state.doc.toString().indexOf('a = b')
+    view.dispatch({ changes: { from: eq, to: eq + 5, insert: 'c = d' } })
+    typeName(target, 'bayes')
+    const dialog = target.querySelector('dialog[aria-label="Name this equation"]') as HTMLElement
+    buttonByText(dialog, 'Insert')!.click()
+    flushSync()
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe('That equation moved, so no reference was added.'),
+    )
+    expect(view.state.doc.toString()).toBe('# Results\n\nSee \n\n$$\nc = d\n$$\n')
+    expect(dialog.hasAttribute('open')).toBe(false)
+  })
+
+  it("refuses a reference on an unlabelled table's own caption line, and says so", async () => {
+    const doc = '# Results\n\n| a |\n| --- |\n| 1 |\n\n: Crops, as @tbl:\n'
+    const { target, view } = await openAt(doc, doc.length - 1)
+    startCompletion(view)
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe("That reference is on the table's own line, so it wasn't added."),
+    )
+    expect(view.state.doc.toString()).toBe(doc)
+    closeCompletion(view)
+  })
+
+  it('labels an unlabelled figure straight away when it is chosen', async () => {
+    const doc = '# Results\n\nSee @fig:\n\n![Yield](a.png)\n'
+    const { view } = await openAt(doc, doc.indexOf('@fig:') + 5)
+    // Typing opens the list; here it is asked for directly.
+    startCompletion(view)
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    flushSync()
+    expect(view.state.doc.toString()).toBe('# Results\n\nSee @fig:yield\n\n![Yield](a.png){#fig:yield}\n')
+    closeCompletion(view)
   })
 })

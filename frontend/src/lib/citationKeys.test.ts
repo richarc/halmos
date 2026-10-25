@@ -176,4 +176,8 @@ describe('unknownCitations', () => {
   it('counts lines from the top of the document including frontmatter', () => {
     expect(unknownCitations('---\nx: y\n---\n@q', () => false)).toEqual([{ key: 'q', line: 4 }])
   })
+  it('leaves cross-references out', () => {
+    expect(findCitationKeys('See @fig:a and [@smith2020].').map((k) => k.key)).toEqual(['smith2020'])
+    expect(unknownCitations('[@eq:x]', () => false)).toEqual([])
+  })
 })

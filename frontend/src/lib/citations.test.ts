@@ -5,6 +5,7 @@ import type { CSLEntry } from './bibliography'
 import MarkdownIt from 'markdown-it'
 import { citationPlugin } from './citations'
 import type { CitationCluster } from './citations'
+import { createMarkdownParser } from './markdownParser'
 
 const ENTRIES: CSLEntry[] = [
   { id: 'smith2020', type: 'article-journal', title: 'A study',
@@ -383,5 +384,58 @@ describe('loadStyleXml', () => {
   it('returns null for an id that is not bundled', async () => {
     const { loadStyleXml } = await import('./citations')
     expect(await loadStyleXml('nature')).toBeNull()
+  })
+})
+
+describe('cross-reference keys', () => {
+  function parse(src: string) {
+    const env: { citations?: CitationCluster[] } = {}
+    const tokens = createMarkdownParser().parse(src, env)
+    const inline = tokens.flatMap((t) => t.children ?? [])
+    return { env, inline }
+  }
+  const crossrefs = (src: string) => parse(src).inline.filter((t) => t.type === 'crossref')
+
+  it('reads a bare @fig:a as a cross-reference, not a citation', () => {
+    const { env, inline } = parse('See @fig:a.')
+    const refs = inline.filter((t) => t.type === 'crossref')
+    expect(refs).toHaveLength(1)
+    expect(refs[0].meta.keys).toEqual(['fig:a'])
+    expect(refs[0].meta.mixed).toBe(false)
+    expect(refs[0].content).toBe('@fig:a')
+    expect(env.citations ?? []).toEqual([])
+  })
+
+  it('reads a bracket group of references as one cross-reference', () => {
+    const refs = crossrefs('[@fig:a; @tbl:b]')
+    expect(refs).toHaveLength(1)
+    expect(refs[0].meta.keys).toEqual(['fig:a', 'tbl:b'])
+    expect(refs[0].meta.mixed).toBe(false)
+  })
+
+  it('marks a group that mixes references and citations, and makes no cluster', () => {
+    const { env, inline } = parse('[@fig:a; @smith2020]')
+    const refs = inline.filter((t) => t.type === 'crossref')
+    expect(refs).toHaveLength(1)
+    expect(refs[0].meta.mixed).toBe(true)
+    expect(inline.some((t) => t.type === 'citation')).toBe(false)
+    expect(env.citations ?? []).toEqual([])
+  })
+
+  it('ignores case in the prefix', () => {
+    expect(crossrefs('@Fig:a')).toHaveLength(1)
+  })
+
+  it('keeps keys that only start like a prefix as citations', () => {
+    for (const src of ['@figueroa2019', '[@fig]', '@fig:']) {
+      const { env, inline } = parse(src)
+      expect(inline.some((t) => t.type === 'crossref')).toBe(false)
+      expect(env.citations).toHaveLength(1)
+    }
+  })
+
+  it('leaves an ordinary citation alone', () => {
+    const { env } = parse('[@smith2020]')
+    expect(env.citations).toEqual([{ items: [{ key: 'smith2020' }] }])
   })
 })

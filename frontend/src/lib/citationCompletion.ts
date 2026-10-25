@@ -3,6 +3,7 @@ import type { CSLEntry } from './bibliography'
 import type { EditorState } from '@codemirror/state'
 import { inFrontmatter, isInCode } from './markdownCommands'
 import { mathRangesIn } from './spellcheck'
+import { isCrossrefKey } from './crossrefs'
 
 /** What the editor needs to know about the loaded bibliography. */
 export interface CitationContext {
@@ -74,10 +75,18 @@ interface Searchable {
 // than on every keystroke.
 const searchable = new WeakMap<CSLEntry[], Searchable[]>()
 
+/**
+ * Bibliography ids that read as cross-references (`fig:old`), so the preview
+ * can never cite them. Completion leaves them out; a warning can name them.
+ */
+export function shadowedKeys(entries: CSLEntry[]): string[] {
+  return entries.filter((e) => isCrossrefKey(e.id)).map((e) => e.id)
+}
+
 function index(entries: CSLEntry[]): Searchable[] {
   let list = searchable.get(entries)
   if (!list) {
-    list = entries.map((entry) => ({
+    list = entries.filter((e) => !isCrossrefKey(e.id)).map((entry) => ({
       entry,
       key: entry.id.toLowerCase(),
       words: [...(entry.author ?? entry.editor ?? []).flatMap((n) => [n.family, n.given, n.literal]), entry.title]
@@ -103,7 +112,7 @@ function rank(item: Searchable, q: string): number {
 const MAX_BLOCK_LINES = 40
 
 /** True when `at` sits inside a maths span found in the blank-line-bounded block around it. */
-function inLocalMaths(state: EditorState, at: number): boolean {
+export function inLocalMaths(state: EditorState, at: number): boolean {
   const { doc } = state
   const here = doc.lineAt(at).number
   let first = here
@@ -135,6 +144,9 @@ export function citationCompletionSource(get: () => CitationContext | null): Com
 
     if (inFrontmatter(cc.state, cc.pos) || isInCode(cc.state, cc.pos)) return null
     if (inLocalMaths(cc.state, at)) return null
+
+    // `@fig:` and friends belong to the cross-reference source, not citations.
+    if (isCrossrefKey(typed[1])) return null
 
     const q = typed[1].toLowerCase()
     const ranked: { entry: CSLEntry; rank: number }[] = []

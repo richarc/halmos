@@ -1,18 +1,21 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, unmount, flushSync } from 'svelte'
 import { EditorView, type Command } from '@codemirror/view'
 import { foldCode, forceParsing } from '@codemirror/language'
 import { undo } from '@codemirror/commands'
 import { setSearchQuery, SearchQuery } from '@codemirror/search'
-import { startCompletion, completionStatus } from '@codemirror/autocomplete'
+import { startCompletion, completionStatus, closeCompletion, acceptCompletion } from '@codemirror/autocomplete'
 import Editor from './Editor.svelte'
 import { toggleBold } from './lib/markdownCommands'
+import { collectTargets } from './lib/crossrefTargets'
+import type { CrossrefTarget } from './lib/crossrefs'
 
 interface ChartBlock {
   from: number
   to: number
   spec: string
+  info: string
 }
 
 interface EditorApi {
@@ -25,10 +28,18 @@ interface EditorApi {
   lineCount(): number
   topVisibleLine(): number
   enclosingChartBlock(): ChartBlock | null
-  enclosingTable(): { from: number; to: number; text: string } | null
+  enclosingTable(): {
+    from: number
+    to: number
+    tableTo: number
+    text: string
+    caption: { caption: string; label: string | null } | null
+  } | null
   replaceRange(from: number, to: number, text: string): void
   find(cmd: 'open' | 'replace' | 'next' | 'previous'): boolean
   refreshCitations(): void
+  openCrossrefList(): boolean
+  applyReference(target: CrossrefTarget, from: number, to: number, eqName?: string): string
 }
 
 /**
@@ -538,9 +549,9 @@ describe('chart block lookup', () => {
   ].join('\n')
 
   /** Mounts with DOC loaded and the cursor at `pos`. */
-  function atPosition(pos: number) {
+  function atPosition(pos: number, doc = DOC) {
     const { editor, target, cleanup } = mountEditor()
-    editor.setContent(DOC)
+    editor.setContent(doc)
     // Scoped to this test's own target. `document.querySelector` returned
     // whichever editor happened to be first in the body, so these tests were
     // passing on the incidental fact that no earlier one had outlived its
@@ -555,6 +566,13 @@ describe('chart block lookup', () => {
     const block = editor.enclosingChartBlock()
     expect(block).not.toBeNull()
     expect(block!.spec).toBe('{"mark": "line"}')
+    cleanup()
+  })
+
+  it('finds a labelled block and returns the whole info string', () => {
+    const doc = DOC.replace('```vega-lite', '```vega-lite {#fig:yield}')
+    const { editor, cleanup } = atPosition(doc.indexOf('"mark"'), doc)
+    expect(editor.enclosingChartBlock()!.info).toBe('vega-lite {#fig:yield}')
     cleanup()
   })
 
@@ -645,6 +663,75 @@ describe('Editor.enclosingTable', () => {
     const { editor, cleanup } = atPosition(DOC.indexOf('After'))
     expect(editor.enclosingTable()).toBeNull()
     cleanup()
+  })
+
+  it('has no caption when none follows', () => {
+    const { editor, cleanup } = atPosition(DOC.indexOf('| 1'))
+    expect(editor.enclosingTable()!.caption).toBeNull()
+    cleanup()
+  })
+
+  describe('with a caption', () => {
+    const CAPTION = ': Yield {#tbl:y}'
+    const CDOC = `# Results\n\n${TABLE}\n\n${CAPTION}\n\nAfter.\n`
+
+    function at(doc: string, pos: number) {
+      const { target, editor, cleanup } = mountEditor()
+      editor.setContent(doc)
+      const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+      view.dispatch({ selection: { anchor: pos } })
+      return { editor, cleanup }
+    }
+
+    it('extends over the caption from a cursor in the table', () => {
+      const { editor, cleanup } = at(CDOC, CDOC.indexOf('| 1'))
+      const block = editor.enclosingTable()!
+      expect(block.caption).toEqual({ caption: 'Yield', label: 'tbl:y' })
+      expect(block.text).toBe(`${TABLE}\n\n${CAPTION}`)
+      expect(CDOC.slice(block.from, block.to)).toBe(block.text)
+      cleanup()
+    })
+
+    it('finds the table from a cursor on the caption line', () => {
+      const { editor, cleanup } = at(CDOC, CDOC.indexOf('Yield'))
+      const block = editor.enclosingTable()!
+      expect(block.caption).toEqual({ caption: 'Yield', label: 'tbl:y' })
+      expect(block.from).toBe(CDOC.indexOf('| a'))
+      expect(block.to).toBe(CDOC.indexOf(CAPTION) + CAPTION.length)
+      cleanup()
+    })
+
+    it('joins a wrapped caption and reads the label from its last line', () => {
+      const doc = `${TABLE}\n\n: Yield by\ngroup {#tbl:y}\n\nAfter.\n`
+      const { editor, cleanup } = at(doc, doc.indexOf('group'))
+      const block = editor.enclosingTable()!
+      expect(block.caption).toEqual({ caption: 'Yield by group', label: 'tbl:y' })
+      expect(block.to).toBe(doc.indexOf('{#tbl:y}') + '{#tbl:y}'.length)
+      cleanup()
+    })
+
+    it('stops the range at the caption paragraph when a heading follows it', () => {
+      const doc = `${TABLE}\n\n${CAPTION}\n## Methods\n`
+      const { editor, cleanup } = at(doc, doc.indexOf('| 1'))
+      const block = editor.enclosingTable()!
+      expect(block.to).toBe(doc.indexOf(CAPTION) + CAPTION.length)
+      expect(block.tableTo).toBe(doc.indexOf(TABLE) + TABLE.length)
+      cleanup()
+    })
+
+    it('ignores a caption line that is not after a table', () => {
+      const doc = 'Some prose.\n\n: Not a caption\n'
+      const { editor, cleanup } = at(doc, doc.indexOf('Not'))
+      expect(editor.enclosingTable()).toBeNull()
+      cleanup()
+    })
+
+    it('ignores a caption separated from the table by two blank lines', () => {
+      const doc = `${TABLE}\n\n\n${CAPTION}\n`
+      const { editor, cleanup } = at(doc, doc.indexOf('Yield'))
+      expect(editor.enclosingTable()).toBeNull()
+      cleanup()
+    })
   })
 })
 
@@ -802,6 +889,140 @@ describe('Editor unknown citation keys', () => {
     known = true
     editor.refreshCitations()
     expect(marks(target)).toEqual([])
+    cleanup()
+  })
+})
+
+// CodeMirror ignores accept and move keys for interactionDelay (75 ms)
+// after the list opens, so a test waits that out the way a person would.
+const listReady = () => new Promise((r) => setTimeout(r, 100))
+
+describe('Editor cross-references', () => {
+  // jsdom's Range has no geometry; CodeMirror measures the list's position with it.
+  beforeEach(() => {
+    Range.prototype.getClientRects = () => ({ length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] }) as unknown as DOMRectList
+    Range.prototype.getBoundingClientRect = () => new DOMRect()
+  })
+
+  const DOC = 'See @fig:\n\n![Yield](a.png)\n\n![Rain](b.png){#fig:rain}\n'
+
+  function viewOf(target: HTMLElement) {
+    return EditorView.findFromDOM(target.querySelector('.cm-editor') as HTMLElement)!
+  }
+
+  it('applyReference writes the label and the reference as one undo step', () => {
+    const { editor, target, text, cleanup } = mountEditor()
+    editor.setContent(DOC)
+    const from = DOC.indexOf('@fig:')
+    const fig = collectTargets(DOC)[0]
+    expect(editor.applyReference(fig, from, from + 5)).toBe('ok')
+    expect(text()).toBe('See @fig:yield\n\n![Yield](a.png){#fig:yield}\n\n![Rain](b.png){#fig:rain}\n')
+    const view = viewOf(target)
+    // The caret follows the reference, not the label.
+    expect(view.state.selection.main.head).toBe(from + '@fig:yield'.length)
+    undo(view)
+    expect(view.state.doc.toString()).toBe(DOC)
+    cleanup()
+  })
+
+  it('applyReference reports a target that is gone and writes nothing', () => {
+    const { editor, target, cleanup } = mountEditor()
+    editor.setContent('See @fig:\n\nNo figure here.\n')
+    const gone = collectTargets(DOC)[0]
+    expect(editor.applyReference(gone, 4, 9)).toBe('moved')
+    expect(viewOf(target).state.doc.toString()).toBe('See @fig:\n\nNo figure here.\n')
+    cleanup()
+  })
+
+  it('applyReference passes on a bad equation name', () => {
+    const { editor, cleanup } = mountEditor()
+    const doc = 'See @eq:\n\n$$ x $$\n'
+    editor.setContent(doc)
+    expect(editor.applyReference(collectTargets(doc)[0], 4, 8, 'a b')).toBe('invalid')
+    cleanup()
+  })
+
+  it('typing @fig: opens a list of figures', async () => {
+    let targets: CrossrefTarget[] = []
+    const { editor, target, cleanup } = mountEditor({ crossrefs: () => targets })
+    editor.setContent(DOC, 'end')
+    targets = collectTargets(DOC)
+    const view = viewOf(target)
+    view.dispatch({ selection: { anchor: DOC.indexOf('@fig:') + 5 } })
+    startCompletion(view)
+    await vi.waitFor(() => expect(target.querySelector('li.cm-crossref-option')).not.toBeNull())
+    const labels = [...target.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
+    expect(labels).toEqual(['Figure 1', 'Figure 2'])
+    cleanup()
+  })
+
+  it('openCrossrefList lists every kind at the cursor, once', async () => {
+    const doc = 'See \n\n![Yield](a.png)\n\n$$ x $$\n'
+    const { editor, target, cleanup } = mountEditor({ crossrefs: () => collectTargets(doc) })
+    editor.setContent(doc)
+    const view = viewOf(target)
+    view.dispatch({ selection: { anchor: 4 } })
+    editor.openCrossrefList()
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    const labels = [...target.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
+    expect(labels).toEqual(['Figure 1', 'Unnamed equation'])
+    // Closing the list ends the all-kinds mode: an explicit request at a
+    // plain word offers nothing.
+    closeCompletion(view)
+    startCompletion(view)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(completionStatus(view.state)).toBeNull()
+    cleanup()
+  })
+
+  // The list cannot open in code; the all-kinds mode must not outlive that
+  // and turn a later Ctrl-Space at a plain word into the cross-reference list.
+  it.each([
+    ['code', 'code'],
+    ['frontmatter', 'title'],
+    ['maths', 'x + y'],
+  ])('openCrossrefList in %s leaves no all-kinds mode behind', async (_, at) => {
+    const doc = '---\ntitle: T\n---\nSee \n\n```js\ncode\n```\n\n$x + y$\n\n![Yield](a.png)\n'
+    const { editor, target, cleanup } = mountEditor({ crossrefs: () => collectTargets(doc) })
+    editor.setContent(doc)
+    const view = viewOf(target)
+    view.dispatch({ selection: { anchor: doc.indexOf(at) + 1 } })
+    editor.openCrossrefList()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(completionStatus(view.state)).toBeNull()
+    view.dispatch({ selection: { anchor: doc.indexOf('See ') + 4 } })
+    startCompletion(view)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(completionStatus(view.state)).toBeNull()
+    cleanup()
+  })
+
+  it('from the menu, a reference chosen right after a word is spaced off it', async () => {
+    const doc = 'see\n\n![Yield](a.png){#fig:yield}\n'
+    const { editor, target, text, cleanup } = mountEditor({ crossrefs: () => collectTargets(doc) })
+    editor.setContent(doc)
+    const view = viewOf(target)
+    view.dispatch({ selection: { anchor: 3 } })
+    editor.openCrossrefList()
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    expect(text()).toBe('see @fig:yield\n\n![Yield](a.png){#fig:yield}\n')
+    cleanup()
+  })
+
+  it('choosing an unlabelled figure from the list hands it to onpickcrossref', async () => {
+    const doc = 'See @fig:\n\n![Yield](a.png)\n'
+    const onpickcrossref = vi.fn()
+    const { editor, target, cleanup } = mountEditor({ crossrefs: () => collectTargets(doc), onpickcrossref })
+    editor.setContent(doc)
+    const view = viewOf(target)
+    view.dispatch({ selection: { anchor: 9 } })
+    startCompletion(view)
+    await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
+    await listReady()
+    acceptCompletion(view)
+    expect(onpickcrossref).toHaveBeenCalledWith(expect.objectContaining({ kind: 'fig', number: 1 }), 4, 9)
     cleanup()
   })
 })

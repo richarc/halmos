@@ -12,6 +12,7 @@
     type ExportFormat, type ResolvedImage, type ConvertBody,
   } from './lib/exportRequest'
   import { diagramImages, replaceDiagramFences } from './lib/exportDiagrams'
+  import { labelForExport } from './lib/exportCrossrefs'
   import { toPng } from './lib/rasterise'
   import { messageFor, problemMessage } from './lib/portalMessages'
   import Editor from './Editor.svelte'
@@ -63,6 +64,10 @@
   import { parsePipeTable, serializePipeTable, type PipeTable } from './lib/pipeTable'
   import Dialog from './Dialog.svelte'
   import UnknownCitations from './UnknownCitations.svelte'
+  import EquationName, { type NameError } from './EquationName.svelte'
+  import { KIND_WORD, type CrossrefTarget } from './lib/crossrefs'
+  import { pickable } from './lib/crossrefCompletion'
+  import { shadowedKeys } from './lib/citationCompletion'
   import { unknownCitations } from './lib/citationKeys'
   import { readSpec, type BuilderState } from './lib/chartSpec'
   import { refusalMessage } from './lib/chartLabels'
@@ -162,6 +167,35 @@
     const result = timed('render', () => renderDocument(text, opts))
     html = result.html
     outline = result.outline
+    crossrefTargets = result.crossrefs.targets
+    // Missing references and labels used twice share the status-bar count
+    // and the dialog, in line order, each shown as it is written.
+    const { missing, duplicates } = result.crossrefs
+    const problems = [
+      ...missing.map((m) => ({ key: `@${m.key}`, line: m.line })),
+      ...duplicates.map((d) => ({ key: `{#${d.key}} used twice`, line: d.line })),
+    ].sort((a, b) => a.line - b.line)
+    missingRefs = problems
+    duplicateLabels = duplicates.length > 0
+    if (problems.length === 0) missingOpen = false
+  }
+
+  // The last render's cross-reference targets, read by the editor's list when
+  // it opens. Not reactive: nothing redraws when they change.
+  let crossrefTargets: CrossrefTarget[] = []
+
+  // References whose label no figure, table or equation has, and labels a
+  // second target repeats, from the last render, so no extra parse is needed.
+  let missingRefs = $state<{ key: string; line: number }[]>([])
+  let duplicateLabels = $state(false)
+  const missingCount = $derived(
+    `${missingRefs.length} ${duplicateLabels ? 'cross-reference problem' : 'missing cross-reference'}` +
+      (missingRefs.length === 1 ? '' : 's'),
+  )
+  let missingOpen = $state(false)
+  function jumpToMissing(line: number) {
+    missingOpen = false
+    jumpToLine(line)
   }
 
   // The panel's own arrows. The View menu owns the same setting, so this is a
@@ -310,6 +344,21 @@
   // same text and style keeps it. Null when there is nothing to keep.
   let loadedBib: { text: string; csl: string; xml: string | null } | null = null
 
+  // The keys last warned about, so a reload of the same bibliography does not
+  // repeat the warning. Emptied when none are left, so they can warn again.
+  let warnedShadowed = ''
+  function warnShadowed(keys: string[]) {
+    const set = [...keys].sort().join('\n')
+    if (set === warnedShadowed) return
+    warnedShadowed = set
+    if (keys.length === 0) return
+    const shown = keys.slice(0, 5).join(', ')
+    const more = keys.length > 5 ? ` and ${keys.length - 5} more` : ''
+    toast(
+      `These references can't be cited because their keys look like cross-references (fig:, tbl:, eq:, sec:): ${shown}${more}. Rename them in your reference manager.`,
+    )
+  }
+
   async function reloadBibliography() {
     const gen = ++reloadGeneration
     const wanted = fmBibliography ?? null
@@ -373,6 +422,7 @@
       if (gen !== reloadGeneration) return // superseded while the style loaded
       formatter = next
       bibEntries = entries
+      warnShadowed(shadowedKeys(entries))
       loadedBib = styleNotice ? null : { text, csl, xml }
       if (styleNotice) toast(styleNotice)
     } catch {
@@ -440,6 +490,61 @@
     }
   }
 
+  // Insert → Cross-reference…: the editor's list at the cursor, every kind in
+  // it. Refused while anything modal is up, as insertCitation is.
+  function insertCrossref() {
+    if (showWelcome || chartOpen || tableOpen || newOpen || pendingAction || equationAsk) return
+    if (!crossrefTargets.some(pickable)) {
+      toast("There's nothing to refer to yet. Give a figure or table a caption, or add a display equation.")
+      return
+    }
+    if (!editor.openCrossrefList()) toast("Cross-references can't go inside code, maths or frontmatter.")
+  }
+
+  // An unnamed equation chosen from the list waits here while its name is
+  // asked. `typed` is what `[from, to)` held then, checked again before writing.
+  let equationAsk = $state<{ target: CrossrefTarget; from: number; to: number; typed: string } | null>(null)
+  let equationError = $state<NameError | null>(null)
+
+  // What was refused by the editor, said with the target's kind word.
+  function refusedToast(t: CrossrefTarget, why: 'moved' | 'own-line') {
+    const word = KIND_WORD[t.kind].toLowerCase()
+    toast(
+      why === 'moved'
+        ? `That ${word} moved, so no reference was added.`
+        : `That reference is on the ${word}'s own line, so it wasn't added.`,
+    )
+  }
+
+  // A target without a label was chosen: a figure or table is labelled from
+  // its caption straight away; an equation needs a name first.
+  function pickCrossref(target: CrossrefTarget, from: number, to: number) {
+    if (showWelcome || chartOpen || tableOpen || newOpen || pendingAction || equationAsk) return
+    if (target.kind === 'eq') {
+      equationError = null
+      equationAsk = { target, from, to, typed: editor.textInRange(from, to) }
+      return
+    }
+    const result = editor.applyReference(target, from, to)
+    if (result === 'moved' || result === 'own-line') refusedToast(target, result)
+  }
+
+  function nameEquation(name: string) {
+    const ask = equationAsk
+    if (!ask) return
+    // The document may have changed under the dialog (a reload from disk).
+    const result =
+      editor.textInRange(ask.from, ask.to) === ask.typed
+        ? editor.applyReference(ask.target, ask.from, ask.to, name)
+        : 'moved'
+    if (result === 'ok' || result === 'moved' || result === 'own-line') {
+      equationAsk = null
+      if (result !== 'ok') refusedToast(ask.target, result)
+      return
+    }
+    equationError = result
+  }
+
   const FORMAT_COMMANDS: Record<string, StateCommand> = {
     'heading:0': toggleHeading(0),
     'heading:1': toggleHeading(1),
@@ -459,7 +564,7 @@
 
   let chartOpen = $state(false)
   let chartInitial: BuilderState | null = $state(null)
-  let chartTarget: { from: number; to: number } | null = null
+  let chartTarget: { from: number; to: number; info: string } | null = null
 
   function openChartBuilder() {
     // A second trigger while the builder is already open must be a no-op,
@@ -490,7 +595,7 @@
     // right thing to open.
     if (block.spec.trim() === '') {
       chartInitial = null
-      chartTarget = { from: block.from, to: block.to }
+      chartTarget = { from: block.from, to: block.to, info: block.info }
       chartOpen = true
       return
     }
@@ -505,12 +610,13 @@
       return
     }
     chartInitial = result.state
-    chartTarget = { from: block.from, to: block.to }
+    chartTarget = { from: block.from, to: block.to, info: block.info }
     chartOpen = true
   }
 
   function commitChart(spec: string) {
-    const block = '```vega-lite\n' + spec + '\n```'
+    // A replaced chart keeps its whole info string, so a `{#fig:id}` label survives.
+    const block = '```' + (chartTarget?.info ?? 'vega-lite') + '\n' + spec + '\n```'
     if (chartTarget) {
       // chartTarget is a raw offset pair captured when the builder opened and
       // never remapped against later document changes, so it cannot be
@@ -593,14 +699,15 @@
       tableOpen = true
       return
     }
-    const result = parsePipeTable(block.text)
+    // The caption is part of the range but not of the table.
+    const result = parsePipeTable(editor.textInRange(block.from, block.tableTo))
     if (!result.ok) {
       // Rare: Lezer only produces a Table for text that is one. Refuse rather
       // than open a fresh builder targeted at a block we could not read.
       toast("That table couldn't be read, so it can't be opened here.")
       return
     }
-    tableInitial = result.table
+    tableInitial = { ...result.table, caption: block.caption?.caption ?? '', label: block.caption?.label ?? undefined }
     tableTarget = { from: block.from, to: block.to }
     tableOriginalText = block.text
     tableOpen = true
@@ -797,6 +904,7 @@
   // and only the cited part of the bibliography.
   async function buildConvertBody(format: ExportFormat, docPath: string, source: string): Promise<ConvertBody> {
     let markdown = source
+    markdown = labelForExport(markdown)
     const images: Record<string, string> = {}
     if (format === 'docx') {
       const root = await preview.exportRoot()
@@ -1610,6 +1718,7 @@
     Events.On('recents:changed', () => void refreshRecents())
     Events.On('bib:changed', () => void reloadBibliography())
     Events.On('menu:insert-citation', () => void insertCitation())
+    Events.On('menu:insert-crossref', () => insertCrossref())
     Events.On('menu:export-pdf', () => exportPDF())
     Events.On('menu:export-html', () => void exportHTML())
     Events.On('menu:export-pandoc', (ev: { data: unknown }) => {
@@ -1735,7 +1844,7 @@
       <Outline entries={outline} onjump={jumpToLine} />
     {/if}
     <section class="editor-pane" style="width: {editorWidth}%">
-      <Editor bind:this={editor} citations={() => citationContext} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} onpasteimage={pasteImage} spellcheck={spellCheck} />
+      <Editor bind:this={editor} citations={() => citationContext} crossrefs={() => crossrefTargets} onpickcrossref={pickCrossref} onchange={onEditorChange} onformat={applyFormat} onscroll={onEditorScroll} onpasteimage={pasteImage} spellcheck={spellCheck} />
     </section>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -- WAI-ARIA "window splitter" pattern: a focusable separator with arrow-key resizing is the recommended markup -->
     <div
@@ -1758,6 +1867,11 @@
     {#if unknown.length > 0}
       <button class="link-button unknown-count" onclick={() => (unknownOpen = true)}
         >{unknown.length} unknown citation{unknown.length === 1 ? '' : 's'}</button
+      >
+    {/if}
+    {#if missingRefs.length > 0}
+      <button class="link-button unknown-count" onclick={() => (missingOpen = true)}
+        >{missingCount}</button
       >
     {/if}
   </footer>
@@ -1923,6 +2037,22 @@
     {/snippet}
   </Dialog>
 
+  <EquationName
+    open={equationAsk !== null}
+    error={equationError}
+    oninsert={nameEquation}
+    oncancel={() => (equationAsk = null)}
+  />
+
+  <UnknownCitations
+    open={missingOpen}
+    items={missingRefs}
+    onclose={() => (missingOpen = false)}
+    onjump={jumpToMissing}
+    title={duplicateLabels ? 'Cross-reference problems' : 'Missing cross-references'}
+    hint="No figure, table or equation has this label, or two share it. Click one to go to it."
+    display={(key) => key}
+  />
   <UnknownCitations open={unknownOpen} items={unknown} onclose={() => (unknownOpen = false)} onjump={jumpToUnknown} />
 
   <Dialog open={zoteroHelp !== null} label="Zotero" title="Zotero" onclose={() => (zoteroHelp = null)}>
