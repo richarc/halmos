@@ -484,6 +484,13 @@ Ideas noted along the way, not yet committed to a release:
   citation parser already treats `sec:` keys as references. Pandoc's
   `numberSections` and pandoc-crossref's `sec:` labels carry it into Word
   and LaTeX, which needs a portal check.
+- **Charts and diagrams as figures in LaTeX export.** Today Vega-Lite and
+  Mermaid blocks reach the `.tex` as code, so they are not figures there
+  and a cross-reference to one does not resolve (found designing the
+  v0.15.0 cross-references, 2026-10-25). Word already gets them as PNG
+  images (`lib/exportDiagrams.ts`). Explore sending LaTeX the same images,
+  or PDF/SVG for sharp print, and what the portal needs to bundle image
+  files with the `.tex` (a zip, or images embedded some other way).
 - From the Markdown-books review (2026-10-23):
   - ePub export. Pandoc produces it with little extra work, so it would
     be a fourth format on the portal's existing conversion endpoint.
