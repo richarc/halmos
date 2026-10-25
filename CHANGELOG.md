@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- In a numbered reference list (IEEE, Vancouver, American Physics Society)
+  each reference starts on the same line as its number, instead of the line
+  below "[1]".
 - The chart builder refused to open a chart with styling it has no control
   for, such as an axis label angle or points on a line, naming it only as
   `encoding.x.axis`. It now keeps axis, scale, legend and sort settings,
