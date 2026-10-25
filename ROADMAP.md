@@ -181,7 +181,7 @@ into Word and LaTeX (its M0.15 section).
       (2026-10-25): pandoc-crossref puts a table's label on its caption line
       (`: Results by group {#tbl:results}`), so referring to a table needs
       its caption first.
-- [ ] **Cross-references to figures, tables, sections and equations.**
+- [ ] **Cross-references to figures, tables and equations.**
       Halmos numbers figures but gives no way to refer to one. The
       authoring guide rightly says not to write "Figure 1" by hand, which
       leaves no correct way to write "as shown in Figure 3". Add a label
@@ -199,6 +199,13 @@ into Word and LaTeX (its M0.15 section).
       - Autocomplete for labels after `@`, beside the citation completion,
         and the unknown-citation check extended to unknown labels.
       - Word and LaTeX: see the portal's M0.15 cross-references item.
+      Designed 2026-10-25 with the table captions above
+      (`docs/superpowers/specs/2026-10-25-table-captions-and-cross-references-design.md`).
+      Sections are left out: headings are not numbered, so "Section 3"
+      would point at a number the reader cannot see. See "Numbered
+      headings and section references" in the Backlog. Captions change
+      to "Figure 2: Caption" with a colon, as papers and the Word output
+      write them.
 - [ ] **Title, authors and abstract as document metadata.** Today the
       whole frontmatter is removed before rendering, and `title:` and
       `author:` are dropped (`docs/authoring.md`, "Frontmatter: exactly
@@ -469,6 +476,14 @@ library, so it cannot invent a reference.
 
 Ideas noted along the way, not yet committed to a release:
 
+- **Numbered headings and section references.** Split from the v0.15.0
+  cross-references (2026-10-25). Decide whether headings are numbered
+  (per document, in frontmatter), the format ("3", "3.2", "3.2.1") and
+  its style in the preview and PDF, then add `{#sec:id}` labels and
+  `@sec:id` references with the same pick-from-a-list completion. The
+  citation parser already treats `sec:` keys as references. Pandoc's
+  `numberSections` and pandoc-crossref's `sec:` labels carry it into Word
+  and LaTeX, which needs a portal check.
 - From the Markdown-books review (2026-10-23):
   - ePub export. Pandoc produces it with little extra work, so it would
     be a fourth format on the portal's existing conversion endpoint.
