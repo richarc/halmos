@@ -17,6 +17,8 @@ import {
 import { parseMermaidSource } from './mermaidSource'
 import { createKatexCache } from './katexCache'
 import { tableCaptionPlugin } from './tableCaptions'
+import { equationPlugin } from './equations'
+import type { TargetMeta } from './crossrefs'
 
 /**
  * The per-render environment markdown-it threads through to the rules. Typed
@@ -71,6 +73,7 @@ md.core.ruler.push('source_line', (state) => {
 // carries its anchor, and the retag carries it along.
 md.use(figurePlugin)
 md.use(tableCaptionPlugin)
+md.use(equationPlugin)
 md.use(outlinePlugin)
 // After outlinePlugin, so a future consumer of both sees consistent data;
 // after source_line always, since it reads the stamps.
@@ -260,6 +263,14 @@ const defaultMathBlock = md.renderer.rules.math_block!
 md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
   const line = tokens[idx].attrGet('data-source-line')
   const rendered = defaultMathBlock(tokens, idx, options, env, self)
+  // A labelled equation gets a wrapper that carries the id, the number and
+  // the anchor, so the anchor appears once and the inner <p> stays bare.
+  const target = tokens[idx].meta?.target as TargetMeta | undefined
+  if (target?.label) {
+    const anchor = line ? ` data-source-line="${md.utils.escapeHtml(line)}"` : ''
+    const number = target.number != null ? `<span class="equation-number">(${target.number})</span>` : ''
+    return `<div class="equation" id="${md.utils.escapeHtml(target.label)}"${anchor}>${rendered}${number}</div>\n`
+  }
   if (!line) return rendered
   return rendered.replace(/^<p /, `<p data-source-line="${md.utils.escapeHtml(line)}" `)
 }

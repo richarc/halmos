@@ -455,6 +455,9 @@ textarea:focus-visible,
 .sheet pre,
 .sheet table,
 .sheet .katex-display { margin-bottom: 0.9em; }
+.sheet .equation { display: flex; align-items: center; }
+.sheet .equation > .katex-block { flex: 1 1 auto; min-width: 0; }
+.sheet .equation-number { flex: none; margin-left: 1em; margin-bottom: 0.9em; }
 .sheet h1, .sheet h2, .sheet h3,
 .sheet h4, .sheet h5, .sheet h6 {
   margin: 1.3em 0 0.5em; line-height: 1.25; font-weight: 600;
