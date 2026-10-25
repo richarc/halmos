@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
+import { EditorView } from '@codemirror/view'
+import { EditorState } from '@codemirror/state'
 import {
+  lineAtHeight,
   previewOffsetForLine,
   createScrollSync,
   collectAnchors,
@@ -37,6 +40,14 @@ describe('previewOffsetForLine', () => {
   it('interpolates toward a virtual (docLines, scrollHeight) after the last anchor', () => {
     // line 20 → 1500, line 40 → 4000. Line 30 is halfway: 2750.
     expect(previewOffsetForLine(ANCHORS, 30, DOC_LINES, SCROLL_HEIGHT)).toBe(2750)
+  })
+
+  it('moves continuously within a source line, not in whole-line steps', () => {
+    // A wrapped paragraph is one source line however tall it is on screen, so
+    // the editor reports how far into it its top edge is. Line 15.5 sits
+    // halfway between 15 (1000) and 16 (1100).
+    expect(previewOffsetForLine(ANCHORS, 15.5, DOC_LINES, SCROLL_HEIGHT)).toBe(1050)
+    expect(previewOffsetForLine(ANCHORS, 10.25, DOC_LINES, SCROLL_HEIGHT)).toBe(525)
   })
 
   it('returns 0 when there are no anchors', () => {
@@ -86,6 +97,22 @@ function fakeTarget(anchors: Anchor[], scrollHeight = 4000) {
   }
   return { target, calls, measurements: () => measured }
 }
+
+describe('lineAtHeight', () => {
+  // jsdom has no layout, so CodeMirror estimates every line at 14px.
+  const view = new EditorView({ state: EditorState.create({ doc: 'a\nb\nc\nd' }), parent: document.body })
+
+  it('reports how far into a line the height falls', () => {
+    expect(lineAtHeight(view, 0)).toBe(1)
+    expect(lineAtHeight(view, 7)).toBe(1.5)
+    expect(lineAtHeight(view, 21)).toBe(2.5)
+  })
+
+  it('clamps above the document and past its end', () => {
+    expect(lineAtHeight(view, -30)).toBe(1)
+    expect(lineAtHeight(view, 1000)).toBe(5)
+  })
+})
 
 describe('createScrollSync', () => {
   it('scrolls the target to the mapped offset', () => {

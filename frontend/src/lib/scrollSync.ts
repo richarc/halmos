@@ -1,3 +1,5 @@
+import type { EditorView } from '@codemirror/view'
+
 export interface Anchor {
   /** 1-based line in the source document where this block starts. */
   line: number
@@ -79,6 +81,22 @@ export function collectAnchors(container: HTMLElement): Anchor[] {
     })
   }
   return anchors.sort((a, b) => a.line - b.line)
+}
+
+/**
+ * The source line at `y` pixels below the top of the editor's document, with
+ * the fraction of the way through it: 12.5 is halfway down line 12.
+ *
+ * The fraction is what keeps sync scrolling smooth. A wrapped paragraph is one
+ * source line however many screen lines it fills, so a whole line number would
+ * hold the preview still through the paragraph and then jump. Read from
+ * CodeMirror's height map, so it forces no layout.
+ */
+export function lineAtHeight(view: Pick<EditorView, 'lineBlockAtHeight' | 'state'>, y: number): number {
+  const block = view.lineBlockAtHeight(Math.max(0, y))
+  const line = view.state.doc.lineAt(block.from).number
+  if (block.height <= 0) return line
+  return line + Math.min(Math.max((y - block.top) / block.height, 0), 1)
 }
 
 export interface ScrollSyncTarget {
