@@ -460,7 +460,7 @@
 
   let chartOpen = $state(false)
   let chartInitial: BuilderState | null = $state(null)
-  let chartTarget: { from: number; to: number } | null = null
+  let chartTarget: { from: number; to: number; info: string } | null = null
 
   function openChartBuilder() {
     // A second trigger while the builder is already open must be a no-op,
@@ -491,7 +491,7 @@
     // right thing to open.
     if (block.spec.trim() === '') {
       chartInitial = null
-      chartTarget = { from: block.from, to: block.to }
+      chartTarget = { from: block.from, to: block.to, info: block.info }
       chartOpen = true
       return
     }
@@ -506,12 +506,13 @@
       return
     }
     chartInitial = result.state
-    chartTarget = { from: block.from, to: block.to }
+    chartTarget = { from: block.from, to: block.to, info: block.info }
     chartOpen = true
   }
 
   function commitChart(spec: string) {
-    const block = '```vega-lite\n' + spec + '\n```'
+    // A replaced chart keeps its whole info string, so a `{#fig:id}` label survives.
+    const block = '```' + (chartTarget?.info ?? 'vega-lite') + '\n' + spec + '\n```'
     if (chartTarget) {
       // chartTarget is a raw offset pair captured when the builder opened and
       // never remapped against later document changes, so it cannot be

@@ -13,6 +13,7 @@
   import { spellcheckExtension } from './lib/spellcheck'
   import { minimalChange } from './lib/textDiff'
   import { parseCaptionLine } from './lib/tableCaptions'
+  import { fenceLanguage } from './lib/figures'
   import { citationCompletionSource, citationOptionClass, citationOptionTitle, type CitationContext } from './lib/citationCompletion'
   import { autocompletion } from '@codemirror/autocomplete'
   import { citationHover, unknownKeyMarks, refreshCitationsEffect } from './lib/citationEditor'
@@ -424,6 +425,8 @@
     from: number
     to: number
     spec: string
+    /** The opening fence's whole info string, trimmed: `vega-lite {#fig:id}` when labelled. */
+    info: string
   }
 
   /**
@@ -461,12 +464,13 @@
           bodyTo = c.to
         }
       }
-      if (info.trim() !== 'vega-lite') continue
+      if (fenceLanguage(info.trim()) !== 'vega-lite') continue
 
       return {
         from: node.from,
         to: node.to,
         spec: bodyFrom >= 0 ? view.state.doc.sliceString(bodyFrom, bodyTo) : '',
+        info: info.trim(),
       }
     }
     return null

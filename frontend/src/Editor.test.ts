@@ -13,6 +13,7 @@ interface ChartBlock {
   from: number
   to: number
   spec: string
+  info: string
 }
 
 interface EditorApi {
@@ -544,9 +545,9 @@ describe('chart block lookup', () => {
   ].join('\n')
 
   /** Mounts with DOC loaded and the cursor at `pos`. */
-  function atPosition(pos: number) {
+  function atPosition(pos: number, doc = DOC) {
     const { editor, target, cleanup } = mountEditor()
-    editor.setContent(DOC)
+    editor.setContent(doc)
     // Scoped to this test's own target. `document.querySelector` returned
     // whichever editor happened to be first in the body, so these tests were
     // passing on the incidental fact that no earlier one had outlived its
@@ -561,6 +562,13 @@ describe('chart block lookup', () => {
     const block = editor.enclosingChartBlock()
     expect(block).not.toBeNull()
     expect(block!.spec).toBe('{"mark": "line"}')
+    cleanup()
+  })
+
+  it('finds a labelled block and returns the whole info string', () => {
+    const doc = DOC.replace('```vega-lite', '```vega-lite {#fig:yield}')
+    const { editor, cleanup } = atPosition(doc.indexOf('"mark"'), doc)
+    expect(editor.enclosingChartBlock()!.info).toBe('vega-lite {#fig:yield}')
     cleanup()
   })
 

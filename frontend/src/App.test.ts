@@ -1022,6 +1022,29 @@ describe('chart builder', () => {
     expect(target.textContent).toContain('Insert chart')
   })
 
+  it('keeps the fence label when updating a labelled chart', async () => {
+    const labelled = WITH_CHART.replace('```vega-lite', '```vega-lite {#fig:yield}')
+    const target = await openDoc(labelled)
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ selection: { anchor: labelled.indexOf('"mark"') } })
+    listeners['menu:insert-chart']({ data: null })
+    flushSync()
+    expect(target.textContent).toContain('Edit chart')
+
+    const markSelect = target.querySelector<HTMLSelectElement>('select[data-field="chart-type"]')!
+    markSelect.value = 'bar'
+    markSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    flushSync()
+    ;[...target.querySelectorAll('button')]
+      .find((b) => b.textContent?.trim() === 'Update')!
+      .click()
+    flushSync()
+
+    const doc = view.state.doc.toString()
+    expect(doc).toContain('```vega-lite {#fig:yield}\n')
+    expect(doc).toContain('"mark": "bar"')
+  })
+
   it('replaces exactly the target block in place on an edited-chart commit, leaving prose intact', async () => {
     const target = await openDoc(WITH_CHART)
     const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
