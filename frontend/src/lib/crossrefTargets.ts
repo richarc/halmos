@@ -78,7 +78,7 @@ function collect(state: StateCore): boolean {
 
 /** A stamped block as a target, its line body-relative and 1-based. */
 function targetOf(token: Token, lines: string[]): CrossrefTarget | null {
-  const meta = token.meta as { target?: TargetMeta; tex?: string; captionLine?: number } | null
+  const meta = token.meta as { target?: TargetMeta; tex?: string; captionLastLine?: number } | null
   const target = meta?.target
   if (!target || !token.map) return null
   const [start, end] = token.map
@@ -89,8 +89,8 @@ function targetOf(token: Token, lines: string[]): CrossrefTarget | null {
   // An image figure: the paragraph, retagged.
   if (token.type === 'paragraph_open') return { ...target, block: 'image', line: end }
   if (token.type === 'table_open') {
-    if (meta.captionLine == null) return null
-    return { ...target, block: 'table', line: meta.captionLine + 1 }
+    if (meta.captionLastLine == null) return null
+    return { ...target, block: 'table', line: meta.captionLastLine + 1 }
   }
   if (token.type === 'math_block') {
     return { ...target, block: 'equation', line: closingLine(lines, start, end) + 1, tex: (meta.tex ?? '').trim() }

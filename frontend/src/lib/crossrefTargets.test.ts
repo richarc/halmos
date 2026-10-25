@@ -60,6 +60,20 @@ describe('collectTargets', () => {
     })
   })
 
+  it('puts a wrapped table caption at its last line, where the label goes', () => {
+    const table = '| a |\n|---|\n| 1 |\n\n'
+    expect(collectTargets(`${table}: Long caption\nwrapped {#tbl:t}\n`)[0]).toMatchObject({
+      kind: 'tbl',
+      label: 'tbl:t',
+      line: 6,
+    })
+    expect(collectTargets(`${table}: Long caption\nwrapped\n`)[0]).toMatchObject({
+      kind: 'tbl',
+      label: null,
+      line: 6,
+    })
+  })
+
   it('counts document lines when there is frontmatter', () => {
     const targets = collectTargets(`---\ntoc: true\n---\n${CHART}\n`)
     expect(targets[0]).toMatchObject({ line: 4 })
