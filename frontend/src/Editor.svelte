@@ -12,6 +12,7 @@
   import { codeHighlightStyleSpecs } from './lib/syntaxTags'
   import { spellcheckExtension } from './lib/spellcheck'
   import { minimalChange } from './lib/textDiff'
+  import { lineAtHeight } from './lib/scrollSync'
   import { parseCaptionLine } from './lib/tableCaptions'
   import { fenceLanguage } from './lib/figures'
   import { citationCompletionSource, citationOptionClass, citationOptionTitle, type CitationContext } from './lib/citationCompletion'
@@ -427,18 +428,13 @@
   }
 
   /**
-   * The 1-based line at the top of the visible editor area.
-   *
-   * Resolved through posAtCoords at the scroller's top-left corner rather than
-   * arithmetic on scrollTop, which keeps everything in one coordinate space
-   * instead of reconciling documentTop against documentPadding. A null result
-   * means the point is outside the content — treat that as the top.
+   * The 1-based line at the top of the visible editor area, with the fraction
+   * of it scrolled past (see lineAtHeight). The scroller's top less
+   * documentTop is how far down the document that edge is, both in screen
+   * coordinates, so the document's padding needs no separate reckoning.
    */
   export function topVisibleLine(): number {
-    const rect = view.scrollDOM.getBoundingClientRect()
-    const pos = view.posAtCoords({ x: rect.left + 1, y: rect.top + 1 })
-    if (pos == null) return 1
-    return view.state.doc.lineAt(pos).number
+    return lineAtHeight(view, view.scrollDOM.getBoundingClientRect().top - view.documentTop)
   }
 
   export interface ChartBlock {
