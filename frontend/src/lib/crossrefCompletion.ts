@@ -159,7 +159,7 @@ const ORDER: CrossrefKind[] = ['fig', 'tbl', 'eq']
  * A target can be picked when it has a number, or is a top-level equation
  * still to be named; a nested one would stay unnumbered once labelled.
  */
-function pickable(t: CrossrefTarget): boolean {
+export function pickable(t: CrossrefTarget): boolean {
   return t.number !== null || (t.kind === 'eq' && t.label === null && !t.nested)
 }
 

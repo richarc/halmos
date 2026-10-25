@@ -6,18 +6,30 @@
     items: { key: string; line: number }[]
     onclose: () => void
     onjump: (line: number) => void
+    title?: string
+    hint?: string
+    /** How an entry's key is shown. */
+    display?: (key: string) => string
   }
 
-  const { open, items, onclose, onjump }: Props = $props()
+  const {
+    open,
+    items,
+    onclose,
+    onjump,
+    title = 'Unknown citations',
+    hint = 'Not found in the bibliography. Click one to go to it.',
+    display = (key) => `[@${key}]`,
+  }: Props = $props()
 </script>
 
-<Dialog {open} label="Unknown citations" title="Unknown citations" {onclose} class="unknown-citations">
-  <p class="dialog-hint">Not found in the bibliography. Click one to go to it.</p>
+<Dialog {open} label={title} {title} {onclose} class="unknown-citations">
+  <p class="dialog-hint">{hint}</p>
   <ul class="unknown-list">
     {#each items as item, i (i)}
       <li>
         <button class="unknown-entry" onclick={() => onjump(item.line)}>
-          <span class="unknown-key">[@{item.key}]</span>
+          <span class="unknown-key">{display(item.key)}</span>
           <span class="unknown-line">Line {item.line}</span>
         </button>
       </li>

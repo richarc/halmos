@@ -2764,6 +2764,90 @@ describe('unknown citations in the status bar', () => {
   })
 })
 
+describe('missing cross-references in the status bar', () => {
+  const statusText = (t: HTMLElement) => t.querySelector('.status-bar')?.textContent ?? ''
+
+  it('counts references with no label, singular and plural, without a bibliography', async () => {
+    const target = await openDoc('# Results\n\nSee @fig:nope.\n')
+    await vi.waitFor(() => expect(statusText(target)).toContain('1 missing cross-reference'))
+    expect(statusText(target)).not.toContain('cross-references')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: view.state.doc.length, insert: '\nAnd @tbl:gone.\n' } })
+    await vi.waitFor(() => expect(statusText(target)).toContain('2 missing cross-references'))
+  })
+
+  it('lists them in the dialog and jumps to the line', async () => {
+    const target = await openDoc('# Results\n\nOne.\n\nSee @fig:nope.\n')
+    const btn = await vi.waitFor(() => {
+      const b = [...target.querySelectorAll<HTMLButtonElement>('.status-bar button')].find((x) =>
+        x.textContent?.includes('missing cross-reference'),
+      )
+      expect(b).toBeTruthy()
+      return b!
+    })
+    btn.click()
+    flushSync()
+    const dlg = target.querySelector<HTMLDialogElement>('dialog[aria-label="Missing cross-references"]')!
+    expect(dlg.open).toBe(true)
+    expect(dlg.textContent).toContain('No figure, table or equation has this label. Click one to go to it.')
+    expect(dlg.textContent).toContain('@fig:nope')
+    expect(dlg.textContent).toContain('Line 5')
+    dlg.querySelector<HTMLButtonElement>('.unknown-list button')!.click()
+    flushSync()
+    expect(dlg.open).toBe(false)
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(5)
+  })
+})
+
+describe('bibliography keys that look like cross-references', () => {
+  const entry = (id: string) => `@article{${id}, title={T}, author={Doe, Jane}, year={2020}}\n`
+  const fm = '---\nbibliography: refs.bib\n---\n# Results\n\nText.\n'
+  const toastText = (t: HTMLElement) => t.querySelector('.toast')?.textContent ?? ''
+  const WARNING = "These references can't be cited because their keys look like cross-references"
+  afterEach(() => DocumentService.ReadBibliography.mockResolvedValue(''))
+
+  async function dismiss(target: HTMLElement) {
+    // Toasts clear themselves; wait for the current one to go.
+    await vi.waitFor(() => expect(target.querySelector('.toast')).toBeNull(), { timeout: 8000 })
+  }
+
+  it('warns once per set of keys, and again when the set changes', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(entry('a') + entry('fig:old'))
+    const target = await openDoc(fm)
+    await vi.waitFor(() =>
+      expect(toastText(target)).toBe(
+        `${WARNING} (fig:, tbl:, eq:, sec:): fig:old. Rename them in your reference manager.`,
+      ),
+    )
+    await dismiss(target)
+    listeners['bib:changed']({ data: null })
+    await new Promise((r) => setTimeout(r, 100))
+    expect(toastText(target)).toBe('')
+
+    DocumentService.ReadBibliography.mockResolvedValue(entry('a') + entry('fig:old') + entry('tbl:t'))
+    listeners['bib:changed']({ data: null })
+    await vi.waitFor(() => expect(toastText(target)).toContain('fig:old, tbl:t.'))
+  })
+
+  it('names at most five keys, then how many more', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(
+      ['fig:1', 'fig:2', 'fig:3', 'fig:4', 'fig:5', 'fig:6', 'fig:7'].map(entry).join(''),
+    )
+    const target = await openDoc(fm)
+    await vi.waitFor(() =>
+      expect(toastText(target)).toContain('fig:1, fig:2, fig:3, fig:4, fig:5 and 2 more. Rename them'),
+    )
+  })
+
+  it('stays quiet when no key looks like a reference', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(entry('a'))
+    const target = await openDoc(fm)
+    await new Promise((r) => setTimeout(r, 200))
+    expect(toastText(target)).not.toContain(WARNING)
+  })
+})
+
 describe('reloading the bibliography', () => {
   const bib = '@article{a, title={A}, author={Doe, Jane}, year={2020}}'
   const fm = '---\nbibliography: refs.bib\n---\n'
@@ -3282,6 +3366,26 @@ describe('picking a cross-reference', () => {
     listeners['menu:insert-crossref']({ data: null })
     await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
     expect(target.querySelector('li.cm-crossref-option .cm-completionLabel')?.textContent).toBe('Unnamed equation')
+  })
+
+  it('Insert → Cross-reference… says so when there is nothing to refer to', async () => {
+    const { target, view } = await openAt('# Results\n\nSee \n', 15)
+    listeners['menu:insert-crossref']({ data: null })
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toBe(
+        "There's nothing to refer to yet. Give a figure or table a caption, or add a display equation.",
+      ),
+    )
+    expect(completionStatus(view.state)).toBeNull()
+  })
+
+  it('does not say so when the menu is refused for another reason', async () => {
+    const { target } = await openAt('# Results\n\nSee \n', 15)
+    listeners['menu:insert-table']({ data: null })
+    flushSync()
+    listeners['menu:insert-crossref']({ data: null })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(target.querySelector('.toast')?.textContent ?? '').not.toContain('nothing to refer to')
   })
 
   it('does nothing while the table builder is open', async () => {

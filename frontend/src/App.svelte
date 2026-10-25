@@ -66,6 +66,8 @@
   import UnknownCitations from './UnknownCitations.svelte'
   import EquationName, { type NameError } from './EquationName.svelte'
   import { KIND_WORD, type CrossrefTarget } from './lib/crossrefs'
+  import { pickable } from './lib/crossrefCompletion'
+  import { shadowedKeys } from './lib/citationCompletion'
   import { unknownCitations } from './lib/citationKeys'
   import { readSpec, type BuilderState } from './lib/chartSpec'
   import { refusalMessage } from './lib/chartLabels'
@@ -166,11 +168,22 @@
     html = result.html
     outline = result.outline
     crossrefTargets = result.crossrefs.targets
+    missingRefs = result.crossrefs.missing
+    if (result.crossrefs.missing.length === 0) missingOpen = false
   }
 
   // The last render's cross-reference targets, read by the editor's list when
   // it opens. Not reactive: nothing redraws when they change.
   let crossrefTargets: CrossrefTarget[] = []
+
+  // References whose label no figure, table or equation has, from the last
+  // render, so no extra parse is needed.
+  let missingRefs = $state<{ key: string; line: number }[]>([])
+  let missingOpen = $state(false)
+  function jumpToMissing(line: number) {
+    missingOpen = false
+    jumpToLine(line)
+  }
 
   // The panel's own arrows. The View menu owns the same setting, so this is a
   // read-modify-write of the whole value — the menu only ever changes the
@@ -318,6 +331,21 @@
   // same text and style keeps it. Null when there is nothing to keep.
   let loadedBib: { text: string; csl: string; xml: string | null } | null = null
 
+  // The keys last warned about, so a reload of the same bibliography does not
+  // repeat the warning. Emptied when none are left, so they can warn again.
+  let warnedShadowed = ''
+  function warnShadowed(keys: string[]) {
+    const set = [...keys].sort().join('\n')
+    if (set === warnedShadowed) return
+    warnedShadowed = set
+    if (keys.length === 0) return
+    const shown = keys.slice(0, 5).join(', ')
+    const more = keys.length > 5 ? ` and ${keys.length - 5} more` : ''
+    toast(
+      `These references can't be cited because their keys look like cross-references (fig:, tbl:, eq:, sec:): ${shown}${more}. Rename them in your reference manager.`,
+    )
+  }
+
   async function reloadBibliography() {
     const gen = ++reloadGeneration
     const wanted = fmBibliography ?? null
@@ -381,6 +409,7 @@
       if (gen !== reloadGeneration) return // superseded while the style loaded
       formatter = next
       bibEntries = entries
+      warnShadowed(shadowedKeys(entries))
       loadedBib = styleNotice ? null : { text, csl, xml }
       if (styleNotice) toast(styleNotice)
     } catch {
@@ -452,6 +481,10 @@
   // it. Refused while anything modal is up, as insertCitation is.
   function insertCrossref() {
     if (showWelcome || chartOpen || tableOpen || newOpen || pendingAction || equationAsk) return
+    if (!crossrefTargets.some(pickable)) {
+      toast("There's nothing to refer to yet. Give a figure or table a caption, or add a display equation.")
+      return
+    }
     editor.openCrossrefList()
   }
 
@@ -1823,6 +1856,11 @@
         >{unknown.length} unknown citation{unknown.length === 1 ? '' : 's'}</button
       >
     {/if}
+    {#if missingRefs.length > 0}
+      <button class="link-button unknown-count" onclick={() => (missingOpen = true)}
+        >{missingRefs.length} missing cross-reference{missingRefs.length === 1 ? '' : 's'}</button
+      >
+    {/if}
   </footer>
 
   {#if showWelcome}
@@ -1993,6 +2031,15 @@
     oncancel={() => (equationAsk = null)}
   />
 
+  <UnknownCitations
+    open={missingOpen}
+    items={missingRefs}
+    onclose={() => (missingOpen = false)}
+    onjump={jumpToMissing}
+    title="Missing cross-references"
+    hint="No figure, table or equation has this label. Click one to go to it."
+    display={(key) => `@${key}`}
+  />
   <UnknownCitations open={unknownOpen} items={unknown} onclose={() => (unknownOpen = false)} onjump={jumpToUnknown} />
 
   <Dialog open={zoteroHelp !== null} label="Zotero" title="Zotero" onclose={() => (zoteroHelp = null)}>
