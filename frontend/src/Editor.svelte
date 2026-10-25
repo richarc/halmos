@@ -475,6 +475,8 @@
   export interface TableBlock {
     from: number
     to: number
+    /** Where the table itself ends, before any caption. */
+    tableTo: number
     text: string
     /** The `: Caption {#tbl:id}` paragraph after the table, whose text `to` and `text` include. */
     caption: { caption: string; label: string | null } | null
@@ -514,23 +516,18 @@
 
     let to = table.to
     let caption: TableBlock['caption'] = null
-    const last = doc.lineAt(table.to)
-    // One blank line, then a `: ` line; a wrapped caption runs on to the next
-    // blank line, and its label is at the end of the last line.
-    if (last.number + 2 <= doc.lines && doc.line(last.number + 1).text.trim() === '') {
-      const first = doc.line(last.number + 2)
-      if (parseCaptionLine(first.text)) {
-        const parts = [first.text.trim()]
-        let end = first
-        while (end.number < doc.lines && doc.line(end.number + 1).text.trim() !== '') {
-          end = doc.line(end.number + 1)
-          parts.push(end.text.trim())
-        }
-        caption = parseCaptionLine(parts.join(' '))
-        if (caption) to = end.to
+    // The caption is the Paragraph node after the table with at most one
+    // blank line between, the preview's own rule: a heading, fence, list or
+    // quote on the next line ends the paragraph, and stays outside the range.
+    const para = table.nextSibling
+    if (para?.name === 'Paragraph' && doc.lineAt(para.from).number - doc.lineAt(table.to).number <= 2) {
+      const lines = doc.sliceString(para.from, para.to).split('\n').map((l) => l.trim())
+      if (parseCaptionLine(lines[0])) {
+        caption = parseCaptionLine(lines.join(' '))
+        if (caption) to = para.to
       }
     }
-    return { from: table.from, to, text: doc.sliceString(table.from, to), caption }
+    return { from: table.from, to, tableTo: table.to, text: doc.sliceString(table.from, to), caption }
   }
 
   /**

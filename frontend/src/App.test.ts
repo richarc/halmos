@@ -1303,6 +1303,40 @@ describe('table builder', () => {
     expect(doc).toContain('After.')
   })
 
+  async function openCaptioned(text: string, at: string) {
+    const target = await openDoc(text)
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ selection: { anchor: text.indexOf(at) } })
+    listeners['menu:insert-table']({ data: null })
+    flushSync()
+    return { target, view }
+  }
+
+  it('opens a captioned table with the caption in its field, not as a row', async () => {
+    const text = '# Results\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n: Yield {#tbl:y}\n'
+    const { target } = await openCaptioned(text, '| 1')
+    expect(target.querySelectorAll('input.td-cell')).toHaveLength(2)
+    expect(target.querySelector<HTMLInputElement>('input[data-field="caption"]')!.value).toBe('Yield')
+  })
+
+  it('keeps a heading right after the caption when the builder commits', async () => {
+    const text = '# Results\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n: Yield {#tbl:y}\n## Methods\n'
+    const { target, view } = await openCaptioned(text, '| 1')
+    buttonByText(target, 'Update')!.click()
+    flushSync()
+    expect(view.state.doc.toString()).toBe(
+      '# Results\n\n| a   | b   |\n| --- | --- |\n| 1   | 2   |\n\n: Yield {#tbl:y}\n## Methods\n',
+    )
+  })
+
+  it('round-trips a wrapped caption and its label', async () => {
+    const text = '# Results\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n: Yield by\ngroup {#tbl:y}\n\nAfter.\n'
+    const { target, view } = await openCaptioned(text, '| 1')
+    buttonByText(target, 'Update')!.click()
+    flushSync()
+    expect(view.state.doc.toString()).toContain('\n\n: Yield by group {#tbl:y}\n\nAfter.\n')
+  })
+
   it('refuses to commit when the target moved while open', async () => {
     const target = await openDoc(WITH_TABLE)
     const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!

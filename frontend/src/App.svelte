@@ -594,9 +594,8 @@
       tableOpen = true
       return
     }
-    // The caption is part of the range but not of the table: cells cannot
-    // hold a blank line, so the first one ends the table.
-    const result = parsePipeTable(block.caption ? block.text.split(/\n[ \t]*\n/)[0] : block.text)
+    // The caption is part of the range but not of the table.
+    const result = parsePipeTable(editor.textInRange(block.from, block.tableTo))
     if (!result.ok) {
       // Rare: Lezer only produces a Table for text that is one. Refuse rather
       // than open a fresh builder targeted at a block we could not read.

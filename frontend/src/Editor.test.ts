@@ -28,6 +28,7 @@ interface EditorApi {
   enclosingTable(): {
     from: number
     to: number
+    tableTo: number
     text: string
     caption: { caption: string; label: string | null } | null
   } | null
@@ -694,6 +695,15 @@ describe('Editor.enclosingTable', () => {
       const block = editor.enclosingTable()!
       expect(block.caption).toEqual({ caption: 'Yield by group', label: 'tbl:y' })
       expect(block.to).toBe(doc.indexOf('{#tbl:y}') + '{#tbl:y}'.length)
+      cleanup()
+    })
+
+    it('stops the range at the caption paragraph when a heading follows it', () => {
+      const doc = `${TABLE}\n\n${CAPTION}\n## Methods\n`
+      const { editor, cleanup } = at(doc, doc.indexOf('| 1'))
+      const block = editor.enclosingTable()!
+      expect(block.to).toBe(doc.indexOf(CAPTION) + CAPTION.length)
+      expect(block.tableTo).toBe(doc.indexOf(TABLE) + TABLE.length)
       cleanup()
     })
 
