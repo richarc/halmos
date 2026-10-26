@@ -498,6 +498,22 @@ Ideas noted along the way, not yet committed to a release:
   images (`lib/exportDiagrams.ts`). Explore sending LaTeX the same images,
   or PDF/SVG for sharp print, and what the portal needs to bundle image
   files with the `.tex` (a zip, or images embedded some other way).
+- **Sync scrolling stutters on large, complex documents.** With Sync
+  Scrolling off the editor scrolls smoothly; with it on, a long document
+  full of charts and maths is jumpy (reported 2026-10-25). The preview had
+  moved in whole source lines, so a wrapped paragraph held it still and
+  then jumped; that is fixed (`lineAtHeight`). What remains is not in
+  script: timed in a dev build, each sync took a median 1 ms (max 6 ms) at
+  60 a second, with no anchor re-measuring, nearly all of it in setting the
+  preview's `scrollTop`. The likely cost is WebKit painting the newly
+  exposed preview on the main thread, since the preview is scrolled from
+  script while the editor scrolls on WebKit's scrolling thread. Not yet
+  confirmed: the one Timelines recording had Screenshots on, which
+  dominated every frame. Next: record with Screenshots off, Sync Scrolling
+  on and off, and read the Layout & Rendering track (see the
+  `web-inspector` skill). Possible fixes depend on that: composited layers
+  for charts and formulas, or easing the preview toward its target rather
+  than setting it each frame.
 - From the Markdown-books review (2026-10-23):
   - ePub export. Pandoc produces it with little extra work, so it would
     be a fourth format on the portal's existing conversion endpoint.
