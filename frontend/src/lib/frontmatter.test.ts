@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseFrontmatter, frontmatterKeyChange } from './frontmatter'
+import { parseFrontmatter, frontmatterKeyChange, hasTitleBlock } from './frontmatter'
 
 describe('parseFrontmatter', () => {
   it('extracts bibliography and csl and strips the block', () => {
@@ -166,5 +166,86 @@ describe('frontmatterKeyChange', () => {
         expect(parseFrontmatter(apply(doc, 'csl', value)).csl).toBe(value)
       }
     }
+  })
+})
+
+const fmOf = (block: string) => parseFrontmatter(`---\n${block}\n---\nBody\n`)
+
+describe('metadata', () => {
+  it('reads a title, quoted or not', () => {
+    expect(fmOf('title: "Yield: a study"').title).toBe('Yield: a study')
+    expect(fmOf("title: 'It''s'").title).toBe("It's")
+  })
+
+  it('reads a single author as a name', () => {
+    expect(fmOf('author: Ada Lovelace').authors).toEqual([{ name: 'Ada Lovelace' }])
+  })
+
+  it('reads a flow list of authors', () => {
+    expect(fmOf('author: [Ada Lovelace, Mary Somerville]').authors).toEqual([
+      { name: 'Ada Lovelace' },
+      { name: 'Mary Somerville' },
+    ])
+  })
+
+  it('reads a block list mixing maps and names', () => {
+    const fm = fmOf(
+      'author:\n  - name: Ada Lovelace\n    affiliation: University of London\n  - Mary Somerville',
+    )
+    expect(fm.authors).toEqual([
+      { name: 'Ada Lovelace', affiliation: 'University of London' },
+      { name: 'Mary Somerville' },
+    ])
+  })
+
+  it('drops entries without a string name and ignores other fields', () => {
+    const fm = fmOf(
+      'author:\n  - affiliation: Nowhere\n  - name: 42\n  - name: Ada Lovelace\n    email: ada@example.org',
+    )
+    expect(fm.authors).toEqual([{ name: 'Ada Lovelace' }])
+  })
+
+  it('reads abstracts in literal, folded and plain styles', () => {
+    expect(fmOf('abstract: |\n  One.\n  Two.').abstract).toBe('One.\nTwo.\n')
+    expect(fmOf('abstract: >-\n  One.\n  Two.').abstract).toBe('One. Two.')
+    expect(fmOf('abstract: One line.').abstract).toBe('One line.')
+  })
+
+  it('locates the abstract in the document', () => {
+    expect(parseFrontmatter('---\ntitle: T\nabstract: |\n  First line.\n---\n').abstractLine).toBe(4)
+    expect(parseFrontmatter('---\ntitle: T\nabstract: One line.\n---\n').abstractLine).toBe(3)
+  })
+
+  it('keeps a date as the string written', () => {
+    expect(fmOf('date: 26 October 2026').date).toBe('26 October 2026')
+    expect(fmOf('date: 2026-10-26').date).toBe('2026-10-26')
+  })
+
+  it('leaves the six keys working when the block is not valid YAML', () => {
+    const fm = parseFrontmatter('---\ncsl: ieee\nfooter: Page {page}: draft\ntitle: T\n---\n')
+    expect(fm.csl).toBe('ieee')
+    expect(fm.footer).toBe('Page {page}: draft')
+    expect(fm.title).toBeUndefined()
+  })
+
+  it('adds nothing for a block without the four keys', () => {
+    const fm = fmOf('csl: ieee')
+    expect(hasTitleBlock(fm)).toBe(false)
+    expect(fm).toEqual({ body: 'Body\n', bodyStartLine: 4, csl: 'ieee' })
+  })
+
+  it('reports a title block when any of the four keys is set', () => {
+    expect(hasTitleBlock(fmOf('title: T'))).toBe(true)
+    expect(hasTitleBlock(fmOf('author: Ada'))).toBe(true)
+    expect(hasTitleBlock(fmOf('date: 2026'))).toBe(true)
+    expect(hasTitleBlock(fmOf('abstract: A'))).toBe(true)
+  })
+
+  it('frontmatterKeyChange ignores an indented key inside an abstract', () => {
+    const doc = '---\nabstract: |\n  csl: x\ncsl: apa\n---\nBody\n'
+    const c = frontmatterKeyChange(doc, 'csl', 'ieee')
+    expect(doc.slice(0, c.from) + c.insert + doc.slice(c.to)).toBe(
+      '---\nabstract: |\n  csl: x\ncsl: ieee\n---\nBody\n',
+    )
   })
 })
