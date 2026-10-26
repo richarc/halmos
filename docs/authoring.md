@@ -12,10 +12,21 @@ for producing a Halmos document.
 
 ---
 
-## Frontmatter: exactly six keys
+## Frontmatter: exactly ten keys
 
 ```markdown
 ---
+title: Yield response of winter wheat to late nitrogen
+author:
+  - name: Ada Lovelace
+    affiliation: University of London
+  - name: Charles Babbage
+    affiliation: University of Cambridge
+  - Mary Somerville
+date: 26 October 2026
+abstract: |
+  Late nitrogen raised yield by 8% across three seasons ($p < 0.01$).
+  The response was largest on light soils.
 bibliography: references.bib
 csl: apa
 toc: true
@@ -23,14 +34,44 @@ toc-depth: 3
 ---
 ```
 
-`bibliography`, `csl`, `toc`, `toc-depth`, `header` and `footer` are the
-**only** keys Halmos reads. All are optional. The bibliography path is
+`title`, `author`, `date`, `abstract`, `bibliography`, `csl`, `toc`,
+`toc-depth`, `header` and `footer` are the **only** keys Halmos reads. All are optional. The bibliography path is
 resolved relative to the document, so the `.bib` normally sits beside it;
 `toc` and `toc-depth` are described under
 [A table of contents](#a-table-of-contents) below. `header` and `footer` are
 one line of text drawn at the top and bottom of every page of an exported
-PDF, and may use `{title}` (the first heading), `{date}`, `{page}` and
-`{pages}`: `footer: Page {page} of {pages}`.
+PDF, and may use `{title}` (the `title:` key, or the first heading if there is none),
+`{date}` (the export date, not the `date:` key), `{page}` and `{pages}`:
+`footer: Page {page} of {pages}`.
+
+`title`, `author`, `date` and `abstract` are Pandoc's names, and make a title
+block at the top of the preview, the PDF and the HTML export. Word and LaTeX
+get the same block from Pandoc. Each is optional, and the block shows only
+the ones you set.
+
+- `title` is one line. Emphasis and inline maths work. A citation in it is
+  shown as you typed it, not formatted.
+- `author` is one name (`author: Ada Lovelace`), a list of names, or a list
+  of entries with a `name` and an optional `affiliation`, as in the example.
+  A single `name:` entry also works. You can mix names and entries. Each
+  different affiliation is numbered in order of first use; if everyone shares
+  one, it is shown once under the names. In Word and LaTeX an author with an
+  affiliation is sent as "Name, Affiliation".
+- `date` is shown exactly as written. Halmos does not read or change it.
+- `abstract` is Markdown, normally a block written with `|` as above. Maths
+  and citations work. Footnotes in it are listed under the abstract, not
+  with the body's. A heading in it does not appear in the contents list.
+
+The title and abstract are spell checked. If the YAML in the frontmatter is
+broken, or a key has a shape Halmos does not read, the title block is left
+out and the document still renders. Word and LaTeX exports may then get no
+title block either.
+
+Put quotes around any value that contains a colon followed by a space, or that
+starts with `{`, `[` or a quote mark. `title: Yield: a study` is not valid
+YAML and the whole title block disappears; `title: "Yield: a study"` works.
+The same goes for a `header` or `footer` that starts with `{`:
+`header: "{title} - draft"`.
 
 `csl` is one of five bundled styles — `apa`, `chicago-author-date`,
 `ieee`, `vancouver`, `harvard` — or the path to a `.csl` file, relative to the
@@ -38,8 +79,10 @@ document or absolute. A name Halmos does not know, or a file it cannot load,
 falls back to APA with a warning. You do not have to type this line: use
 Format → Citation Style (see [Citations](#citations)).
 
-**The whole frontmatter block is removed before rendering.** A `title:` or
-`author:` there will not appear anywhere. Put the title in the document:
+**The frontmatter block is removed before rendering**, and the title block
+is built from it. If you also write a `# Title` heading in the document, the
+title shows twice: use one or the other. A document with no `title:` can
+still start with a heading, as before:
 
 ```markdown
 # Entanglement-verified time distribution

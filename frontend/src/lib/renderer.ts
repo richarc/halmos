@@ -1,8 +1,9 @@
 import katex from 'katex'
-import type Token from 'markdown-it/lib/token.mjs'
+import Token from 'markdown-it/lib/token.mjs'
 import { outlinePlugin, type OutlineEntry } from './outline'
 import { tocPlugin, tocNavHtml, tocDepth, type TocEnv, DEFAULT_TOC_DEPTH } from './toc'
-import { parseFrontmatter } from './frontmatter'
+import { parseFrontmatter, hasTitleBlock } from './frontmatter'
+import { titleBlockHtml } from './titleBlock'
 import type { CitationFormatter, CitationCluster } from './citations'
 import { createMarkdownParser } from './markdownParser'
 import {
@@ -33,6 +34,8 @@ interface RenderEnv extends TocEnv, CrossrefEnv {
   chartWidthPx: number
   /** Absolute path of the open document; '' when it has never been saved. */
   docPath: string
+  /** markdown-it-footnote's prefix for footnote ids. */
+  docId?: string
 }
 
 // Everything that decides what is a citation (linkify, KaTeX, footnotes, the
@@ -331,6 +334,27 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
     tocEnabled: fm.toc === 'true',
     tocDepth: tocDepth(fm['toc-depth']),
   }
+  // The abstract is parsed apart from the body, so its headings, footnotes,
+  // contents entries and figures stay out of the body's. Only the citation
+  // list is shared, and the abstract is parsed first, so its clusters are
+  // numbered ahead of the body's in reading order. Its tokens are rendered
+  // after the body, once the body's targets are known: references resolve at
+  // render time from crossrefLookup, which each parse overwrites.
+  const titled = hasTitleBlock(fm)
+  let abstract: { tokens: Token[]; env: RenderEnv } | null = null
+  if (titled && fm.abstract !== undefined) {
+    env.citations = []
+    const absEnv: RenderEnv = {
+      sourceLineOffset: (fm.abstractLine ?? 1) - 1,
+      chartWidthPx: env.chartWidthPx,
+      docPath: env.docPath,
+      citations: env.citations,
+      // Prefixes the abstract's footnote ids, which would otherwise repeat
+      // the body's fn1, fn2.
+      docId: 'abstract',
+    }
+    abstract = { tokens: md.parse(fm.abstract, absEnv), env: absEnv }
+  }
   let html = md.render(body, env)
   // A ToC asked for but not placed by a [[toc]] marker goes at the top.
   if (env.tocEnabled && !env.tocPlaced) {
@@ -339,9 +363,19 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
     html = tocNavHtml(listed, 1) + html
   }
   const outline = env.outline ?? []
+  let abstractHtml: string | undefined
+  let abstractMissing: MissingReference[] = []
+  if (abstract) {
+    // The abstract's own parse checked its references against the abstract
+    // alone; one that the body's targets satisfy is not a miss.
+    const lookup = env.crossrefLookup
+    abstractMissing = (abstract.env.crossrefMissing ?? []).filter((m) => !lookup?.has(keyLabel(m.key)))
+    abstract.env.crossrefLookup = lookup
+    abstractHtml = md.renderer.render(abstract.tokens, md.options, abstract.env)
+  }
   const crossrefs = {
     targets: env.crossrefTargets ?? [],
-    missing: env.crossrefMissing ?? [],
+    missing: [...abstractMissing, ...(env.crossrefMissing ?? [])],
     duplicates: env.crossrefDuplicates ?? [],
   }
   const clusters = env.citations ?? []
@@ -357,6 +391,21 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
       .slice(sepAt)
       .replace('<section class="footnotes"', `<section class="footnotes" data-source-line="${docLines}"`)
     html = html.slice(0, sepAt)
+  }
+  // Prepended after the footnotes are cut off, so the abstract's own notes
+  // (which end the abstract) are not mistaken for the body's.
+  if (titled) {
+    html =
+      titleBlockHtml(
+        { title: fm.title, authors: fm.authors, date: fm.date, abstractHtml },
+        // A citation in the title is left as written. The citation rule
+        // still emits a placeholder, numbered from 0 in this throwaway env,
+        // so it is unwrapped here; formatCitations would otherwise fill it
+        // with the body's first citation. The placeholder's text is already
+        // escaped.
+        (s) => md.renderInline(s, {}).replace(/<span class="citation" data-cite-index="\d+">(.*?)<\/span>/gs, '$1'),
+        md.utils.escapeHtml,
+      ) + html
   }
   if (!formatter || clusters.length === 0) return { html: html + notes, outline, crossrefs }
 
@@ -395,6 +444,22 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
     html += `<h2 data-source-line="${docLines}">References</h2>\n${bibliographyHtml}\n`
   }
   return { html: html + notes, outline, crossrefs }
+}
+
+/**
+ * The title as plain text, for places that cannot show markup: emphasis is
+ * flattened to its words and maths reads as its TeX source.
+ */
+export function plainTitle(title: string): string {
+  const tokens = md.parseInline(title, {})[0]?.children ?? []
+  // renderInlineAsText skips token types it does not know, maths among them.
+  const flat = tokens.map((t) => {
+    if (!t.type.startsWith('math_inline')) return t
+    const text = new Token('text', '', 0)
+    text.content = t.content
+    return text
+  })
+  return md.renderer.renderInlineAsText(flat, md.options, {})
 }
 
 function resolvable(f: CitationFormatter, c: CitationCluster): boolean {

@@ -40,7 +40,22 @@ describe('protectedRanges', () => {
 
   it('protects frontmatter by line', () => {
     const doc = '---\ntitle: Hello\nbibliography: refs.bib\n---\n\nProse.\n'
-    expect(protectedText(doc)).toEqual(['---\ntitle: Hello\nbibliography: refs.bib\n---'])
+    expect(protectedText(doc)).toEqual(['---\ntitle: ', '\nbibliography: refs.bib\n---'])
+  })
+
+  it('checks the title and the abstract, not the rest of the frontmatter', () => {
+    const doc = '---\ntitle: A tittle\ncsl: ieee\nabstract: |\n  Some txet with $x$ and [@k].\n\n  More txet.\ndate: 2026\n---\n\nBody.\n'
+    expect(protectedText(doc)).toEqual(['---\ntitle: ', '\ncsl: ieee\nabstract: |\n', '$x$', '[@k]', '\ndate: 2026\n---'])
+  })
+
+  it('checks a one-line abstract value only', () => {
+    const doc = '---\nabstract: Short txet\n---\n'
+    expect(protectedText(doc)).toEqual(['---\nabstract: ', '\n---'])
+  })
+
+  it('protects all of a frontmatter that is not valid YAML', () => {
+    const doc = '---\ntitle: [oops\nabstract: x\n---\n'
+    expect(protectedText(doc)).toEqual(['---\ntitle: [oops\nabstract: x\n---'])
   })
 
   it('does not treat an unterminated leading --- as frontmatter', () => {

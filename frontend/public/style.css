@@ -1037,6 +1037,18 @@ dialog::backdrop { background: var(--backdrop); }
    hangs in the margin and wrapped lines stay aligned with the text. */
 .preview-pane .csl-left-margin { float: left; min-width: 2.5em; }
 .preview-pane .csl-right-inline { margin-left: 2.5em; }
+/* The title block from the frontmatter's title, author, date and abstract
+   (lib/titleBlock.ts). The title sits above .sheet h1 in size, because the
+   body's own first heading is a section, not the paper's title. */
+.sheet .title-block { text-align: center; margin-bottom: 2em; }
+.sheet .title-block-title { font-size: 2.1em; margin: 0 0 0.6em; }
+.sheet .title-block-authors { margin: 0.3em 0; font-size: 1.1em; }
+.sheet .title-block-affiliation { margin: 0.15em 0; color: var(--doc-muted); font-size: 0.95em; }
+.sheet .title-block-date { margin: 0.6em 0 0; color: var(--doc-muted); }
+.sheet .title-block-abstract { text-align: left; margin: 1.6em 2em 0; font-size: 0.95em; }
+.sheet .title-block-abstract-heading {
+  font-size: 1em; text-align: center; margin: 0 0 0.5em;
+}
 
 @media print {
   /* What is left here is only what is genuinely print-specific. The document
@@ -1059,7 +1071,7 @@ dialog::backdrop { background: var(--backdrop); }
     width: auto; padding: 0; box-shadow: none;
     background: var(--doc-bg);
   }
-  .katex-display, .vega-lite-chart, .mermaid-diagram, figure, .chart-error, .csl-entry, .footnotes li, .markdown-alert { break-inside: avoid; }
+  .katex-display, .vega-lite-chart, .mermaid-diagram, figure, .chart-error, .csl-entry, .footnotes li, .markdown-alert, .title-block { break-inside: avoid; }
   /* The printed page is true paper width, so the preview's fit does not
      apply — and a scrollbar means nothing on paper. */
   .sheet .katex-display > .katex { font-size: 1.21em; }

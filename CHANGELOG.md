@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Title, authors, date and abstract. Set `title`, `author`, `date` and
+  `abstract` in the frontmatter, with Pandoc's names, and the preview, PDF
+  and HTML export show a title block at the top of the first page. An author
+  can be a name or a `name` with an `affiliation`; affiliations are numbered.
+  `{title}` in a page header or footer and the HTML page title use the
+  `title:` key first. The title and abstract are spell checked. Word and
+  LaTeX get the title block from Pandoc, with an author's affiliation sent as
+  "Name, Affiliation". A document without these keys looks as before.
 - Table captions. A blank line after a table, then `: Caption`, makes it
   "Table 1: Caption". Tables are numbered apart from figures. The table
   builder has a Caption field.

@@ -1,3 +1,10 @@
+import { isMap, isScalar, parseDocument, Scalar } from 'yaml'
+
+export interface Author {
+  name: string
+  affiliation?: string
+}
+
 export interface Frontmatter {
   body: string
   bibliography?: string
@@ -8,6 +15,14 @@ export interface Frontmatter {
   /** Export PDF's running header and footer; lib/pageFurniture.ts. */
   header?: string
   footer?: string
+  /** Title block, with Pandoc's meanings (`author` is read as `authors`). */
+  title?: string
+  /** Shown exactly as written. */
+  date?: string
+  authors?: Author[]
+  abstract?: string
+  /** 1-based document line of the abstract's first text line. */
+  abstractLine?: number
   /**
    * 1-based line of the original document on which `body` starts. The renderer
    * passes markdown-it only the body, so its line numbers are body-relative;
@@ -23,7 +38,7 @@ const KNOWN_KEYS = ['bibliography', 'csl', 'toc', 'toc-depth', 'header', 'footer
 // Requiring the closing fence to end its own line keeps a longer rule such as
 // ---- from terminating the block early. The inner group is optional so an
 // empty block still parses.
-const BLOCK_RE = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/
+export const BLOCK_RE = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/
 
 export function parseFrontmatter(markdown: string): Frontmatter {
   const match = BLOCK_RE.exec(markdown)
@@ -42,7 +57,66 @@ export function parseFrontmatter(markdown: string): Frontmatter {
     if (!KNOWN_KEYS.includes(key)) continue
     result[key] = unquote(m[2])
   }
+  readMetadata(match[1] ?? '', result)
   return result
+}
+
+/** True when the document asks for a title block: any of the four keys is set. */
+export function hasTitleBlock(fm: Frontmatter): boolean {
+  return fm.title !== undefined || fm.authors !== undefined || fm.date !== undefined || fm.abstract !== undefined
+}
+
+/**
+ * Reads title, author, date and abstract from the block as YAML. The six keys
+ * above stay on the line parser, which accepts text that is not valid YAML
+ * (`footer: Page {page}: draft`); a block that does not parse as YAML loses
+ * only this metadata. The `core` schema keeps `date: 2026-10-26` a string.
+ */
+function readMetadata(text: string, out: Frontmatter): void {
+  const doc = parseDocument(text, { schema: 'core' })
+  if (doc.errors.length || !isMap(doc.contents)) return
+
+  const str = (key: string): string | undefined => {
+    const node = doc.get(key, true)
+    if (!isScalar(node)) return undefined
+    const v: unknown = node.value
+    if (typeof v === 'string') return v.trim() || undefined
+    // A number is shown as typed: String(2026.10) would say "2026.1".
+    if (typeof v === 'number' && node.range) return text.slice(node.range[0], node.range[1]).trim() || undefined
+    return undefined
+  }
+  const title = str('title')
+  if (title) out.title = title
+  const date = str('date')
+  if (date) out.date = date
+
+  const author: unknown = doc.get('author')
+  const plain = (author as { toJSON?: () => unknown } | null)?.toJSON?.() ?? author
+  const items: unknown[] = Array.isArray(plain) ? plain : [plain]
+  const authors: Author[] = []
+  for (const item of items) {
+    const name = typeof item === 'string' ? item : (item as { name?: unknown } | null)?.name
+    if (typeof name !== 'string' || !name.trim()) continue
+    const affiliation = typeof item === 'object' && item ? (item as { affiliation?: unknown }).affiliation : undefined
+    authors.push(
+      typeof affiliation === 'string' && affiliation.trim()
+        ? { name: name.trim(), affiliation: affiliation.trim() }
+        : { name: name.trim() },
+    )
+  }
+  if (authors.length) out.authors = authors
+
+  const node = doc.get('abstract', true)
+  if (isScalar(node) && typeof node.value === 'string' && (node.value as string).trim()) {
+    out.abstract = node.value as string
+    if (node.range) {
+      // Lines in the block start at document line 2; a block scalar's text
+      // begins on the line after its `|` or `>` header.
+      const before = text.slice(0, node.range[0]).split('\n').length - 1
+      const header = node.type === Scalar.BLOCK_LITERAL || node.type === Scalar.BLOCK_FOLDED
+      out.abstractLine = before + 2 + (header ? 1 : 0)
+    }
+  }
 }
 
 /**

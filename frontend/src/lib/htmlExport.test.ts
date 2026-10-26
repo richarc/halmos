@@ -73,6 +73,32 @@ describe('buildStandaloneHTML', () => {
     expect(parse(await buildStandaloneHTML(root, opts())).title).toBe('Energy E=mc^2 bound')
   })
 
+  it('titles the page by the title block, not a later heading or the abstract heading', async () => {
+    const root = previewSheet(
+      '<header class="title-block"><h1 class="title-block-title">My Paper</h1>' +
+        '<section class="title-block-abstract"><h2 class="title-block-abstract-heading">Abstract</h2><p>x</p></section></header>' +
+        '<h1>Intro</h1>',
+    )
+    expect(parse(await buildStandaloneHTML(root, opts())).title).toBe('My Paper')
+  })
+
+  it('skips an abstract-only title block and titles the page by the first body heading', async () => {
+    const root = previewSheet(
+      '<header class="title-block"><section class="title-block-abstract">' +
+        '<h2 class="title-block-abstract-heading">Abstract</h2><p>x</p></section></header><h1>Intro</h1>',
+    )
+    expect(parse(await buildStandaloneHTML(root, opts())).title).toBe('Intro')
+  })
+
+  it('titles the metadata title with maths by its TeX', async () => {
+    const root = previewSheet(
+      '<header class="title-block"><h1 class="title-block-title">Energy <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>E</mi></mrow>' +
+        '<annotation encoding="application/x-tex">E=mc^2</annotation></semantics></math></span>' +
+        '<span class="katex-html" aria-hidden="true"><span class="base">E=mc2</span></span></span></h1></header>',
+    )
+    expect(parse(await buildStandaloneHTML(root, opts())).title).toBe('Energy E=mc^2')
+  })
+
   it('leaves footnote markers out of the title', async () => {
     const root = previewSheet(
       '<h1>Method<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup></h1>',

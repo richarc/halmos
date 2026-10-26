@@ -93,15 +93,19 @@ ${sheet.outerHTML}
 const URL_ATTRIBUTES = new Set(['href', 'src', 'xlink:href', 'action', 'formaction'])
 
 /**
- * The first real heading's text, as a title: not the contents list's own
+ * The title block's title, else the first real heading's text, as a title: not the contents list's own
  * "Contents" heading, maths as its TeX source (KaTeX renders it twice, once as
  * MathML and once as HTML, so plain textContent repeats it), and no footnote
  * markers.
  */
 function headingTitle(sheet: HTMLElement): string {
-  const heading = [...sheet.querySelectorAll('h1, h2, h3, h4, h5, h6')].find(
-    (h) => !h.closest('nav.toc'),
-  )
+  // The metadata title wins; the title block's own "Abstract" heading never
+  // counts as a document heading.
+  const heading =
+    sheet.querySelector('.title-block-title') ??
+    [...sheet.querySelectorAll('h1, h2, h3, h4, h5, h6')].find(
+      (h) => !h.closest('nav.toc') && !h.closest('.title-block'),
+    )
   if (!heading) return ''
   const copy = heading.cloneNode(true) as Element
   copy.querySelectorAll('.footnote-ref').forEach((el) => el.remove())
