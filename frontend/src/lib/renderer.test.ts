@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, renderDocument } from './renderer'
+import { render, renderDocument, plainTitle } from './renderer'
 import { createCitationFormatter } from './citations'
 import { parseBib, type CSLEntry } from './bibliography'
 
@@ -569,5 +569,84 @@ describe('render: cross-references', () => {
     const result = renderDocument(TWO)
     expect(result.crossrefs.targets.map((t) => t.label)).toEqual(['fig:a', 'fig:b'])
     expect(result.crossrefs.targets[1]).toMatchObject({ kind: 'fig', number: 2, line: 3 })
+  })
+})
+
+describe('title block', () => {
+  it('is absent from a document with no metadata', () => {
+    expect(render('---\ntoc: true\n---\n# H\n\nText.')).not.toContain('title-block')
+  })
+
+  it('comes before a top-placed contents list and the body', () => {
+    const html = render('---\ntitle: On Things\ntoc: true\n---\n# Intro\n\nText.')
+    const header = html.indexOf('<header class="title-block">')
+    expect(header).toBe(0)
+    expect(header).toBeLessThan(html.indexOf('<nav'))
+    expect(html.indexOf('<nav')).toBeLessThan(html.indexOf('Intro</h1>'))
+  })
+
+  it('renders emphasis and maths in the title', () => {
+    const html = render('---\ntitle: A *bold* $x$ title\n---\nText.')
+    expect(html).toMatch(/<h1 class="title-block-title">A <em>bold<\/em> <span class="katex">/)
+    expect(plainTitle('A *bold* $x$ title')).toBe('A bold x title')
+  })
+
+  it('numbers citations in the abstract before the body', async () => {
+    const formatter = await createCitationFormatter(
+      [
+        { id: 'a', type: 'book', title: 'Alpha', author: [{ family: 'Ash', given: 'A.' }], issued: { 'date-parts': [[2001]] } },
+        { id: 'b', type: 'book', title: 'Beta', author: [{ family: 'Birch', given: 'B.' }], issued: { 'date-parts': [[2002]] } },
+      ],
+      'ieee',
+    )
+    const html = render('---\nabstract: See [@a].\n---\nAnd [@b].', { formatter })
+    const abstract = html.slice(html.indexOf('title-block-abstract'), html.indexOf('</header>'))
+    expect(abstract).toContain('[1]')
+    const body = html.slice(html.indexOf('</header>'), html.indexOf('References'))
+    expect(body).toContain('[2]')
+    expect(html).not.toContain('data-cite-index')
+  })
+
+  it('resolves abstract references against the body and reports misses at the abstract line', () => {
+    const doc = '---\ntitle: T\nabstract: See @fig:x and @fig:nope.\n---\n![A cat](cat.png){#fig:x}\n'
+    const { html, crossrefs } = renderDocument(doc)
+    const abstract = html.slice(html.indexOf('title-block-abstract'), html.indexOf('</header>'))
+    expect(abstract).toContain('<a class="crossref" href="#fig:x">Figure\u00a01</a>')
+    expect(abstract).toContain('<span class="crossref-error">Figure\u00a0??</span>')
+    expect(crossrefs.missing).toEqual([{ key: 'fig:nope', line: 3 }])
+  })
+
+  it('keeps the abstract out of the outline, figure numbers and footnotes', () => {
+    const doc = [
+      '---',
+      'abstract: |',
+      '  Note[^n].',
+      '',
+      '  [^n]: Note.',
+      '',
+      '  ## Inside',
+      '',
+      '  ![Abstract fig](a.png)',
+      '---',
+      '# Body',
+      '',
+      '![Body fig](b.png)',
+      '',
+      'Text[^m].',
+      '',
+      '[^m]: Body note.',
+    ].join('\n')
+    const { html, outline } = renderDocument(doc)
+    expect(outline.map((o) => o.text)).toEqual(['Body'])
+    const body = html.slice(html.indexOf('</header>'))
+    expect(body).toContain('Figure 1: Body fig')
+    expect(body).toMatch(/<sup class="footnote-ref"><a href="#fn1" id="fnref1">\[1\]<\/a><\/sup>/)
+  })
+
+  it('anchors abstract paragraphs to their document lines', () => {
+    const doc = '---\ntitle: T\nabstract: |\n  First.\n\n  Second.\n---\nBody.'
+    const html = render(doc)
+    expect(html).toContain('<p data-source-line="4">First.</p>')
+    expect(html).toContain('<p data-source-line="6">Second.</p>')
   })
 })
