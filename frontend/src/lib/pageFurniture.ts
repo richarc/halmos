@@ -1,4 +1,5 @@
 import type { Frontmatter } from './frontmatter'
+import { plainTitle } from './renderer'
 
 /**
  * What Export PDF draws in the top and bottom margins of every page, from the
@@ -8,8 +9,8 @@ import type { Frontmatter } from './frontmatter'
  * The date is formatted there too, in the Mac's region format, which the
  * webview's own locale does not follow.
  *
- * The title is the document's first heading, else its file name: the rule the
- * HTML export uses for its <title>.
+ * The title is the frontmatter's `title`, else the document's first heading,
+ * else its file name: the rule the HTML export uses for its <title>.
  */
 export interface PageFurniture {
   header: string
@@ -18,7 +19,7 @@ export interface PageFurniture {
 }
 
 export function pageFurniture(
-  fm: Pick<Frontmatter, 'header' | 'footer'>,
+  fm: Pick<Frontmatter, 'header' | 'footer' | 'title'>,
   firstHeading: string,
   filename: string | null | undefined,
 ): PageFurniture {
@@ -28,6 +29,8 @@ export function pageFurniture(
   return {
     header,
     footer,
-    title: firstHeading || (filename ?? 'Untitled').replace(/\.[^.]+$/, ''),
+    title:
+      (fm.title ? plainTitle(fm.title) : '') ||
+      firstHeading || (filename ?? 'Untitled').replace(/\.[^.]+$/, ''),
   }
 }

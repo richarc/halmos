@@ -25,4 +25,12 @@ describe('pageFurniture', () => {
     expect(pageFurniture({ header: '{title}' }, '', 'notes.draft.md').title).toBe('notes.draft')
     expect(pageFurniture({ header: '{title}' }, '', null).title).toBe('Untitled')
   })
+
+  it('prefers the frontmatter title, as plain text', () => {
+    expect(pageFurniture({ footer: '{title}', title: 'A *bold* title' }, 'Intro', 'x.md').title).toBe(
+      'A bold title',
+    )
+    expect(pageFurniture({ footer: '{title}' }, 'Intro', 'x.md').title).toBe('Intro')
+    expect(pageFurniture({ footer: '{title}' }, '', 'x.md').title).toBe('x')
+  })
 })
