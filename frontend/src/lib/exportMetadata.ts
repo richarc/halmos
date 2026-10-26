@@ -7,9 +7,12 @@ import { isMap, isSeq, parseDocument } from 'yaml'
 import { BLOCK_RE } from './frontmatter'
 
 /**
- * authorsForExport rewrites map authors in the frontmatter as strings. Every
- * other byte of the document is kept; a document with nothing to flatten, no
- * frontmatter, or a block that is not valid YAML comes back as the same string.
+ * authorsForExport rewrites map authors in the frontmatter as strings. The
+ * text after the frontmatter is kept byte for byte; when authors are
+ * flattened the block itself is re-serialised, so its folding, quoting and
+ * comment spacing may change while every value keeps its meaning. A document
+ * with nothing to flatten, no frontmatter, or a block that is not valid YAML
+ * comes back as the same string.
  */
 export function authorsForExport(markdown: string): string {
   const match = BLOCK_RE.exec(markdown)
@@ -20,6 +23,10 @@ export function authorsForExport(markdown: string): string {
   if (doc.errors.length || !isMap(doc.contents)) return markdown
 
   const node = doc.get('author', true)
+  // An author map is flattened only when it has a text name; anything else is
+  // left for Pandoc as it was written.
+  const flattenable = (item: unknown): boolean =>
+    isMap(item) && typeof item.get('name') === 'string' && (item.get('name') as string).trim() !== ''
   const flat = (item: unknown): string => {
     const plain = (item as { toJSON(): { name?: unknown; affiliation?: unknown } }).toJSON()
     return [plain.name, plain.affiliation]
@@ -28,11 +35,11 @@ export function authorsForExport(markdown: string): string {
       .join(', ')
   }
 
-  if (isMap(node)) {
+  if (flattenable(node)) {
     // A single author written as a map.
     doc.set('author', flat(node))
-  } else if (isSeq(node) && node.items.some((item) => isMap(item))) {
-    node.items = node.items.map((item) => (isMap(item) ? doc.createNode(flat(item)) : item))
+  } else if (isSeq(node) && node.items.some(flattenable)) {
+    node.items = node.items.map((item) => (flattenable(item) ? doc.createNode(flat(item)) : item))
   } else {
     return markdown
   }

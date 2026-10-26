@@ -95,7 +95,10 @@ document, written as `key: value` lines. Halmos reads it and then removes
 the block before rendering. Most keys are settings and do not appear in the
 preview; `title`, `author`, `date` and `abstract` make a title block at the
 top of the page. If you set `title:`, do not also type it as a `#` heading,
-or it shows twice. A `#` starts a comment,
+or it shows twice. Put quotes around a value that contains a colon followed by a
+space, or that starts with `{`, `[` or a quote mark: `title: "Yield: a study"`.
+If the frontmatter is not valid YAML, the title block is left out (and Word and
+LaTeX exports may not get one either). A `#` starts a comment,
 whether it begins a line or follows a value, so to switch the contents on
 delete just the `#` at the start of the `toc:` line and leave the rest.
 
@@ -381,8 +384,8 @@ footer: Page {page} of {pages}
 ---
 ```
 
-Quote a value that contains `:` or `#`, as `header` is quoted above to be
-safe. Headers and footers appear in Export PDF only, not in Print… or the
+Quote a value that contains `:` or `#`, or that starts with `{`, as `header`
+is quoted above. Headers and footers appear in Export PDF only, not in Print… or the
 other formats.
 
 **Export → Export HTML…** writes the document as one file you can send or open

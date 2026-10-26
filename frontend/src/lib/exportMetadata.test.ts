@@ -29,6 +29,15 @@ describe('authorsForExport', () => {
     expect(parseFrontmatter(out).authors).toEqual([{ name: 'Ada, Analytical Society' }])
   })
 
+  it('leaves a map author without a text name unchanged', () => {
+    const noName = doc('author:\n  - affiliation: Somewhere\n  - Ada')
+    expect(authorsForExport(noName)).toBe(noName)
+    const numeric = doc('author:\n  - name: 5\n    affiliation: X')
+    expect(authorsForExport(numeric)).toBe(numeric)
+    const single = doc('author:\n  affiliation: Somewhere')
+    expect(authorsForExport(single)).toBe(single)
+  })
+
   it('keeps CRLF line endings', () => {
     const out = authorsForExport(doc('author:\n  - name: Ada\n    affiliation: X').replace(/\n/g, '\r\n'))
     expect(out).not.toMatch(/[^\r]\n/)

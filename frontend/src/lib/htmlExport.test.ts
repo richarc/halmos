@@ -82,6 +82,14 @@ describe('buildStandaloneHTML', () => {
     expect(parse(await buildStandaloneHTML(root, opts())).title).toBe('My Paper')
   })
 
+  it('skips an abstract-only title block and titles the page by the first body heading', async () => {
+    const root = previewSheet(
+      '<header class="title-block"><section class="title-block-abstract">' +
+        '<h2 class="title-block-abstract-heading">Abstract</h2><p>x</p></section></header><h1>Intro</h1>',
+    )
+    expect(parse(await buildStandaloneHTML(root, opts())).title).toBe('Intro')
+  })
+
   it('titles the metadata title with maths by its TeX', async () => {
     const root = previewSheet(
       '<header class="title-block"><h1 class="title-block-title">Energy <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>E</mi></mrow>' +

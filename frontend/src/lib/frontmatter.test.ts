@@ -221,6 +221,12 @@ describe('metadata', () => {
     expect(fmOf('date: 2026-10-26').date).toBe('2026-10-26')
   })
 
+  it('shows a number-like date or title as written', () => {
+    expect(fmOf('date: 2026.10').date).toBe('2026.10')
+    expect(fmOf('title: 1.50').title).toBe('1.50')
+    expect(fmOf('date: 2026').date).toBe('2026')
+  })
+
   it('leaves the six keys working when the block is not valid YAML', () => {
     const fm = parseFrontmatter('---\ncsl: ieee\nfooter: Page {page}: draft\ntitle: T\n---\n')
     expect(fm.csl).toBe('ieee')

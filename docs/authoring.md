@@ -64,7 +64,14 @@ the ones you set.
 
 The title and abstract are spell checked. If the YAML in the frontmatter is
 broken, or a key has a shape Halmos does not read, the title block is left
-out and the document still renders.
+out and the document still renders. Word and LaTeX exports may then get no
+title block either.
+
+Put quotes around any value that contains a colon followed by a space, or that
+starts with `{`, `[` or a quote mark. `title: Yield: a study` is not valid
+YAML and the whole title block disappears; `title: "Yield: a study"` works.
+The same goes for a `header` or `footer` that starts with `{`:
+`header: "{title} - draft"`.
 
 `csl` is one of five bundled styles — `apa`, `chicago-author-date`,
 `ieee`, `vancouver`, `harvard` — or the path to a `.csl` file, relative to the

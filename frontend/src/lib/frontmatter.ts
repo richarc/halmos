@@ -77,9 +77,12 @@ function readMetadata(text: string, out: Frontmatter): void {
   if (doc.errors.length || !isMap(doc.contents)) return
 
   const str = (key: string): string | undefined => {
-    const v: unknown = doc.get(key)
+    const node = doc.get(key, true)
+    if (!isScalar(node)) return undefined
+    const v: unknown = node.value
     if (typeof v === 'string') return v.trim() || undefined
-    if (typeof v === 'number') return String(v)
+    // A number is shown as typed: String(2026.10) would say "2026.1".
+    if (typeof v === 'number' && node.range) return text.slice(node.range[0], node.range[1]).trim() || undefined
     return undefined
   }
   const title = str('title')
