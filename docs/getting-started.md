@@ -28,14 +28,22 @@ a **New Document** button, and **Open…**.
 
 ### File → New… (⌘N)
 
-This is the normal way to start a paper. It asks two things before the save
-panel opens:
+This is the normal way to start a paper. It asks a few things before the
+save panel opens:
 
-1. **Include a bibliography** — tick this if you will cite anything. A
+1. **Start from** — *Blank* is an empty document. *Research article* starts
+   with a title, an author with an affiliation, an abstract, and the
+   sections Introduction, Methods, Results, Discussion and Conclusion. The
+   document opens with the title selected, so you can type it straight away.
+   Replace "Your Name" and "Your institution" in the frontmatter too.
+2. **Page header and footer** — puts the title at the top of each page of an
+   exported PDF and "Page 1 of 5" at the bottom. It is ticked for a research
+   article; untick it if you don't want them.
+3. **Include a bibliography** — tick this if you will cite anything. A
    citation-style menu appears; pick one of the five bundled styles
    (`apa`, `chicago-author-date`, `ieee`, `vancouver`, `harvard`). You can
    change it later in the frontmatter.
-2. **Bibliography** — which `.bib` file the document will use:
+4. **Bibliography** — which `.bib` file the document will use:
    *Same name as the document* creates `paper.bib` beside `paper.md`; *A new
    file named* lets you choose the name; *An existing file* points at a
    library you already have.

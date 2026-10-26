@@ -47,7 +47,9 @@ PDF, and may use `{title}` (the `title:` key, or the first heading if there is n
 `title`, `author`, `date` and `abstract` are Pandoc's names, and make a title
 block at the top of the preview, the PDF and the HTML export. Word and LaTeX
 get the same block from Pandoc. Each is optional, and the block shows only
-the ones you set.
+the ones you set. File → New… with *Start from: Research article* fills in
+`title`, `author` and `abstract` for you; add a `date:` line yourself when
+you want one.
 
 - `title` is one line. Emphasis and inline maths work. A citation in it is
   shown as you typed it, not formatted.
