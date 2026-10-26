@@ -38,7 +38,7 @@ const KNOWN_KEYS = ['bibliography', 'csl', 'toc', 'toc-depth', 'header', 'footer
 // Requiring the closing fence to end its own line keeps a longer rule such as
 // ---- from terminating the block early. The inner group is optional so an
 // empty block still parses.
-const BLOCK_RE = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/
+export const BLOCK_RE = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/
 
 export function parseFrontmatter(markdown: string): Frontmatter {
   const match = BLOCK_RE.exec(markdown)
