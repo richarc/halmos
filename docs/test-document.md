@@ -1,9 +1,17 @@
 ---
+title: Halmos Test Document
+author:
+  - name: Ada Lovelace
+    affiliation: University of London
+  - name: Charles Babbage
+    affiliation: University of Cambridge
+date: 26 October 2026
+abstract: |
+  A tour of everything Halmos renders, with a citation
+  [@feinQuantumSuperpositionMolecules2019] and an inline formula $E = mc^2$.
 bibliography: zotero-export-text.bib
 csl: apa
 ---
-
-# Halmos Test Document
 
 A tour of everything Halmos renders, written to be read as a PDF. Every
 section shows the markdown first, in a code block, and then the same text as

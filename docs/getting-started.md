@@ -92,16 +92,21 @@ Every new document starts with a block like this:
 
 The two lines of `---` fence off the **frontmatter**: settings for the
 document, written as `key: value` lines. Halmos reads it and then removes
-the whole block before rendering, so nothing in it appears in the preview
-or the PDF. That is why the title goes in the document as a heading, not
-here: a `title:` line would be silently ignored. A `#` starts a comment,
+the block before rendering. Most keys are settings and do not appear in the
+preview; `title`, `author`, `date` and `abstract` make a title block at the
+top of the page. If you set `title:`, do not also type it as a `#` heading,
+or it shows twice. A `#` starts a comment,
 whether it begins a line or follows a value, so to switch the contents on
 delete just the `#` at the start of the `toc:` line and leave the rest.
 
-Halmos reads exactly six keys. Everything else is left alone.
+Halmos reads exactly ten keys. Everything else is left alone.
 
 | Key | What it does |
 |---|---|
+| `title` | The document's title, shown large and centred at the top. Also used for `{title}` in a header or footer, and as the page title of an HTML export. |
+| `author` | One name, a list of names, or a list of entries with `name` and `affiliation`. Shown under the title. |
+| `date` | Shown under the authors, exactly as you write it. |
+| `abstract` | Shown under the date. Write it with `abstract: |` and indent the lines under it. |
 | `bibliography` | The `.bib` file citations resolve against. Relative paths are relative to the document, so `references.bib` means the file beside it. |
 | `csl` | Citation style: one of the five bundled names above, or the path to a journal's `.csl` file. Format → Citation Style writes it for you. A name Halmos does not know falls back to APA with a warning. |
 | `toc` | `true` renders a table of contents, at the first paragraph containing `[[toc]]` or, if there is none, at the top. |
@@ -366,7 +371,7 @@ and the preview is drawn at that size so what you see is what prints.
 
 To put a line at the top or bottom of every page, set `header` or `footer`
 in the frontmatter. Each is one line of text, centred, in small type, and
-can use `{title}` (the first heading, or the file name), `{date}` (today),
+can use `{title}` (the `title:` key, else the first heading, else the file name), `{date}` (today),
 `{page}` and `{pages}`:
 
 ```markdown

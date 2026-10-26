@@ -213,7 +213,7 @@ into Word and LaTeX (its M0.15 section).
       Cross-reference… is ⇧⌘R. Word gets generated labels on unlabelled
       figures and tables. In LaTeX a reference to a chart or diagram does
       not resolve (see the Backlog).
-- [ ] **Title, authors and abstract as document metadata.** Today the
+- [x] **Title, authors and abstract as document metadata.** Today the
       whole frontmatter is removed before rendering, and `title:` and
       `author:` are dropped (`docs/authoring.md`, "Frontmatter: exactly
       four keys"). That was fine with PDF as the only output. Pandoc builds
@@ -224,6 +224,13 @@ into Word and LaTeX (its M0.15 section).
       relates to `{title}` in page headers, which today is the first
       heading. Decide before v1.0.0 if possible: changing what frontmatter
       means is harder once 1.0 documents exist.
+      *Done 2026-10-26*: built on branch `metadata`. Keys are Pandoc's
+      (`title`, `author`, `date`, `abstract`), read with the `yaml`
+      library in `lib/frontmatter.ts`; the title block is `lib/titleBlock.ts`.
+      Authors may carry an affiliation. `{title}` and the HTML page title use
+      the metadata title first. Word and LaTeX get an author with an
+      affiliation as "Name, Affiliation" (`authorsForExport`). One Word and
+      one LaTeX export with two authors is still to be checked.
 - [ ] **Journal-shaped starter documents in the New dialog**
       (`lib/documentTemplate.ts`): an article with title, authors, abstract
       and the usual sections. From the Markdown-books review (2026-10-23);
