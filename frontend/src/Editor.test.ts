@@ -19,7 +19,7 @@ interface ChartBlock {
 }
 
 interface EditorApi {
-  setContent(text: string, cursor?: 'start' | 'end'): void
+  setContent(text: string, cursor?: 'start' | 'end' | { from: number; to: number }): void
   reloadContent(text: string, undoable: boolean): void
   insertAtCursor(text: string): void
   insertBlockAtCursor(text: string): void
@@ -158,6 +158,32 @@ describe('Editor.setContent', () => {
     flushSync()
 
     expect(text()).toBe('---\n# csl: apa\n---\nBODY')
+    cleanup()
+  })
+
+  it('selects a range when asked, so typing replaces a placeholder', () => {
+    const { editor, text, cleanup } = mountEditor()
+    editor.setContent('---\ntitle: "T"\n---\n', { from: 12, to: 13 })
+    flushSync()
+    let range = { from: -1, to: -1 }
+    editor.runCommand((v) => ((range = { from: v.state.selection.main.from, to: v.state.selection.main.to }), true))
+    expect(range).toEqual({ from: 12, to: 13 })
+
+    editor.insertAtCursor('Wheat')
+    flushSync()
+    expect(text()).toBe('---\ntitle: "Wheat"\n---\n')
+    cleanup()
+  })
+
+  it('does not let undo resurrect the previous document after selecting a range', () => {
+    const { editor, text, cleanup } = mountEditor()
+    editor.setContent('first document')
+    flushSync()
+    editor.setContent('---\ntitle: "T"\n---\n', { from: 12, to: 13 })
+    flushSync()
+    editor.runCommand(undo)
+    flushSync()
+    expect(text()).toBe('---\ntitle: "T"\n---\n')
     cleanup()
   })
 

@@ -162,6 +162,7 @@ vi.mock('./lib/recoveryDraft', async (importOriginal) => ({
 }))
 
 import App from './App.svelte'
+import { STARTERS, newDocumentText } from './lib/documentTemplate'
 
 // Tracked so afterEach can always unmount, even when a test body throws
 // partway through — otherwise a failing assertion leaves App mounted with a
@@ -478,14 +479,14 @@ describe('new documents', () => {
   // that go into the frontmatter.
   it('lists citation styles by name', async () => {
     const target = await openNewDialog()
-    const options = [...(dialog(target)!.querySelector('select') as HTMLSelectElement).options]
+    const options = [...(dialog(target)!.querySelector('select[name="csl"]') as HTMLSelectElement).options]
     expect(options.map((o) => o.textContent)).toEqual(['APA', 'Chicago (author-date)', 'Harvard', 'IEEE', 'Vancouver'])
     expect(options.map((o) => o.value)).toEqual(['apa', 'chicago-author-date', 'harvard', 'ieee', 'vancouver'])
   })
 
   it('goes back to the first step without losing the style', async () => {
     const target = await openNewDialog()
-    const select = dialog(target)!.querySelector('select') as HTMLSelectElement
+    const select = dialog(target)!.querySelector('select[name="csl"]') as HTMLSelectElement
     select.value = 'ieee'
     select.dispatchEvent(new Event('change', { bubbles: true }))
     flushSync()
@@ -493,7 +494,7 @@ describe('new documents', () => {
     flushSync()
     buttonByText(target, 'Back')!.click()
     flushSync()
-    expect((dialog(target)!.querySelector('select') as HTMLSelectElement).value).toBe('ieee')
+    expect((dialog(target)!.querySelector('select[name="csl"]') as HTMLSelectElement).value).toBe('ieee')
     expect(buttonByText(target, 'Create…')).toBeDefined()
   })
 
@@ -505,16 +506,114 @@ describe('new documents', () => {
 
     buttonByText(target, 'New Document')!.click()
     flushSync()
-    const box = dialog(target)!.querySelector('input[type="checkbox"]') as HTMLInputElement
+    const box = dialog(target)!.querySelector('input[name="bibliography"]') as HTMLInputElement
     box.click()
     flushSync()
-    expect(dialog(target)!.querySelector('select')).toBeNull()
+    expect(dialog(target)!.querySelector('select[name="csl"]')).toBeNull()
     buttonByText(target, 'Create…')!.click()
 
     await vi.waitFor(() => expect(DocumentService.CreateDocument).toHaveBeenCalled())
     const [, content, bibName] = DocumentService.CreateDocument.mock.calls[0]
     expect(content).toContain('# bibliography: references.bib')
     expect(bibName).toBe('')
+  })
+
+  const starterSelect = (target: HTMLElement) =>
+    dialog(target)!.querySelector('select[name="starter"]') as HTMLSelectElement
+  const furnitureBox = (target: HTMLElement) =>
+    dialog(target)!.querySelector('input[name="page-furniture"]') as HTMLInputElement
+  const chooseStarter = (target: HTMLElement, id: string) => {
+    const select = starterSelect(target)
+    select.value = id
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    flushSync()
+  }
+  const untickBibliography = (target: HTMLElement) => {
+    ;(dialog(target)!.querySelector('input[name="bibliography"]') as HTMLInputElement).click()
+    flushSync()
+  }
+
+  it('offers Blank and Research article, Blank first, with the box unticked', async () => {
+    const target = await openNewDialog()
+    const options = [...starterSelect(target).options]
+    expect(options.map((o) => o.textContent)).toEqual(STARTERS.map((s) => s.label))
+    expect(starterSelect(target).value).toBe('blank')
+    expect(furnitureBox(target).checked).toBe(false)
+    expect(dialog(target)!.textContent).toContain(STARTERS[0].hint)
+    expect(dialog(target)!.textContent).toContain('Page header and footer')
+    chooseStarter(target, 'article')
+    expect(dialog(target)!.textContent).toContain(STARTERS[1].hint)
+  })
+
+  it('sets the box to each starter\'s default whenever the starter changes', async () => {
+    const target = await openNewDialog()
+    chooseStarter(target, 'article')
+    expect(furnitureBox(target).checked).toBe(true)
+    furnitureBox(target).click()
+    flushSync()
+    expect(furnitureBox(target).checked).toBe(false)
+    chooseStarter(target, 'blank')
+    expect(furnitureBox(target).checked).toBe(false)
+    chooseStarter(target, 'article')
+    expect(furnitureBox(target).checked).toBe(true)
+  })
+
+  it('creates a research article with the title selected', async () => {
+    DocumentService.ChooseNewDocumentPath.mockResolvedValueOnce('/papers/paper.md')
+    const target = await openNewDialog()
+    chooseStarter(target, 'article')
+    untickBibliography(target)
+    buttonByText(target, 'Create…')!.click()
+
+    await vi.waitFor(() => expect(DocumentService.CreateDocument).toHaveBeenCalled())
+    const [, content] = DocumentService.CreateDocument.mock.calls[0]
+    expect(content).toBe(newDocumentText(null, 'apa', { starter: 'article', pageFurniture: true }))
+    await vi.waitFor(() => expect(editorText(target)).toContain('Title of the paper'))
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const { from, to } = view.state.selection.main
+    expect(view.state.sliceDoc(from, to)).toBe('Title of the paper')
+  })
+
+  it('keeps the starter and the box through the bibliography step', async () => {
+    DocumentService.ChooseNewDocumentPath.mockResolvedValueOnce('/papers/paper.md')
+    const target = await openNewDialog()
+    chooseStarter(target, 'article')
+    furnitureBox(target).click()
+    flushSync()
+    buttonByText(target, 'Create…')!.click()
+    flushSync()
+    buttonByText(target, 'Continue…')!.click()
+
+    await vi.waitFor(() => expect(DocumentService.CreateDocument).toHaveBeenCalled())
+    const [, content] = DocumentService.CreateDocument.mock.calls[0]
+    expect(content).toBe(newDocumentText('paper.bib', 'apa', { starter: 'article', pageFurniture: false }))
+  })
+
+  it('places the cursor below the frontmatter for a blank document, as before', async () => {
+    DocumentService.ChooseNewDocumentPath.mockResolvedValueOnce('/papers/notes.md')
+    const target = await openNewDialog()
+    untickBibliography(target)
+    buttonByText(target, 'Create…')!.click()
+
+    await vi.waitFor(() => expect(DocumentService.CreateDocument).toHaveBeenCalled())
+    await vi.waitFor(() => expect(editorText(target)).toContain('# bibliography: references.bib'))
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    expect(view.state.selection.main.head).toBe(view.state.doc.length)
+  })
+
+  it('starts again from Blank after the save panel is cancelled', async () => {
+    const target = await openNewDialog()
+    chooseStarter(target, 'article')
+    untickBibliography(target)
+    buttonByText(target, 'Create…')!.click()
+    await vi.waitFor(() => expect(DocumentService.ChooseNewDocumentPath).toHaveBeenCalled())
+    await Promise.resolve()
+    expect(DocumentService.CreateDocument).not.toHaveBeenCalled()
+
+    listeners['menu:new']({ data: null })
+    flushSync()
+    expect(starterSelect(target).value).toBe('blank')
+    expect(furnitureBox(target).checked).toBe(false)
   })
 
   it('does nothing when the save panel is cancelled', async () => {
