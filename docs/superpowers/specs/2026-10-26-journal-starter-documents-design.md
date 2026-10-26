@@ -24,14 +24,23 @@ abstract and the usual sections".
   the author replaces text rather than recalling syntax.
 - Everything in the starter is ordinary Halmos markdown that also means the
   same to Pandoc, so it exports to Word and LaTeX as it previews.
+- A **Page header and footer** checkbox adds a running header (the title)
+  and footer ("Page 1 of 5") for Export PDF, with either starting point.
+  Product owner's decision, 2026-10-26: a checkbox rather than a third
+  starter, since it combines with both.
 - The bibliography and citation-style choices work exactly as today with
   either starting point.
 
 ## Non-goals
 
 - More journal shapes (review article, letter, thesis chapter) and
-  journal-specific templates (Nature, IEEE). The list is built so another
-  starter is one more entry, but only one is designed now. **(call)**
+  journal-specific templates. Journals differ mostly in page layout, which
+  they enforce through their own LaTeX class or Word template; that is a
+  later "journal profile" (a starter, a citation style and an export
+  template chosen together), noted in the product roadmap on 2026-10-26.
+  This design keeps the starters as a list so a profile can reuse them,
+  and adds no `journal:` frontmatter key. Product owner's decision,
+  2026-10-26.
 - User-made templates, or opening an existing file as a template.
 - Changing the first-launch scratch document (`doNew`), which stays blank.
 - Remembering the last choice between sessions. The dialog resets to Blank
@@ -63,6 +72,24 @@ Discussion, Conclusion." **(call)**: a select rather than radio buttons or
 cards, matching the citation-style row already in the dialog and keeping it
 a one-screen dialog.
 
+Below it, a checkbox:
+
+> ☐ **Page header and footer** — hint: "The title at the top of each PDF
+> page, 'Page 1 of 5' at the bottom."
+
+It is ticked when Research article is selected and unticked for Blank;
+changing the starter resets it to that default, and the author can change
+it either way before Create…. **(call)** on the defaults. When ticked, the
+frontmatter gains:
+
+```yaml
+header: "{title}"
+footer: "Page {page} of {pages}"
+```
+
+These only affect Export PDF; `{title}` is the metadata title, else the
+first heading, else the file name.
+
 Everything after that is unchanged: bibliography on or off, the style, the
 bibliography step, the save panel.
 
@@ -79,6 +106,8 @@ abstract: |
   matters.
 bibliography: paper.bib
 csl: apa
+header: "{title}"
+footer: "Page {page} of {pages}"
 ---
 
 ## Introduction
@@ -122,9 +151,11 @@ placement.
 
 ## Constraints
 
-- `lib/documentTemplate.ts` stays the one place starter text is defined;
-  `newDocumentText(bibliography, csl)` gains the starter as a parameter and
-  Blank produces exactly today's text (existing tests unchanged).
+- `lib/documentTemplate.ts` stays the one place starter text is defined.
+  The starters are a list (id, label, hint, whether the header and footer
+  default on), so a new starter is one entry. `newDocumentText` gains the
+  starter and the header/footer choice; Blank without header and footer
+  produces exactly today's text (existing tests unchanged).
 - The starter renders with no status-bar warnings and no toasts, with and
   without a bibliography.
 - The frontmatter parses with Halmos's metadata reader (title, one author
@@ -144,12 +175,14 @@ placement.
 
 ## Left to the builder
 
-- How the starter list is represented (an array of `{ id, label, hint }`
-  next to the text, or a map), so long as a new starter is one entry.
+- How the starter list is represented in code, so long as a new starter
+  is one entry.
 - How the title placeholder is selected after creation (a new cursor mode
   for `loadDocument`, or an editor call after load).
 - Tests, beyond: Blank is byte-for-byte today's text; the article's
   frontmatter parses to the expected title, author and abstract; the
   article renders a title block and five `h2` sections with no warnings, with
-  and without a bibliography; the dialog passes the chosen starter through
-  and resets to Blank on open.
+  and without a bibliography; the header/footer lines appear exactly when
+  ticked, for both starters, and parse as `header`/`footer`; the dialog
+  passes the chosen starter and checkbox through, resets to Blank (box
+  unticked) on open, and ticks the box when Research article is chosen.
