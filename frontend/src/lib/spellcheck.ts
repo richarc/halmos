@@ -2,6 +2,7 @@ import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder, type EditorState, type Extension } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import { frontmatterEndLine } from './markdownCommands'
+import { parseFrontmatter } from './frontmatter'
 
 export interface Range {
   from: number
@@ -63,10 +64,10 @@ const BARE_CITATION = /(?<![\w@[])@[\w][\w:#$%&\-+?<>~/]*(?:\.[\w][\w:#$%&\-+?<>
 function documentWideRanges(state: EditorState): Range[] {
   const found: Range[] = []
 
-  const fmEnd = frontmatterEndLine(state)
-  if (fmEnd > 0) found.push({ from: 0, to: state.doc.line(fmEnd).to })
-
   const text = state.doc.toString()
+  const fmEnd = frontmatterEndLine(state)
+  if (fmEnd > 0) found.push(...frontmatterRanges(state, fmEnd, text))
+
   for (const re of [DISPLAY_MATH, INLINE_MATH, BARE_ENVIRONMENT, CITATION_GROUP, BARE_CITATION, FOOTNOTE_MARKER, ALERT_MARKER]) {
     re.lastIndex = 0
     for (let m = re.exec(text); m; m = re.exec(text)) {
@@ -75,6 +76,52 @@ function documentWideRanges(state: EditorState): Range[] {
   }
 
   return found
+}
+
+/**
+ * The frontmatter's protected parts: all of it except the `title:` value and
+ * the abstract's text, which are prose. A block that is not valid YAML has no
+ * title or abstract to find and stays protected whole. Maths and citations
+ * inside the prose are still caught by the whole-text patterns.
+ */
+function frontmatterRanges(state: EditorState, fmEnd: number, text: string): Range[] {
+  const whole = [{ from: 0, to: state.doc.line(fmEnd).to }]
+  const fm = parseFrontmatter(text)
+  if (fm.title === undefined && fm.abstractLine === undefined) return whole
+
+  // Spans to leave unprotected, as [from, to) document offsets.
+  const prose: Range[] = []
+  for (let n = 2; n < fmEnd; n++) {
+    const line = state.doc.line(n)
+    if (fm.title !== undefined) {
+      const t = /^title\s*:[ \t]*/.exec(line.text)
+      if (t) prose.push({ from: line.from + t[0].length, to: line.to })
+    }
+    const a = fm.abstractLine === undefined ? null : /^abstract\s*:[ \t]*(.*)$/.exec(line.text)
+    if (!a) continue
+    if (/^[|>][+\-\d]*[ \t]*(#.*)?$/.test(a[1])) {
+      // Block scalar: the lines after the header, up to the first non-blank
+      // line that is not indented (the next key) or the closing fence.
+      let last = n
+      for (let m = n + 1; m < fmEnd; m++) {
+        const t = state.doc.line(m).text
+        if (t.trim() && !/^[ \t]/.test(t)) break
+        if (t.trim()) last = m
+      }
+      if (last > n) prose.push({ from: state.doc.line(n + 1).from, to: state.doc.line(last).to })
+    } else {
+      prose.push({ from: line.to - a[1].length, to: line.to })
+    }
+  }
+
+  const out: Range[] = []
+  let at = 0
+  for (const r of prose.sort((x, y) => x.from - y.from)) {
+    if (r.from > at) out.push({ from: at, to: r.from })
+    at = Math.max(at, r.to)
+  }
+  out.push({ from: at, to: whole[0].to })
+  return out
 }
 
 /** The maths spans in `text` (display, inline, bare environments), shifted by `offset`. */
