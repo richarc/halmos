@@ -398,8 +398,12 @@ export function renderDocument(markdown: string, opts?: RenderOptions): RenderRe
     html =
       titleBlockHtml(
         { title: fm.title, authors: fm.authors, date: fm.date, abstractHtml },
-        // A throwaway env: a citation in the title is left as written.
-        (s) => md.renderInline(s, {}),
+        // A citation in the title is left as written. The citation rule
+        // still emits a placeholder, numbered from 0 in this throwaway env,
+        // so it is unwrapped here; formatCitations would otherwise fill it
+        // with the body's first citation. The placeholder's text is already
+        // escaped.
+        (s) => md.renderInline(s, {}).replace(/<span class="citation" data-cite-index="\d+">(.*?)<\/span>/gs, '$1'),
         md.utils.escapeHtml,
       ) + html
   }

@@ -607,6 +607,18 @@ describe('title block', () => {
     expect(html).not.toContain('data-cite-index')
   })
 
+  it('leaves a citation in the title as written', async () => {
+    const formatter = await createCitationFormatter(
+      [
+        { id: 'a', type: 'book', title: 'Alpha', author: [{ family: 'Ash', given: 'A.' }], issued: { 'date-parts': [[2001]] } },
+        { id: 'b', type: 'book', title: 'Beta', author: [{ family: 'Birch', given: 'B.' }], issued: { 'date-parts': [[2002]] } },
+      ],
+      'ieee',
+    )
+    const html = render('---\ntitle: On [@a]\n---\nAnd [@b].', { formatter })
+    expect(html).toContain('<h1 class="title-block-title">On [@a]</h1>')
+  })
+
   it('resolves abstract references against the body and reports misses at the abstract line', () => {
     const doc = '---\ntitle: T\nabstract: See @fig:x and @fig:nope.\n---\n![A cat](cat.png){#fig:x}\n'
     const { html, crossrefs } = renderDocument(doc)
