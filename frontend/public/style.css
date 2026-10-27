@@ -997,6 +997,58 @@ dialog::backdrop { background: var(--backdrop); }
   text-decoration: underline;
 }
 
+/* Command palette (⇧⌘P). Not a <dialog>: it must not trap the menu bar's
+   commands, which close it first (App.svelte). Near the top and centred, over
+   a lighter dimming than a dialog's, so the document still reads behind it.
+   The scrim's lightness is an opacity on the dialog backdrop colour rather
+   than a token of its own. */
+.palette-layer { position: fixed; inset: 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; }
+.palette-scrim { position: absolute; inset: 0; background: var(--backdrop); opacity: 0.5; }
+.palette {
+  position: relative;
+  width: min(36rem, calc(100vw - 32px));
+  background: var(--overlay-bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--sheet-shadow);
+  overflow: hidden;
+  font-size: 13px;
+}
+.palette input.palette-input {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 15px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--overlay-bg);
+}
+/* The field is the only focus stop and always has it; a ring would only
+   frame the whole box. */
+.palette input.palette-input:focus-visible { outline: none; }
+/* About ten rows, then it scrolls; the highlighted row is kept in view. */
+.palette-list { list-style: none; max-height: 320px; overflow-y: auto; padding: 4px; }
+.palette-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: default;
+  line-height: 1.5;
+}
+.palette-row[aria-selected="true"] { background: var(--accent); color: var(--on-accent); }
+.palette-tick { flex: none; width: 1em; text-align: center; }
+.palette-text { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-text b { font-weight: 700; }
+.palette-detail { flex: 0 1 auto; min-width: 0; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-row kbd { margin-left: auto; flex: none; font: inherit; color: var(--muted); }
+.palette-row[aria-selected="true"] .palette-detail,
+.palette-row[aria-selected="true"] kbd { color: inherit; opacity: 0.85; }
+.palette-empty { padding: 8px 12px; color: var(--muted); }
+
 /* All four error rules below read the document palette, not the theme: every
    element they match is rendered by a preview hydrator into the sheet, so the
    ground under them is paper. */
@@ -1055,7 +1107,7 @@ dialog::backdrop { background: var(--backdrop); }
      palette does not appear: the sheet is invariant light on screen already,
      so there is nothing to re-light — which is the whole reason this block
      used to be fifty lines longer. */
-  .toolbar, .status-bar, .editor-pane, .divider, .welcome, .toast, dialog, .outline, .code-copy {
+  .toolbar, .status-bar, .editor-pane, .divider, .welcome, .toast, dialog, .outline, .code-copy, .palette-layer {
     display: none !important;
   }
   /* The copy button's gutter is screen-only; print keeps the original padding. */
