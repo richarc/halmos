@@ -1607,7 +1607,7 @@ describe('export PDF', () => {
     listeners['menu:export-pdf']({ data: null })
     flushSync()
 
-    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('', { header: '', footer: '', title: '' })
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('', { header: '', footer: '', title: '', skipFirstPageHeader: false })
   })
 
   it('passes the open document’s path once one is open', async () => {
@@ -1624,7 +1624,7 @@ describe('export PDF', () => {
     listeners['menu:export-pdf']({ data: null })
     flushSync()
 
-    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md', { header: '', footer: '', title: '' })
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md', { header: '', footer: '', title: '', skipFirstPageHeader: false })
   })
 
   it('passes the frontmatter’s header and footer, titled by the first heading', async () => {

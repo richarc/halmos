@@ -3,7 +3,12 @@ import { pageFurniture } from './pageFurniture'
 
 describe('pageFurniture', () => {
   it('is empty when the frontmatter asks for neither', () => {
-    expect(pageFurniture({}, 'First heading', 'paper.md')).toEqual({ header: '', footer: '', title: '' })
+    expect(pageFurniture({}, 'First heading', 'paper.md')).toEqual({
+      header: '',
+      footer: '',
+      title: '',
+      skipFirstPageHeader: false,
+    })
   })
 
   // The export fills the placeholders in, page by page, in one pass.
@@ -17,6 +22,7 @@ describe('pageFurniture', () => {
       header: '{title} — {date}',
       footer: 'Page {page} of {pages}',
       title: 'On Mirrors',
+      skipFirstPageHeader: false,
     })
   })
 
@@ -32,5 +38,16 @@ describe('pageFurniture', () => {
     )
     expect(pageFurniture({ footer: '{title}' }, 'Intro', 'x.md').title).toBe('Intro')
     expect(pageFurniture({ footer: '{title}' }, '', 'x.md').title).toBe('x')
+  })
+
+  // The title block already shows the title on page 1, so a running header
+  // starts on page 2.
+  it('leaves the header off page 1 when the document has a title block', () => {
+    const header = { header: '{title}', footer: 'Page {page} of {pages}' }
+    expect(pageFurniture({ ...header, title: 'T' }, '', 'x.md').skipFirstPageHeader).toBe(true)
+    expect(pageFurniture({ ...header, authors: [{ name: 'Ada' }] }, '', 'x.md').skipFirstPageHeader).toBe(true)
+    expect(pageFurniture({ ...header, abstract: 'A.' }, '', 'x.md').skipFirstPageHeader).toBe(true)
+    expect(pageFurniture({ ...header, date: '2026' }, '', 'x.md').skipFirstPageHeader).toBe(true)
+    expect(pageFurniture(header, 'Intro', 'x.md').skipFirstPageHeader).toBe(false)
   })
 })

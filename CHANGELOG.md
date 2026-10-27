@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - File → New… can start a research article: a title, an author with an
   affiliation, an abstract, and Introduction, Methods, Results, Discussion
   and Conclusion, with the title selected ready to type. A "Page header and
-  footer" box adds the title and "Page 1 of 5" to every exported PDF page;
-  it is ticked for a research article.
+  footer" box adds the title and "Page 1 of 5" to exported PDF pages; it is
+  ticked for a research article. With a title block, the header is left off
+  page 1, where the title already shows; the footer is on every page.
 - Title, authors, date and abstract. Set `title`, `author`, `date` and
   `abstract` in the frontmatter, with Pandoc's names, and the preview, PDF
   and HTML export show a title block at the top of the first page. An author

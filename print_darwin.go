@@ -11,7 +11,8 @@ package main
 
 // pdfstamp_darwin.go.
 int hermesStampPDFAt(NSURL *in, NSURL *out, NSString *header, NSString *footer,
-                     NSString *title, NSString *date, NSString *fontKey);
+                     NSString *title, NSString *date, NSString *fontKey,
+                     BOOL skipFirstHeader);
 
 // Finishes an export that has a header or footer. WebKit's PDF was saved to
 // a temporary file; once the operation has run, the header and footer are
@@ -22,6 +23,7 @@ int hermesStampPDFAt(NSURL *in, NSURL *out, NSString *header, NSString *footer,
 @public
 	NSURL *temp, *dest;
 	NSString *header, *footer, *title, *date, *fontKey;
+	BOOL skipFirstHeader;
 }
 @end
 
@@ -31,7 +33,7 @@ int hermesStampPDFAt(NSURL *in, NSURL *out, NSString *header, NSString *footer,
                  contextInfo:(void *)info {
 	NSFileManager *fm = [NSFileManager defaultManager];
 	if (success && [fm fileExistsAtPath:temp.path]) {
-		if (!hermesStampPDFAt(temp, dest, header, footer, title, date, fontKey)) {
+		if (!hermesStampPDFAt(temp, dest, header, footer, title, date, fontKey, skipFirstHeader)) {
 			NSLog(@"Halmos: could not add the header and footer to %@", dest.path);
 			// Replace rather than delete-then-move, so a failed move cannot
 			// leave the user with neither file. Move when there is nothing
@@ -150,7 +152,7 @@ static int hermesExportWebViewPDF(const char *path, const char *paperName,
                                   int landscape, double paperWidth,
                                   double paperHeight, const char *header,
                                   const char *footer, const char *title,
-                                  const char *fontKey) {
+                                  const char *fontKey, int skipFirstHeader) {
 	if (@available(macOS 11.0, *)) {
 		NSWindow *window = [NSApp keyWindow] ?: [NSApp mainWindow];
 		if (!window) {
@@ -178,6 +180,7 @@ static int hermesExportWebViewPDF(const char *path, const char *paperName,
 			                                                 dateStyle:NSDateFormatterLongStyle
 			                                                 timeStyle:NSDateFormatterNoStyle] retain];
 			finisher->fontKey = [[NSString stringWithUTF8String:fontKey] retain];
+			finisher->skipFirstHeader = skipFirstHeader != 0;
 			url = finisher->temp;
 		}
 
@@ -294,6 +297,6 @@ func exportPDF(path, paperName string, landscape bool, paperWidth, paperHeight f
 	defer freeCStrings(cs)
 	return application.InvokeSyncWithResult(func() bool {
 		return C.hermesExportWebViewPDF(cs[0], cs[1], l, C.double(paperWidth), C.double(paperHeight),
-			cs[2], cs[3], cs[4], cs[5]) != 0
+			cs[2], cs[3], cs[4], cs[5], cBool(f.SkipFirstPageHeader)) != 0
 	})
 }

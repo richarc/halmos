@@ -14,6 +14,9 @@ type PageFurniture struct {
 	Header string `json:"header"`
 	Footer string `json:"footer"`
 	Title  string `json:"title"`
+	// SkipFirstPageHeader leaves the header off page 1, where the document's
+	// title block already shows the title; the footer is still drawn there.
+	SkipFirstPageHeader bool `json:"skipFirstPageHeader"`
 }
 
 // maxFurnitureRunes caps each field. A margin holds one line; anything longer
@@ -27,6 +30,8 @@ func (f PageFurniture) normalised() PageFurniture {
 		Header: oneLine(f.Header),
 		Footer: oneLine(f.Footer),
 		Title:  oneLine(f.Title),
+
+		SkipFirstPageHeader: f.SkipFirstPageHeader,
 	}
 }
 

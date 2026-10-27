@@ -1,4 +1,4 @@
-import type { Frontmatter } from './frontmatter'
+import { hasTitleBlock, type Frontmatter } from './frontmatter'
 import { plainTitle } from './renderer'
 
 /**
@@ -11,26 +11,31 @@ import { plainTitle } from './renderer'
  *
  * The title is the frontmatter's `title`, else the document's first heading,
  * else its file name: the rule the HTML export uses for its <title>.
+ *
+ * A document with a title block already shows its title on page 1, so the
+ * header is left off that page (`skipFirstPageHeader`); the footer is not.
  */
 export interface PageFurniture {
   header: string
   footer: string
   title: string
+  skipFirstPageHeader: boolean
 }
 
 export function pageFurniture(
-  fm: Pick<Frontmatter, 'header' | 'footer' | 'title'>,
+  fm: Pick<Frontmatter, 'header' | 'footer' | 'title' | 'authors' | 'date' | 'abstract'>,
   firstHeading: string,
   filename: string | null | undefined,
 ): PageFurniture {
   const header = fm.header ?? ''
   const footer = fm.footer ?? ''
-  if (!header && !footer) return { header: '', footer: '', title: '' }
+  if (!header && !footer) return { header: '', footer: '', title: '', skipFirstPageHeader: false }
   return {
     header,
     footer,
     title:
       (fm.title ? plainTitle(fm.title) : '') ||
       firstHeading || (filename ?? 'Untitled').replace(/\.[^.]+$/, ''),
+    skipFirstPageHeader: hasTitleBlock(fm),
   }
 }

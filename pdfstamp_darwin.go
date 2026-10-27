@@ -78,6 +78,7 @@ static NSFont *hermesFurnitureFont(NSString *key, CGFloat size) {
 static NSString *hermesStampHeader, *hermesStampFooter, *hermesStampTitle, *hermesStampDate;
 static NSFont *hermesStampFont;
 static NSInteger hermesStampPages;
+static BOOL hermesStampSkipFirstHeader;
 
 // Distance from the paper's edge to the middle of the header or footer line:
 // half the 25mm margin across the short edge (lib/paper.ts's PAGE_MARGIN_MM),
@@ -118,7 +119,7 @@ static const CGFloat hermesFurnitureInset = 25.0 / 2 * 72 / 25.4;
 
 	NSGraphicsContext *previous = [NSGraphicsContext currentContext];
 	[NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithCGContext:context flipped:NO]];
-	if (hermesStampHeader.length) {
+	if (hermesStampHeader.length && !(page == 1 && hermesStampSkipFirstHeader)) {
 		NSString *text = hermesFurnitureText(hermesStampHeader, hermesStampTitle, hermesStampDate, page, hermesStampPages);
 		[text drawInRect:NSMakeRect(b.origin.x + inset,
 		                            NSMaxY(b) - hermesFurnitureInset - lineHeight / 2, width, lineHeight)
@@ -145,11 +146,13 @@ static const CGFloat hermesFurnitureInset = 25.0 / 2 * 72 / 25.4;
 @end
 
 // Draws the header and footer on every page of the PDF at in and writes the
-// result to out, keeping WebKit's text and links. Returns 0 if in is not a
-// readable PDF or out could not be written. in and out may not be the same
-// file: PDFKit reads pages lazily while it writes.
+// result to out, keeping WebKit's text and links. With skipFirstHeader the
+// header is left off page 1, where the title block already shows the title.
+// Returns 0 if in is not a readable PDF or out could not be written. in and
+// out may not be the same file: PDFKit reads pages lazily while it writes.
 int hermesStampPDFAt(NSURL *in, NSURL *out, NSString *header, NSString *footer,
-                            NSString *title, NSString *date, NSString *fontKey) {
+                            NSString *title, NSString *date, NSString *fontKey,
+                            BOOL skipFirstHeader) {
 	@autoreleasepool {
 		PDFDocument *doc = [[[PDFDocument alloc] initWithURL:in] autorelease];
 		if (!doc || doc.pageCount == 0) {
@@ -165,10 +168,12 @@ int hermesStampPDFAt(NSURL *in, NSURL *out, NSString *header, NSString *footer,
 		hermesStampDate = date;
 		hermesStampFont = hermesFurnitureFont(fontKey, 9);
 		hermesStampPages = doc.pageCount;
+		hermesStampSkipFirstHeader = skipFirstHeader;
 		BOOL ok = [doc writeToURL:out];
 		doc.delegate = nil;
 		hermesStampHeader = hermesStampFooter = hermesStampTitle = hermesStampDate = nil;
 		hermesStampFont = nil;
+		hermesStampSkipFirstHeader = NO;
 		return ok ? 1 : 0;
 	}
 }
@@ -179,13 +184,13 @@ static NSString *hermesString(const char *s) {
 
 static int hermesStampPDF(const char *in, const char *out, const char *header,
                           const char *footer, const char *title, const char *date,
-                          const char *fontKey) {
+                          const char *fontKey, int skipFirstHeader) {
 	@autoreleasepool {
 		return hermesStampPDFAt([NSURL fileURLWithPath:hermesString(in)],
 		                        [NSURL fileURLWithPath:hermesString(out)],
 		                        hermesString(header), hermesString(footer),
 		                        hermesString(title), hermesString(date),
-		                        hermesString(fontKey));
+		                        hermesString(fontKey), skipFirstHeader != 0);
 	}
 }
 
@@ -224,7 +229,7 @@ import (
 func stampPDF(in, out string, f PageFurniture, date, fontKey string) bool {
 	cs := cStrings(in, out, f.Header, f.Footer, f.Title, date, fontKey)
 	defer freeCStrings(cs)
-	return C.hermesStampPDF(cs[0], cs[1], cs[2], cs[3], cs[4], cs[5], cs[6]) != 0
+	return C.hermesStampPDF(cs[0], cs[1], cs[2], cs[3], cs[4], cs[5], cs[6], cBool(f.SkipFirstPageHeader)) != 0
 }
 
 // furnitureText is hermesFurnitureText, the placeholder filling each page's
@@ -256,6 +261,13 @@ func cStrings(ss ...string) []*C.char {
 		cs[i] = C.CString(s)
 	}
 	return cs
+}
+
+func cBool(b bool) C.int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func freeCStrings(cs []*C.char) {
