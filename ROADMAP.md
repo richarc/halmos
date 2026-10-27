@@ -231,11 +231,17 @@ into Word and LaTeX (its M0.15 section).
       the metadata title first. Word and LaTeX get an author with an
       affiliation as "Name, Affiliation" (`authorsForExport`). One Word and
       one LaTeX export with two authors is still to be checked.
-- [ ] **Journal-shaped starter documents in the New dialog**
+- [x] **Journal-shaped starter documents in the New dialog**
       (`lib/documentTemplate.ts`): an article with title, authors, abstract
       and the usual sections. From the Markdown-books review (2026-10-23);
       moved from the Backlog on 2026-10-24. Builds on the title, authors
       and abstract metadata above.
+      *Done 2026-10-26*: built on branch `starters`
+      (`docs/superpowers/specs/2026-10-26-journal-starter-documents-design.md`).
+      Start from Blank or Research article; a "Page header and footer" box
+      (ticked for an article). The article opens with its title selected.
+      Starters are a list (`STARTERS`), so more shapes, or journal profiles
+      later, are one entry each.
 - [ ] **Release v0.15.0**, once the items above are done. Cut by hand with
       `wails3 task release`, as since v0.9.0 (the workflow is a v1.0.0
       item). Planned 2026-10-24 as the release before 1.0. It publishes the

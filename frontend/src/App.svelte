@@ -32,6 +32,8 @@
     NEW_DOCUMENT_TEMPLATE,
     BIBLIOGRAPHY_SEED,
     newDocumentText,
+    titleSelection,
+    type StarterId,
     bibliographyReference,
   } from './lib/documentTemplate'
   import NewDocument, { type BibliographyChoice } from './NewDocument.svelte'
@@ -1104,7 +1106,11 @@
   // `cursor` is 'end' for a document created a moment ago, so typing starts
   // below its frontmatter; the 'start' default is for opening a file, which
   // must not relocate where ⌘⇧C and the Format-menu commands act.
-  function loadDocument(docPath: string, docContent: string, cursor: 'start' | 'end' = 'start') {
+  function loadDocument(
+    docPath: string,
+    docContent: string,
+    cursor: 'start' | 'end' | { from: number; to: number } = 'start',
+  ) {
     // Before anything changes: the keeper must not read the swap from a
     // dirty old document to a clean new one as a save of the old one.
     drafts.reset()
@@ -1359,7 +1365,11 @@
   // which is not known until the panel has been answered.
   let newOpen = $state(false)
 
-  async function createDocument(bibliography: BibliographyChoice | null, csl: string) {
+  async function createDocument(
+    bibliography: BibliographyChoice | null,
+    csl: string,
+    start: { starter: StarterId; pageFurniture: boolean },
+  ) {
     newOpen = false
     try {
       const chosen = await DocumentService.ChooseNewDocumentPath()
@@ -1370,9 +1380,11 @@
       // Only an existing file needs the document's folder to be known, which
       // is why this runs after the save panel rather than in the dialog.
       const { name: bibName, seed } = bibliographyFor(bibliography, chosen)
-      const text = newDocumentText(bibName === '' ? null : bibName, csl)
+      const text = newDocumentText(bibName === '' ? null : bibName, csl, start)
       const doc = await DocumentService.CreateDocument(chosen, text, bibName, seed)
-      loadDocument(doc.path, doc.content, 'end')
+      // A starter with a title placeholder opens with it selected, so typing
+      // replaces it; otherwise typing continues below the frontmatter.
+      loadDocument(doc.path, doc.content, titleSelection(doc.content) ?? 'end')
     } catch (err) {
       toast(`Could not create document: ${err}`)
     }
@@ -1949,7 +1961,7 @@
     <TableBuilder initial={tableInitial} oncommit={commitTable} oncancel={closeTableBuilder} />
   {/if}
 
-  <NewDocument open={newOpen} onclose={() => (newOpen = false)} oncreate={(b, c) => void createDocument(b, c)} />
+  <NewDocument open={newOpen} onclose={() => (newOpen = false)} oncreate={(b, c, s) => void createDocument(b, c, s)} />
 
   <Dialog
     open={pendingAction !== null}

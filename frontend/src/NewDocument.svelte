@@ -1,7 +1,7 @@
 <script lang="ts">
   import Dialog from './Dialog.svelte'
   import { STYLE_CHOICES } from './lib/citations'
-  import { withBibExtension } from './lib/documentTemplate'
+  import { STARTERS, withBibExtension, type StarterId } from './lib/documentTemplate'
   import { DocumentService } from '../bindings/hermes'
 
   /**
@@ -21,7 +21,11 @@
      * The author pressed Continue… (or Create… with no bibliography); the
      * parent goes on to the save panel. `null` means no bibliography.
      */
-    oncreate: (bibliography: BibliographyChoice | null, csl: string) => void
+    oncreate: (
+      bibliography: BibliographyChoice | null,
+      csl: string,
+      start: { starter: StarterId; pageFurniture: boolean },
+    ) => void
     /** The native open panel; injectable so tests need no Wails runtime. */
     chooseBibliography?: () => Promise<string>
   }
@@ -37,6 +41,17 @@
   // costs one click to opt out of. The style only matters when it is ticked.
   let withBibliography = $state(true)
   let csl = $state('apa')
+  // What the document starts from, and whether it gets Export PDF's running
+  // header and footer. The box follows the starter's default each time the
+  // starter changes; the author can still change it after.
+  let starter = $state<StarterId>('blank')
+  let pageFurniture = $state(false)
+  const starterHint = $derived(STARTERS.find((s) => s.id === starter)?.hint ?? '')
+
+  function chooseStarter(id: StarterId) {
+    starter = id
+    pageFurniture = STARTERS.find((s) => s.id === id)?.furnitureByDefault ?? false
+  }
 
   // Step two, shown only when a bibliography is wanted. A separate step
   // rather than three radios under the checkbox: the first dialog stays the
@@ -53,6 +68,8 @@
     if (open) {
       withBibliography = true
       csl = 'apa'
+      starter = 'blank'
+      pageFurniture = false
       step = 'document'
       kind = 'same'
       newName = ''
@@ -68,7 +85,7 @@
 
   function create() {
     if (!withBibliography) {
-      oncreate(null, csl)
+      oncreate(null, csl, { starter, pageFurniture })
       return
     }
     step = 'bibliography'
@@ -76,9 +93,10 @@
 
   function proceed() {
     if (!canContinue) return
-    if (kind === 'new') oncreate({ kind, name: withBibExtension(newName) }, csl)
-    else if (kind === 'existing') oncreate({ kind, path: existingPath }, csl)
-    else oncreate({ kind: 'same' }, csl)
+    const start = { starter, pageFurniture }
+    if (kind === 'new') oncreate({ kind, name: withBibExtension(newName) }, csl, start)
+    else if (kind === 'existing') oncreate({ kind, path: existingPath }, csl, start)
+    else oncreate({ kind: 'same' }, csl, start)
   }
 
   async function choose() {
@@ -95,8 +113,26 @@
 <Dialog {open} label="New document" {onclose}>
   {#if step === 'document'}
     <h2 class="dialog-title">New document</h2>
+    <label class="style-row"
+      >Start from
+      <select
+        name="starter"
+        value={starter}
+        onchange={(e) => chooseStarter((e.currentTarget as HTMLSelectElement).value as StarterId)}
+      >
+        {#each STARTERS as s (s.id)}
+          <option value={s.id}>{s.label}</option>
+        {/each}
+      </select>
+    </label>
+    <p class="hint no-indent">{starterHint}</p>
     <label class="check-row">
-      <input type="checkbox" bind:checked={withBibliography} />
+      <input type="checkbox" name="page-furniture" bind:checked={pageFurniture} />
+      Page header and footer
+    </label>
+    <p class="hint">The title at the top of each PDF page, 'Page 1 of 5' at the bottom.</p>
+    <label class="check-row">
+      <input type="checkbox" name="bibliography" bind:checked={withBibliography} />
       Include a bibliography
     </label>
     <p class="hint">
@@ -106,7 +142,7 @@
     {#if withBibliography}
       <label class="style-row"
         >Citation style
-        <select bind:value={csl}>
+        <select name="csl" bind:value={csl}>
           {#each STYLE_CHOICES as c (c.id)}
             <option value={c.id}>{c.label}</option>
           {/each}

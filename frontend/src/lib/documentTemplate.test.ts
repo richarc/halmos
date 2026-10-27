@@ -5,10 +5,12 @@ import {
   newDocumentText,
   bibliographyReference,
   withBibExtension,
+  STARTERS,
+  titleSelection,
 } from './documentTemplate'
 import { parseFrontmatter } from './frontmatter'
 import { STYLE_IDS } from './citations'
-import { render } from './renderer'
+import { render, renderDocument } from './renderer'
 
 describe('NEW_DOCUMENT_TEMPLATE', () => {
   // The whole point of commenting the keys out: a live `bibliography:` naming
@@ -117,5 +119,79 @@ describe('BIBLIOGRAPHY_SEED', () => {
       expect(line.startsWith('%')).toBe(true)
     }
     expect(BIBLIOGRAPHY_SEED.endsWith('\n')).toBe(true)
+  })
+})
+
+describe('starters', () => {
+  const article = (bib: string | null, pageFurniture = false) =>
+    newDocumentText(bib, 'apa', { starter: 'article', pageFurniture })
+
+  it('lists Blank and Research article, in that order', () => {
+    expect(STARTERS.map((s) => s.id)).toEqual(['blank', 'article'])
+  })
+
+  it('keeps Blank without a header and footer exactly as before', () => {
+    expect(newDocumentText(null, 'apa', { starter: 'blank', pageFurniture: false })).toBe(NEW_DOCUMENT_TEMPLATE)
+    expect(newDocumentText('paper.bib', 'ieee', {})).toBe(newDocumentText('paper.bib', 'ieee'))
+  })
+
+  it('adds the page header and footer to Blank when asked', () => {
+    for (const bib of [null, 'paper.bib']) {
+      const plain = parseFrontmatter(newDocumentText(bib, 'ieee'))
+      const fm = parseFrontmatter(newDocumentText(bib, 'ieee', { pageFurniture: true }))
+      expect(fm.header).toBe('{title}')
+      expect(fm.footer).toBe('Page {page} of {pages}')
+      expect(fm.bibliography).toBe(plain.bibliography)
+      expect(fm.csl).toBe(plain.csl)
+    }
+  })
+
+  it('starts a research article with a title, an author and an abstract', () => {
+    const fm = parseFrontmatter(article('paper.bib'))
+    expect(fm.title).toBe('Title of the paper')
+    expect(fm.authors).toEqual([{ name: 'Your Name', affiliation: 'Your institution' }])
+    expect(fm.abstract?.startsWith('One paragraph:')).toBe(true)
+    expect(fm.bibliography).toBe('paper.bib')
+    expect(fm.csl).toBe('apa')
+    expect(fm.header).toBeUndefined()
+    expect(fm.footer).toBeUndefined()
+    const withFurniture = parseFrontmatter(article('paper.bib', true))
+    expect(withFurniture.header).toBe('{title}')
+    expect(withFurniture.footer).toBe('Page {page} of {pages}')
+  })
+
+  it('renders a research article with no bibliography cleanly', () => {
+    const text = article(null)
+    const fm = parseFrontmatter(text)
+    expect(fm.title).toBe('Title of the paper')
+    expect(fm.authors).toEqual([{ name: 'Your Name', affiliation: 'Your institution' }])
+    expect(fm.abstract?.startsWith('One paragraph:')).toBe(true)
+    expect(fm.bibliography).toBeUndefined()
+    const result = renderDocument(text)
+    expect(result.html).toContain('class="title-block"')
+    const sections = [...result.html.matchAll(/<h2[^>]*>([^<]*)<\/h2>/g)]
+      .map((m) => m[1])
+      .filter((t) => t !== 'Abstract')
+    expect(sections).toEqual(['Introduction', 'Methods', 'Results', 'Discussion', 'Conclusion'])
+    expect(result.crossrefs.missing).toEqual([])
+    expect(result.html).not.toContain('[@')
+  })
+
+  it('has no top-level heading and no date in the research article', () => {
+    for (const bib of [null, 'paper.bib']) {
+      const text = article(bib, true)
+      // The frontmatter's own `# ` lines are YAML comments; only the body counts.
+      expect(parseFrontmatter(text).body).not.toMatch(/^# /m)
+      expect(text).not.toMatch(/^date:/m)
+    }
+  })
+
+  it('finds the title placeholder to select', () => {
+    const text = article('paper.bib')
+    const range = titleSelection(text)
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.from, range!.to)).toBe('Title of the paper')
+    expect(titleSelection(NEW_DOCUMENT_TEMPLATE)).toBeNull()
+    expect(titleSelection('no frontmatter')).toBeNull()
   })
 })

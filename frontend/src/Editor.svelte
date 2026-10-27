@@ -226,7 +226,12 @@
   // act on a freshly opened document. Do not "simplify" this back to one
   // behaviour; 'start' is also the default so every other/future caller gets
   // the safe behaviour without having to know about this distinction.
-  export function setContent(text: string, cursor: 'start' | 'end' = 'start'): void {
+  // A range (File → New on a starter with a title placeholder) selects it, so
+  // typing replaces the placeholder; like 'end', it is about to be typed into.
+  export function setContent(
+    text: string,
+    cursor: 'start' | 'end' | { from: number; to: number } = 'start',
+  ): void {
     // A fresh state, not a transaction. basicSetup bundles history(), so
     // dispatching the replacement left it sitting on the undo stack: ⌘Z after
     // File → New restored the PREVIOUS document's text while App.svelte's
@@ -238,7 +243,10 @@
     view.setState(
       EditorState.create({
         doc: text,
-        selection: { anchor: cursor === 'end' ? text.length : 0 },
+        selection:
+          typeof cursor === 'object'
+            ? { anchor: cursor.from, head: cursor.to }
+            : { anchor: cursor === 'end' ? text.length : 0 },
         extensions: editorExtensions(),
       }),
     )
@@ -250,7 +258,7 @@
     // that is the path where the user is about to type. Opening a file must
     // not steal focus, since that is not current behaviour and was not asked
     // for.
-    if (cursor === 'end') view.focus()
+    if (cursor !== 'start') view.focus()
   }
 
   /**
