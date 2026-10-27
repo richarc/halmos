@@ -344,6 +344,30 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
         message with the guides' link.
       - A second run: open the existing folder or start fresh, never
         overwrite the user's edits silently.
+- [ ] **Find a citation style from the CSL repository.** Added
+      2026-10-28. Five styles are bundled; any other means finding the
+      journal's `.csl` file, downloading it and choosing it with Other Style
+      File…. The CSL repository has over 10,000. Other Style File… becomes
+      **Find a Style…**: a searchable list of every style in the repository
+      (by journal name or abbreviation, filtered by field and by format:
+      author-date, numeric, note), with a sample citation and reference for
+      the one selected. Use Style installs it and applies it; "Choose a
+      file…" stays for styles not in the repository.
+      - The list comes from an index the portal builds from the repository
+        (ID, title, short title, field, format, parent), cached by the
+        editor; a style file is fetched only when chosen. No account.
+      - Dependent styles (most journal styles: a journal's name pointing at
+        a parent style) install with their parent; citeproc formats with
+        the parent, and Word and LaTeX export send the parent's CSL. Check
+        first whether a dependent style loads today.
+      - Installed styles live in a library in
+        `~/Library/Application Support/Halmos/styles/`. The frontmatter
+        names the style by its ID (`csl: nature`), so a co-author's Halmos
+        finds or fetches the same style; a path still works as today.
+      - Each style records when it was installed, and Halmos offers
+        updates. Offline, the bundled and installed styles still work.
+      - The styles are CC BY-SA 3.0: list them in the third-party licence
+        notices (v1.0.0).
 - [ ] **Release v0.16.0**, once the items above are done. Cut by hand with
       `wails3 task release`, as v0.15.0 was. The portal's parts (Word and
       LaTeX headers and footers, the tutorial bundle) are deployed before
