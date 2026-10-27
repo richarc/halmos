@@ -62,7 +62,7 @@ export function parseFrontmatter(markdown: string): Frontmatter {
 }
 
 /** True when the document asks for a title block: any of the four keys is set. */
-export function hasTitleBlock(fm: Frontmatter): boolean {
+export function hasTitleBlock(fm: Pick<Frontmatter, 'title' | 'authors' | 'date' | 'abstract'>): boolean {
   return fm.title !== undefined || fm.authors !== undefined || fm.date !== undefined || fm.abstract !== undefined
 }
 

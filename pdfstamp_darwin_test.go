@@ -51,6 +51,32 @@ func TestStampPDFDrawsHeaderAndFooterOnEveryPage(t *testing.T) {
 	}
 }
 
+// A title block already shows the title on page 1, so the running header
+// starts on page 2; the footer stays on every page.
+func TestStampPDFSkipsTheFirstPageHeaderWhenAsked(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "in.pdf")
+	out := filepath.Join(dir, "out.pdf")
+	writeTestPDF(t, in, 3)
+
+	f := PageFurniture{Header: "{title}", Footer: "Page {page} of {pages}", Title: "Running Head", SkipFirstPageHeader: true}
+	if !stampPDF(in, out, f, "", "new-york") {
+		t.Fatal("stampPDF failed")
+	}
+	pages := pdfPageTexts(out)
+	if len(pages) != 3 {
+		t.Fatalf("got %d pages, want 3", len(pages))
+	}
+	for i, text := range pages {
+		if got, want := strings.Contains(text, "Running Head"), i > 0; got != want {
+			t.Errorf("page %d: header present = %v, want %v (%q)", i+1, got, want, text)
+		}
+		if !strings.Contains(text, fmt.Sprintf("Page %d of 3", i+1)) {
+			t.Errorf("page %d: footer missing from %q", i+1, text)
+		}
+	}
+}
+
 func TestStampPDFWithOnlyAFooter(t *testing.T) {
 	dir := t.TempDir()
 	in := filepath.Join(dir, "in.pdf")

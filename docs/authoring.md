@@ -42,7 +42,8 @@ resolved relative to the document, so the `.bib` normally sits beside it;
 one line of text drawn at the top and bottom of every page of an exported
 PDF, and may use `{title}` (the `title:` key, or the first heading if there is none),
 `{date}` (the export date, not the `date:` key), `{page}` and `{pages}`:
-`footer: Page {page} of {pages}`.
+`footer: Page {page} of {pages}`. When the document has a title block, the
+header is left off page 1, where the title already shows; the footer is not.
 
 `title`, `author`, `date` and `abstract` are Pandoc's names, and make a title
 block at the top of the preview, the PDF and the HTML export. Word and LaTeX
@@ -61,8 +62,11 @@ you want one.
   affiliation is sent as "Name, Affiliation".
 - `date` is shown exactly as written. Halmos does not read or change it.
 - `abstract` is Markdown, normally a block written with `|` as above. Maths
-  and citations work. Footnotes in it are listed under the abstract, not
-  with the body's. A heading in it does not appear in the contents list.
+  and citations work. A cross-reference in it, such as `@fig:yield`, is
+  sent to Word and LaTeX as plain text ("Figure 1"), since Pandoc only
+  links references in the body. Footnotes in it are listed under the
+  abstract, not with the body's. A heading in it does not appear in the
+  contents list.
 
 The title and abstract are spell checked. If the YAML in the frontmatter is
 broken, or a key has a shape Halmos does not read, the title block is left

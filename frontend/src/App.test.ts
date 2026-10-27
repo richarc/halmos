@@ -1607,7 +1607,7 @@ describe('export PDF', () => {
     listeners['menu:export-pdf']({ data: null })
     flushSync()
 
-    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('', { header: '', footer: '', title: '' })
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('', { header: '', footer: '', title: '', skipFirstPageHeader: false })
   })
 
   it('passes the open document’s path once one is open', async () => {
@@ -1624,7 +1624,7 @@ describe('export PDF', () => {
     listeners['menu:export-pdf']({ data: null })
     flushSync()
 
-    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md', { header: '', footer: '', title: '' })
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md', { header: '', footer: '', title: '', skipFirstPageHeader: false })
   })
 
   it('passes the frontmatter’s header and footer, titled by the first heading', async () => {
@@ -3348,6 +3348,16 @@ describe('Word and LaTeX export', () => {
     await vi.waitFor(() => expect(target.querySelector('.toast')?.textContent).toContain('Exported paper.docx'))
     buttonByText(target.querySelector('.toast')!, 'Show in Finder')!.click()
     expect(PortalService.RevealExport).toHaveBeenCalledWith('/tmp/out/paper.docx')
+  })
+
+  it('sends a reference in the abstract as the number the preview shows', async () => {
+    await openPaper('---\nabstract: As @fig:a shows.\n---\n\n# Results\n\n![A](a.png){#fig:a}\n')
+    PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.tex')
+    listeners['menu:export-pandoc']({ data: 'latex' })
+    await vi.waitFor(() => expect(PortalService.Export).toHaveBeenCalled())
+    const [, req] = PortalService.Export.mock.calls[0]
+    expect(req.markdown).toContain('abstract: As Figure\u00a01 shows.')
+    expect(req.markdown).toContain('![A](a.png){#fig:a}')
   })
 
   it('offers plans on no_seat', async () => {

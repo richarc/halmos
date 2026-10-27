@@ -5,8 +5,10 @@
 // number a labelled target in a list or quote, which the preview does not, so
 // that label is taken off. The editor's document is never changed.
 
+import { isScalar, parseDocument } from 'yaml'
 import { collectTargets } from './crossrefTargets'
-import { labelColumn, labelSuffix } from './crossrefs'
+import { labelColumn, labelSuffix, referenceText, type CrossrefKind } from './crossrefs'
+import { BLOCK_RE } from './frontmatter'
 
 /** `{#label …}` at the end of a line, with the spaces before it. */
 function labelPattern(label: string): RegExp {
@@ -48,4 +50,50 @@ export function labelForExport(markdown: string): string {
       return line.slice(0, end) + add + line.slice(end)
     })
     .join('\n')
+}
+
+// A reference key as the citation parser reads one, after the kind's prefix;
+// a sentence's closing full stop is not part of it.
+const KEY = String.raw`[\w][\w:#$%&\-+?<>~/]*(?:\.[\w][\w:#$%&\-+?<>~/]*)*`
+const REF = String.raw`@((?:[Ff]ig|[Tt]bl|[Ee]q):${KEY})`
+// A bracketed group of references only, `[@fig:a; @fig:b]`, or a bare one.
+// A group that also cites a source is left for Pandoc.
+const REFERENCES = new RegExp(
+  String.raw`\[\s*${REF}((?:\s*;\s*@(?:[Ff]ig|[Tt]bl|[Ee]q):${KEY})*)\s*\]|(?<![\w@\[])${REF}`,
+  'g',
+)
+
+/**
+ * abstractReferencesForExport writes each cross-reference in the
+ * frontmatter's `abstract` as the text the preview shows ("Figure 2",
+ * "Figures 1, 2"). pandoc-crossref resolves references in the body only, so
+ * one left in the abstract reached Word and LaTeX as "fig:a?". A reference
+ * to a label the document does not have is left as written, and so is
+ * everything outside the abstract.
+ */
+export function abstractReferencesForExport(markdown: string): string {
+  const block = BLOCK_RE.exec(markdown)
+  if (!block || block[1] === undefined) return markdown
+  const doc = parseDocument(block[1], { schema: 'core' })
+  if (doc.errors.length) return markdown
+  const node = doc.get('abstract', true)
+  if (!isScalar(node) || typeof node.value !== 'string' || !node.range) return markdown
+
+  const lookup = new Map<string, { kind: CrossrefKind; number: number }>()
+  for (const t of collectTargets(markdown)) {
+    if (t.label && t.number !== null && !lookup.has(t.label)) lookup.set(t.label, { kind: t.kind, number: t.number })
+  }
+  const start = markdown.indexOf('\n') + 1 + node.range[0]
+  const end = markdown.indexOf('\n') + 1 + node.range[1]
+  const text = markdown.slice(start, end)
+  const written = text.replace(REFERENCES, (whole, first?: string, rest?: string, bare?: string) => {
+    const keys = bare ? [bare] : [first!, ...(rest ?? '').split(';').filter((k) => k.trim()).map((k) => k.trim().slice(1))]
+    // `@Fig:a` is a capital at a sentence start; the label is lower case.
+    const { text: shown, missing } = referenceText(
+      keys.map((k) => k[0].toLowerCase() + k.slice(1)),
+      (label) => lookup.get(label),
+    )
+    return missing ? whole : shown
+  })
+  return written === text ? markdown : markdown.slice(0, start) + written + markdown.slice(end)
 }

@@ -86,6 +86,12 @@ export interface PageFurniture {
     "header": string;
     "footer": string;
     "title": string;
+
+    /**
+     * SkipFirstPageHeader leaves the header off page 1, where the document's
+     * title block already shows the title; the footer is still drawn there.
+     */
+    "skipFirstPageHeader": boolean;
 }
 
 /**

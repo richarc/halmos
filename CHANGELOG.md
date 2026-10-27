@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - File → New… can start a research article: a title, an author with an
   affiliation, an abstract, and Introduction, Methods, Results, Discussion
   and Conclusion, with the title selected ready to type. A "Page header and
-  footer" box adds the title and "Page 1 of 5" to every exported PDF page;
-  it is ticked for a research article.
+  footer" box adds the title and "Page 1 of 5" to exported PDF pages; it is
+  ticked for a research article. With a title block, the header is left off
+  page 1, where the title already shows; the footer is on every page.
 - Title, authors, date and abstract. Set `title`, `author`, `date` and
   `abstract` in the frontmatter, with Pandoc's names, and the preview, PDF
   and HTML export show a title block at the top of the first page. An author
@@ -21,7 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `{title}` in a page header or footer and the HTML page title use the
   `title:` key first. The title and abstract are spell checked. Word and
   LaTeX get the title block from Pandoc, with an author's affiliation sent as
-  "Name, Affiliation". A document without these keys looks as before.
+  "Name, Affiliation". A cross-reference in the abstract reaches Word and
+  LaTeX as plain text ("Figure 1"), since Pandoc resolves references only in
+  the body. A document without these keys looks as before.
 - Table captions. A blank line after a table, then `: Caption`, makes it
   "Table 1: Caption". Tables are numbered apart from figures. The table
   builder has a Caption field.

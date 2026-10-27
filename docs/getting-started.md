@@ -37,7 +37,8 @@ save panel opens:
    document opens with the title selected, so you can type it straight away.
    Replace "Your Name" and "Your institution" in the frontmatter too.
 2. **Page header and footer** — puts the title at the top of each page of an
-   exported PDF and "Page 1 of 5" at the bottom. It is ticked for a research
+   exported PDF, from page 2 on (page 1 already shows it in the title block),
+   and "Page 1 of 5" at the bottom of every page. It is ticked for a research
    article; untick it if you don't want them.
 3. **Include a bibliography** — tick this if you will cite anything. A
    citation-style menu appears; pick one of the five bundled styles
@@ -122,7 +123,7 @@ Halmos reads exactly ten keys. Everything else is left alone.
 | `csl` | Citation style: one of the five bundled names above, or the path to a journal's `.csl` file. Format → Citation Style writes it for you. A name Halmos does not know falls back to APA with a warning. |
 | `toc` | `true` renders a table of contents, at the first paragraph containing `[[toc]]` or, if there is none, at the top. |
 | `toc-depth` | How many heading levels the contents lists. Default 3. |
-| `header` | A line of text at the top of every page of an exported PDF. See [Getting the document out](#6-getting-the-document-out). |
+| `header` | A line of text at the top of every page of an exported PDF (from page 2 when there is a title block). See [Getting the document out](#6-getting-the-document-out). |
 | `footer` | The same, at the bottom of every page. |
 
 The lines in the new-document template begin with `#`, which makes them
@@ -394,7 +395,9 @@ footer: Page {page} of {pages}
 
 Quote a value that contains `:` or `#`, or that starts with `{`, as `header`
 is quoted above. Headers and footers appear in Export PDF only, not in Print… or the
-other formats.
+other formats. When the document has a title block (a `title`, `author`,
+`date` or `abstract`), the header starts on page 2, since page 1 already
+shows the title; the footer is on every page.
 
 **Export → Export HTML…** writes the document as one file you can send or open
 in any browser, offline. It holds the styles, the maths with its fonts, charts
