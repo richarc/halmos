@@ -318,6 +318,32 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       gets ⇧⌘T, next to ⇧⌘C Citation and ⇧⌘R Cross-reference; Chart stays
       on the palette and the toolbar. Design:
       `docs/superpowers/specs/2026-10-27-command-palette-design.md`.
+- [ ] **An interactive Getting Started tutorial.** Added 2026-10-27. The
+      current Getting Started guide is read on the site; this one is done in
+      the editor. Help → Getting Started (also on the start screen and the
+      command palette) downloads a tutorial from halmoseditor.com, a
+      markdown document, a `.bib` file and a data set, saves them to a
+      folder the user picks (default `~/Documents/Halmos Tutorial/`), and
+      opens the document. Each section shows a finished example, then sets
+      a task the user does in the same document, naming the palette command
+      that does it:
+      - an inline and a display equation;
+      - a chart from the bundled data set, through the chart builder;
+      - a paragraph to cite: insert a citation from the bundled `.bib`;
+      - a table with a caption;
+      - cross-references to a figure, a table and an equation.
+      Points to settle:
+      - How a step is marked done: Halmos checks the step's section for the
+        result (an equation, a chart fence, a `[@key]`, an `@fig:` reference)
+        and ticks its task, or the user ticks it.
+      - The bundle is written in `docs/` like the guides and served by the
+        portal; its format, version and the URL (an addition to `/api/v1`
+        or a public file) are agreed with the portal first, which serves it
+        before this release ships. No account needed.
+      - Offline: a copy bundled with the app as the fallback, or a plain
+        message with the guides' link.
+      - A second run: open the existing folder or start fresh, never
+        overwrite the user's edits silently.
 
 ## v1.0.0 — Production
 
