@@ -10,11 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - A command palette. ⇧⌘P opens it; type part of a command's name and press
-  Return. Every menu command is listed as "Menu: Item" with its shortcut, so
-  it is also where to look a shortcut up. The letters typed match in order
-  (`tab` finds Insert: Table…). With nothing typed, the commands last run
-  from the palette come first, remembered between launches. Esc closes it and
-  keeps the cursor and selection. On the welcome pane it lists only the
+  Return. Every Halmos command in the menus is listed as "Menu: Item" with
+  its shortcut, so it is also where to look a shortcut up. The letters typed
+  match in order (`tab` finds Insert: Table…). With nothing typed, the
+  commands last run from the palette come first, remembered between launches.
+  Esc closes it and keeps the cursor and selection. On the welcome pane it lists only the
   commands that work there.
 - Insert → Table… has the shortcut ⇧⌘T, next to ⇧⌘C for Citation… and ⇧⌘R
   for Cross-reference….

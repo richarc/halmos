@@ -430,6 +430,9 @@ Keychain. The document is processed and not kept on the server.
 
 ## Keyboard shortcuts
 
+The command palette (⌘⇧P) lists every Halmos command in the menus with its
+shortcut.
+
 | Shortcut | Action |
 |---|---|
 | ⌘N | New… (name the document, create its bibliography) |
@@ -437,7 +440,10 @@ Keychain. The document is processed and not kept on the server.
 | ⌘S | Save |
 | ⌘⇧S | Save As… |
 | ⌘⇧C | Insert Citation… (Zotero picker) |
+| ⌘⇧R | Insert → Cross-reference… |
+| ⌘⇧T | Insert → Table… |
 | ⌘E | Export PDF… |
+| ⌘⇧P | Command palette |
 | ⌘⌥O | Show or hide the outline panel |
 | ⌘B / ⌘I | Bold / italic |
 | ⌘⇧K / ⌘⇧X | Inline code / strikethrough |

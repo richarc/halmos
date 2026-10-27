@@ -85,7 +85,8 @@ file beside it.
 ### The command palette (⌘⇧P)
 
 Press **⌘⇧P** (or choose **View → Command Palette…**), type part of a command's name, and press **Return** to run
-it. Every command in the menus is there, listed as `Menu: Item` (for
+it. Every Halmos command in the menus is there (the edit commands such as
+Undo and Copy are not), listed as `Menu: Item` (for
 example `Insert: Table…` or `View: Appearance › Dark`) with its shortcut on
 the right, so the palette is also the place to look a shortcut up.
 
