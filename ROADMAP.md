@@ -246,7 +246,7 @@ into Word and LaTeX (its M0.15 section).
       (ticked for an article). The article opens with its title selected.
       Starters are a list (`STARTERS`), so more shapes, or journal profiles
       later, are one entry each.
-- [ ] **Release v0.15.0**, once the items above are done. Cut by hand with
+- [x] **Release v0.15.0**, once the items above are done. Cut by hand with
       `wails3 task release`, as since v0.9.0 (the workflow is a v1.0.0
       item). Planned 2026-10-24 as the release before 1.0. It publishes the
       security fixes held on `main` since 2026-10-23, and the account
@@ -254,6 +254,11 @@ into Word and LaTeX (its M0.15 section).
       v1.1.0: decide before tagging whether those show in v0.15.0 while
       billing is not live. The site then offers this build (the portal's
       M0.15 section).
+      *Done 2026-10-27*: released by hand, signed and notarised
+      (https://github.com/richarc/halmos/releases/tag/v0.15.0); `main` and
+      the update feed pushed after it. The review's public summary is
+      `docs/superpowers/reviews/2026-10-23-pre-v1.0-review.md`. This
+      section is removed once the site offers this build.
 
 ## v0.16.0 — Clean-up before 1.0, continued
 
