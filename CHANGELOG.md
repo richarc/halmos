@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-27
+
 ### Added
 
 - File → New… can start a research article: a title, an author with an
@@ -63,6 +65,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A chart or diagram fence may carry a label after its name
   (```` ```vega-lite {#fig:name} ````). The chart builder keeps it.
 
+- Export PDF…, Export HTML…, Export Word… and Export LaTeX… moved out of
+  File into their own Export menu, next to File. ⌘E still exports a PDF.
+- Spacing across the app follows one scale, toasts use the same text size
+  as dialogs, wrap long messages and sit above the status bar instead of
+  covering it, and the start screen's button reads "New Document".
+- The toolbar, outline and status bar follow the design system. The
+  toolbar groups its buttons, adds "…" where a dialog follows, and gains
+  an Outline button that shows and hides the outline. The outline's arrows
+  are gone, its rows match the start screen's lists, and an empty outline
+  says how to add a heading. The status bar says "Edited" instead of
+  showing a dot, and unknown citations show at its right in red.
+- The chart and table builders follow the design system. The chart builder
+  shows its preview beside the settings, groups them under headings, and
+  uses plain names (Number, Date, Category; Average, Total) instead of
+  Vega-Lite's. The table builder is one joined grid with alignment and
+  remove buttons in each column's header.
+- Dialogs follow the new design system: each shows its title, text is the
+  same size as the rest of the app, paragraphs are spaced, and the
+  alternative button (Don't Save, Discard Draft) sits on the left as in
+  other Mac apps. New document lists citation styles by name, and its
+  hints are grey as intended.
+- A new start screen. New document and Open… sit in a side panel with the
+  app version and the help links; recent files list each file's name with
+  its folder underneath, and Clear empties the list.
+- Updated Wails to v3.0.0-beta.30. On macOS this stops the app running
+  about 120 empty script calls a second while the window is open, fixes a
+  memory leak, and keeps the app responsive while print and file panels
+  are open.
+
 ### Fixed
 
 - In a numbered reference list (IEEE, Vancouver, American Physics Society)
@@ -110,37 +141,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answering.
 - markdown-it updated to 14.3.2: a paragraph with many unmatched closing
   quotes could make the preview very slow (GHSA-r7fv-28h4-cvq7).
-
-### Changed
-
-- Export PDF…, Export HTML…, Export Word… and Export LaTeX… moved out of
-  File into their own Export menu, next to File. ⌘E still exports a PDF.
-- Spacing across the app follows one scale, toasts use the same text size
-  as dialogs, wrap long messages and sit above the status bar instead of
-  covering it, and the start screen's button reads "New Document".
-- The toolbar, outline and status bar follow the design system. The
-  toolbar groups its buttons, adds "…" where a dialog follows, and gains
-  an Outline button that shows and hides the outline. The outline's arrows
-  are gone, its rows match the start screen's lists, and an empty outline
-  says how to add a heading. The status bar says "Edited" instead of
-  showing a dot, and unknown citations show at its right in red.
-- The chart and table builders follow the design system. The chart builder
-  shows its preview beside the settings, groups them under headings, and
-  uses plain names (Number, Date, Category; Average, Total) instead of
-  Vega-Lite's. The table builder is one joined grid with alignment and
-  remove buttons in each column's header.
-- Dialogs follow the new design system: each shows its title, text is the
-  same size as the rest of the app, paragraphs are spaced, and the
-  alternative button (Don't Save, Discard Draft) sits on the left as in
-  other Mac apps. New document lists citation styles by name, and its
-  hints are grey as intended.
-- A new start screen. New document and Open… sit in a side panel with the
-  app version and the help links; recent files list each file's name with
-  its folder underneath, and Clear empties the list.
-- Updated Wails to v3.0.0-beta.30. On macOS this stops the app running
-  about 120 empty script calls a second while the window is open, fixes a
-  memory leak, and keeps the app responsive while print and file panels
-  are open.
 
 ## [0.14.0] - 2026-10-17
 
