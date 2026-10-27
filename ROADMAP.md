@@ -344,6 +344,10 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
         message with the guides' link.
       - A second run: open the existing folder or start fresh, never
         overwrite the user's edits silently.
+- [ ] **Release v0.16.0**, once the items above are done. Cut by hand with
+      `wails3 task release`, as v0.15.0 was. The portal's parts (Word and
+      LaTeX headers and footers, the tutorial bundle) are deployed before
+      it, and the site then offers this build.
 
 ## v1.0.0 — Production
 
