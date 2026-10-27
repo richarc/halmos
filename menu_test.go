@@ -1,9 +1,13 @@
 package main
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -298,7 +302,7 @@ func TestBodyFontMenuValuesMatchFrontend(t *testing.T) {
 func TestAppMenuHasAccountAfterAbout(t *testing.T) {
 	testApp()
 	menu := application.NewMenu()
-	addAppMenu(menu, "Halmos Editor", func() {})
+	addAppMenu(menu, "Halmos Editor", func() {}, newCommandSet())
 	app := menu.ItemAt(0).GetSubmenu()
 	if app == nil {
 		t.Fatal("no app submenu")
@@ -321,7 +325,7 @@ func TestExportMenu(t *testing.T) {
 	testApp()
 	menu := application.NewMenu()
 	menu.AddSubmenu("File")
-	addExportMenu(menu, func(string, ...any) {})
+	addExportMenu(menu, func(string, ...any) {}, newCommandSet())
 	item := menu.ItemAt(1)
 	if item == nil || !item.IsSubmenu() || item.Label() != "Export" {
 		t.Fatalf("second top-level item is not the Export menu")
@@ -384,7 +388,7 @@ func TestInsertMenuHasCrossReference(t *testing.T) {
 	testApp()
 	menu := application.NewMenu()
 	var emitted []string
-	addInsertMenu(menu, func(name string, _ ...any) { emitted = append(emitted, name) })
+	addInsertMenu(menu, func(name string, _ ...any) { emitted = append(emitted, name) }, newCommandSet())
 	item := menu.ItemAt(0)
 	if item == nil || !item.IsSubmenu() || item.Label() != "Insert" {
 		t.Fatal("no Insert menu")
@@ -403,5 +407,181 @@ func TestInsertMenuHasCrossReference(t *testing.T) {
 	clickItem(t, crossref)
 	if !reflect.DeepEqual(emitted, []string{"menu:insert-crossref"}) {
 		t.Errorf("Cross-reference… emitted %v, want [menu:insert-crossref]", emitted)
+	}
+}
+
+// commandsOf lists a command set the way the palette would see it.
+func commandsOf(cmds *commandSet) []Command {
+	r := &commandRegistry{}
+	r.replace(cmds)
+	return r.list()
+}
+
+// Table… gets ⇧⌘T, which CodeMirror's keymaps leave free.
+func TestInsertTableHasShiftCmdT(t *testing.T) {
+	testApp()
+	menu := application.NewMenu()
+	addInsertMenu(menu, func(string, ...any) {}, newCommandSet())
+	insert := menu.ItemAt(0).GetSubmenu()
+	for i := 0; insert.ItemAt(i) != nil; i++ {
+		if it := insert.ItemAt(i); it.Label() == "Table…" {
+			if acc := it.GetAccelerator(); acc != "Cmd+Shift+T" {
+				t.Errorf("Table… accelerator %q, want Cmd+Shift+T", acc)
+			}
+			return
+		}
+	}
+	t.Fatal("no Table… item")
+}
+
+func TestInsertMenuItemsAreCommands(t *testing.T) {
+	testApp()
+	menu := application.NewMenu()
+	var emitted []string
+	cmds := newCommandSet()
+	addInsertMenu(menu, func(name string, _ ...any) { emitted = append(emitted, name) }, cmds)
+	byID := map[string]Command{}
+	for _, c := range commandsOf(cmds) {
+		byID[c.ID] = c
+	}
+	for _, id := range []string{
+		"Insert › Citation…", "Insert › Cross-reference…", "Insert › Chart…",
+		"Insert › Table…", "Insert › Code Block › Python",
+	} {
+		c, ok := byID[id]
+		if !ok {
+			t.Errorf("no command %q", id)
+			continue
+		}
+		if !c.NeedsDocument {
+			t.Errorf("%q does not need a document", id)
+		}
+	}
+	r := &commandRegistry{}
+	r.replace(cmds)
+	if !r.run("Insert › Table…") {
+		t.Fatal("Insert › Table… did not run")
+	}
+	if !reflect.DeepEqual(emitted, []string{"menu:insert-table"}) {
+		t.Errorf("Insert › Table… emitted %v, want [menu:insert-table]", emitted)
+	}
+}
+
+func TestExportMenuItemsAreCommands(t *testing.T) {
+	testApp()
+	menu := application.NewMenu()
+	cmds := newCommandSet()
+	addExportMenu(menu, func(string, ...any) {}, cmds)
+	got := commandsOf(cmds)
+	want := []string{"Export PDF…", "Export HTML…", "Export Word…", "Export LaTeX…"}
+	if len(got) != len(want) {
+		t.Fatalf("got %d commands, want %d: %#v", len(got), len(want), got)
+	}
+	for i, c := range got {
+		if c.Label != want[i] || c.ID != "Export › "+want[i] || !c.NeedsDocument {
+			t.Errorf("command %d = %#v, want %q needing a document", i, c, want[i])
+		}
+	}
+}
+
+// Every menu action must be registered through commandSet.item, which is
+// what attaches the click handler; an OnClick written in menu.go would be a
+// menu item the palette cannot see.
+func TestEveryMenuActionIsRegistered(t *testing.T) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "menu.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ast.Inspect(f, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "OnClick" {
+			t.Errorf("%s: OnClick in menu.go; register the item with cmds.item instead", fset.Position(call.Pos()))
+		}
+		return true
+	})
+}
+
+// Two recent files with the same name are two commands, told apart by id
+// and by the folder shown beside them.
+func TestSameNamedRecentsAreTwoCommands(t *testing.T) {
+	testApp()
+	recent := application.NewMenu()
+	cmds := newCommandSet()
+	var opened []string
+	addRecentItems(recent, []string{"/a/notes.md", "/b/notes.md"}, func(p string) { opened = append(opened, p) }, cmds)
+	got := commandsOf(cmds)
+	var recents []Command
+	for _, c := range got {
+		if c.Label == "notes.md" {
+			recents = append(recents, c)
+		}
+	}
+	if len(recents) != 2 {
+		t.Fatalf("got %d notes.md commands, want 2: %#v", len(recents), got)
+	}
+	if recents[0].ID == recents[1].ID {
+		t.Errorf("both recents have id %q", recents[0].ID)
+	}
+	if recents[0].Detail != "/a" || recents[1].Detail != "/b" {
+		t.Errorf("details %q, %q; want /a, /b", recents[0].Detail, recents[1].Detail)
+	}
+	r := &commandRegistry{}
+	r.replace(cmds)
+	r.run(recents[1].ID)
+	if !reflect.DeepEqual(opened, []string{"/b/notes.md"}) {
+		t.Errorf("opened %v, want [/b/notes.md]", opened)
+	}
+}
+
+// A checkbox run from the palette gets no native toggle from Wails, so its
+// action must read the setting, not the item: one run flips it once.
+func TestCheckboxCommandRunsTheSameAction(t *testing.T) {
+	testApp()
+	docs := NewDocumentService(filepath.Join(t.TempDir(), "recents.json"))
+	before := docs.Settings().AutoSave
+	menu := application.NewMenu()
+	cmds := newCommandSet()
+	addViewMenu(menu, docs, func(string, ...any) {}, cmds)
+	r := &commandRegistry{}
+	r.replace(cmds)
+	if !r.run("View › Autosave") {
+		t.Fatal("View › Autosave did not run")
+	}
+	if got := docs.Settings().AutoSave; got == before {
+		t.Errorf("AutoSave still %v after one run", got)
+	}
+	r.run("View › Autosave")
+	if got := docs.Settings().AutoSave; got != before {
+		t.Errorf("AutoSave %v after two runs, want %v", got, before)
+	}
+}
+
+// The palette's own item heads View, on ⇧⌘P, and works with no document.
+func TestViewMenuOpensCommandPalette(t *testing.T) {
+	testApp()
+	docs := NewDocumentService(filepath.Join(t.TempDir(), "recents.json"))
+	menu := application.NewMenu()
+	var emitted []string
+	cmds := newCommandSet()
+	addViewMenu(menu, docs, func(name string, _ ...any) { emitted = append(emitted, name) }, cmds)
+	view := menu.ItemAt(0).GetSubmenu()
+	first := view.ItemAt(0)
+	if first.Label() != "Command Palette…" || first.GetAccelerator() != "Cmd+Shift+P" {
+		t.Fatalf("first View item %q %q, want Command Palette… Cmd+Shift+P", first.Label(), first.GetAccelerator())
+	}
+	if !view.ItemAt(1).IsSeparator() {
+		t.Error("no separator after Command Palette…")
+	}
+	c := commandsOf(cmds)[0]
+	if c.ID != "View › Command Palette…" || c.NeedsDocument {
+		t.Errorf("command %#v, want View › Command Palette… without a document", c)
+	}
+	clickItem(t, first)
+	if !reflect.DeepEqual(emitted, []string{"menu:command-palette"}) {
+		t.Errorf("emitted %v, want [menu:command-palette]", emitted)
 	}
 }

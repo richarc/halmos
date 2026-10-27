@@ -2,11 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
-
-	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // maxPaletteRecents is how many recently run commands the palette offers.
@@ -24,8 +23,11 @@ type CommandList struct {
 type CommandService struct {
 	reg  *commandRegistry
 	path string
-	// invoke runs a command's action; application.InvokeSync in the app,
-	// so menu actions run on the main thread as they do from a click.
+	// invoke runs a command's action. In the app it calls it directly, on
+	// the binding's goroutine: Wails (beta.30, menuitem.go) runs a menu
+	// click's callback in a goroutine too, so this is how a click behaves,
+	// and InvokeSync could hang on an action that waits for the main thread.
+	// A field so tests can replace it.
 	invoke func(func())
 
 	mu         sync.Mutex
@@ -37,7 +39,7 @@ func newCommandService(reg *commandRegistry, dataDir string) *CommandService {
 	return &CommandService{
 		reg:    reg,
 		path:   filepath.Join(dataDir, "palette-recents.json"),
-		invoke: application.InvokeSync,
+		invoke: func(f func()) { f() },
 	}
 }
 
@@ -68,8 +70,10 @@ func (c *CommandService) RunCommand(id string) bool {
 	}
 	c.recent = next
 	if data, err := json.Marshal(next); err == nil {
-		if err := os.MkdirAll(filepath.Dir(c.path), 0o755); err == nil {
-			_ = writeFileAtomic(c.path, data, 0o644)
+		if err := os.MkdirAll(filepath.Dir(c.path), 0o755); err != nil {
+			log.Printf("could not save palette recents: %v", err)
+		} else if err := writeFileAtomic(c.path, data, 0o644); err != nil {
+			log.Printf("could not save palette recents: %v", err)
 		}
 	}
 	return true
