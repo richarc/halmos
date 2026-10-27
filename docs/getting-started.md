@@ -82,6 +82,24 @@ file beside it.
 - **Outline**, an optional column on the far left listing the document's
   headings (the toolbar's Outline button, View → Outline, or ⌘⌥O).
 
+### The command palette (⌘⇧P)
+
+Press **⌘⇧P** (or choose **View → Command Palette…**), type part of a command's name, and press **Return** to run
+it. Every command in the menus is there, listed as `Menu: Item` (for
+example `Insert: Table…` or `View: Appearance › Dark`) with its shortcut on
+the right, so the palette is also the place to look a shortcut up.
+
+- The letters you type only have to appear in order: `tab` finds
+  `Insert: Table…`, and so does `instab`.
+- ↑ and ↓ move through the list. On/off items such as Autosave show a ✓
+  when they are on.
+- With nothing typed, the last few commands you ran from the palette come
+  first. Halmos remembers them between launches.
+- **Esc** closes the palette and puts the cursor and selection back where
+  they were.
+- On the welcome pane, with no document open, it lists only the commands
+  that work there.
+
 ---
 
 ## 3. The frontmatter
@@ -274,7 +292,7 @@ pasted.
 
 ### Tables
 
-**Insert → Table…** opens a grid where you type the cells and set each
+**Insert → Table…** (⌘⇧T) opens a grid where you type the cells and set each
 column's alignment; it writes a Markdown pipe table into the document. Put
 the cursor inside an existing table and use the same item to edit it. The
 grid has a Caption field; a captioned table is numbered "Table 1: …".
