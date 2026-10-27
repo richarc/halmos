@@ -22,7 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `{title}` in a page header or footer and the HTML page title use the
   `title:` key first. The title and abstract are spell checked. Word and
   LaTeX get the title block from Pandoc, with an author's affiliation sent as
-  "Name, Affiliation". A document without these keys looks as before.
+  "Name, Affiliation". A cross-reference in the abstract reaches Word and
+  LaTeX as plain text ("Figure 1"), since Pandoc resolves references only in
+  the body. A document without these keys looks as before.
 - Table captions. A blank line after a table, then `: Caption`, makes it
   "Table 1: Caption". Tables are numbered apart from figures. The table
   builder has a Caption field.

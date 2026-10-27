@@ -12,7 +12,7 @@
     type ExportFormat, type ResolvedImage, type ConvertBody,
   } from './lib/exportRequest'
   import { diagramImages, replaceDiagramFences } from './lib/exportDiagrams'
-  import { labelForExport } from './lib/exportCrossrefs'
+  import { abstractReferencesForExport, labelForExport } from './lib/exportCrossrefs'
   import { authorsForExport } from './lib/exportMetadata'
   import { toPng } from './lib/rasterise'
   import { messageFor, problemMessage } from './lib/portalMessages'
@@ -908,6 +908,7 @@
   async function buildConvertBody(format: ExportFormat, docPath: string, source: string): Promise<ConvertBody> {
     let markdown = source
     markdown = labelForExport(markdown)
+    markdown = abstractReferencesForExport(markdown)
     markdown = authorsForExport(markdown)
     const images: Record<string, string> = {}
     if (format === 'docx') {

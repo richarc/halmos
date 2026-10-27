@@ -3350,6 +3350,16 @@ describe('Word and LaTeX export', () => {
     expect(PortalService.RevealExport).toHaveBeenCalledWith('/tmp/out/paper.docx')
   })
 
+  it('sends a reference in the abstract as the number the preview shows', async () => {
+    await openPaper('---\nabstract: As @fig:a shows.\n---\n\n# Results\n\n![A](a.png){#fig:a}\n')
+    PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.tex')
+    listeners['menu:export-pandoc']({ data: 'latex' })
+    await vi.waitFor(() => expect(PortalService.Export).toHaveBeenCalled())
+    const [, req] = PortalService.Export.mock.calls[0]
+    expect(req.markdown).toContain('abstract: As Figure\u00a01 shows.')
+    expect(req.markdown).toContain('![A](a.png){#fig:a}')
+  })
+
   it('offers plans on no_seat', async () => {
     const { target } = await openPaper()
     PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.docx')

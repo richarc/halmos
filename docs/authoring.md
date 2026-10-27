@@ -62,8 +62,11 @@ you want one.
   affiliation is sent as "Name, Affiliation".
 - `date` is shown exactly as written. Halmos does not read or change it.
 - `abstract` is Markdown, normally a block written with `|` as above. Maths
-  and citations work. Footnotes in it are listed under the abstract, not
-  with the body's. A heading in it does not appear in the contents list.
+  and citations work. A cross-reference in it, such as `@fig:yield`, is
+  sent to Word and LaTeX as plain text ("Figure 1"), since Pandoc only
+  links references in the body. Footnotes in it are listed under the
+  abstract, not with the body's. A heading in it does not appear in the
+  contents list.
 
 The title and abstract are spell checked. If the YAML in the frontmatter is
 broken, or a key has a shape Halmos does not read, the title block is left

@@ -229,8 +229,12 @@ into Word and LaTeX (its M0.15 section).
       library in `lib/frontmatter.ts`; the title block is `lib/titleBlock.ts`.
       Authors may carry an affiliation. `{title}` and the HTML page title use
       the metadata title first. Word and LaTeX get an author with an
-      affiliation as "Name, Affiliation" (`authorsForExport`). One Word and
-      one LaTeX export with two authors is still to be checked.
+      affiliation as "Name, Affiliation" (`authorsForExport`). Checked
+      2026-10-27 with one Word and one LaTeX export (three authors, two
+      affiliations; LaTeX built in Overleaf): the title block comes through.
+      A reference in the abstract is sent as plain text
+      (`abstractReferencesForExport`), since pandoc-crossref resolves only
+      the body.
 - [x] **Journal-shaped starter documents in the New dialog**
       (`lib/documentTemplate.ts`): an article with title, authors, abstract
       and the usual sections. From the Markdown-books review (2026-10-23);
