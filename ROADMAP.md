@@ -303,6 +303,16 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       asks for KaTeX 0.16. KaTeX 0.18 also prefixes its CSS classes, so
       check `style.css` and the HTML export. Then hold dependencies still
       for 1.0.
+- [ ] **A command palette, and ⇧⌘T for Table.** Remembering shortcuts is
+      the problem, and adding more makes it worse. ⇧⌘P opens a palette
+      listing every menu command as `Menu: Item`, with its shortcut on the
+      right; typing a few letters finds it, Return runs it. The list is
+      read from the menu itself, so the two cannot disagree, and it is
+      built to take non-menu commands later (portal and AI commands).
+      Commands only: jumping to headings or figures is for later. Table
+      gets ⇧⌘T, next to ⇧⌘C Citation and ⇧⌘R Cross-reference; Chart stays
+      on the palette and the toolbar. Design:
+      `docs/superpowers/specs/2026-10-27-command-palette-design.md`.
 
 ## v1.0.0 — Production
 
