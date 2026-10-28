@@ -374,6 +374,34 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
         updates. Offline, the bundled and installed styles still work.
       - The styles are CC BY-SA 3.0: list them in the third-party licence
         notices (v1.0.0).
+- [ ] **More starters in the New dialog: Assignment, and the other
+      common shapes.** Added 2026-10-28. Each is one more `STARTERS` entry
+      in `lib/documentTemplate.ts`, next to Blank and Research article.
+      Overleaf's gallery (2026-10-28) groups its templates as journal
+      articles, theses, assignments, CVs, letters, posters, presentations,
+      books, newsletters, calendars and bibliographies. The ones that suit
+      Halmos, a Markdown writer with citations, equations and charts:
+      - **Assignment**: name, student ID, course, assignment and due date
+        in the frontmatter, shown in the header; numbered questions, each
+        with an answer section, parts (a), (b), …; a worked equation;
+        references at the end. Footer ticked by default.
+      - **Lab report**: aim, background, materials and method, results with
+        a captioned table and a chart from a small data set, discussion,
+        conclusion, references.
+      - **Essay**: title, name, course; introduction, body sections,
+        conclusion, references. For the humanities, where citations matter
+        most and equations not at all.
+      - **Thesis or dissertation**: title page fields (degree, institution,
+        supervisor, date), abstract, acknowledgements, `toc: true`, chapters
+        from Introduction to Conclusion, appendices.
+      - **Research proposal**: background, aims or research questions,
+        methods, timeline, expected outcomes, references.
+      Left out: CVs, letters, posters, presentations, newsletters and
+      calendars depend on page layout that Markdown export does not
+      control; books are the thesis starter at more length.
+      Open: whether a starter can bring a sample data file (the lab
+      report's chart) or writes its data inline; and whether the dialog's
+      list becomes a list with a short preview once there are seven.
 - [ ] **The completion list stays visible near the preview.** Added
       2026-10-28, [#20](https://github.com/richarc/halmos/issues/20).
       Typing `@fig:`, `@tbl:` or a citation `@` near the editor's right
