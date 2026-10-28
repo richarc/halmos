@@ -230,6 +230,14 @@ describe('starters', () => {
     expect(result.crossrefs.targets.filter((t) => t.kind === 'tbl').map((t) => t.number)).toEqual([1])
   })
 
+  // Uncommenting the guidance's `# toc: true` beside the live key would make
+  // the YAML invalid (a duplicate key) and lose the whole title block.
+  it('gives a thesis without a bibliography no commented toc line beside its live one', () => {
+    const text = newDocumentText(null, 'apa', { starter: 'thesis' })
+    expect(text.match(/^#? ?toc:/gm)).toEqual(['toc:'])
+    expect(text).toContain('# bibliography: references.bib')
+  })
+
   it('thesis: contents after the opening paragraph, chapters and an appendix', () => {
     const text = newDocumentText(null, 'apa', { starter: 'thesis' })
     const fm = parseFrontmatter(text)

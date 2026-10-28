@@ -3408,6 +3408,16 @@ describe('Word and LaTeX export', () => {
     expect(req.markdown).toContain('![A](a.png){#fig:a}')
   })
 
+  it('sends no [[toc]] marker, which Pandoc would print as text', async () => {
+    await openPaper('---\ntoc: true\n---\nTitle page.\n\n[[toc]]\n\n# Results\n')
+    PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.tex')
+    listeners['menu:export-pandoc']({ data: 'latex' })
+    await vi.waitFor(() => expect(PortalService.Export).toHaveBeenCalled())
+    const [, req] = PortalService.Export.mock.calls[0]
+    expect(req.markdown).not.toContain('[[toc]]')
+    expect(req.markdown).toContain('toc: true')
+  })
+
   it('offers plans on no_seat', async () => {
     const { target } = await openPaper()
     PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.docx')

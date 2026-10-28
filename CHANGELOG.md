@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hover, are no longer cut off under the preview when the cursor is near
   the editor's right edge
   ([#20](https://github.com/richarc/halmos/issues/20)).
+- With `toc: true`, the `[[toc]]` line that places the contents in the
+  preview is no longer printed as text in Word and LaTeX exports.
 
 ## [0.15.0] - 2026-10-27
 

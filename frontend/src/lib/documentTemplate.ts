@@ -321,6 +321,10 @@ export function newDocumentText(
   }
   const entry = STARTERS.find((s) => s.id === starter)
   if (!entry) throw new Error(`unknown starter: ${starter}`)
+  // A starter that sets `toc:` itself drops the guidance's commented one:
+  // uncommented beside the live key it would be a duplicate, which makes
+  // the frontmatter invalid and loses the title block.
+  if (/^toc:/m.test(entry.metadata ?? '')) keys = keys.replace(/^# toc:.*\n/m, '')
   // Quoted, so a title the author types with a colon stays valid YAML.
   const title = entry.titlePlaceholder ? `title: "${entry.titlePlaceholder}"\n` : ''
   const furniture = pageFurniture ? `header: "${entry.header ?? '{title}'}"\n${PAGE_FOOTER}` : ''
