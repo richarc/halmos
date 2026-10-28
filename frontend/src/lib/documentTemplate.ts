@@ -40,20 +40,35 @@ export const BIBLIOGRAPHY_SEED = `% Bibliography for the document beside this fi
 % Export from Zotero (Better BibTeX keeps it in sync) or paste BibTeX entries here.
 `
 
-export type StarterId = 'blank' | 'article'
+export type StarterId = 'blank' | 'article' | 'assignment' | 'lab-report' | 'essay' | 'proposal' | 'thesis'
 
 /**
  * What File → New… can start from. A list, so another shape (or a journal
  * profile later) is one more entry; `furnitureByDefault` is whether the New
  * dialog ticks "Page header and footer" when the starter is chosen.
+ *
+ * A starter's text is its own: `titlePlaceholder` becomes the quoted
+ * `title:` line File → New… selects, `metadata` the frontmatter lines after
+ * it, `header` replaces the plain `{title}` header when the box is ticked,
+ * and `body` follows the closing fence. Blank has none of them.
  */
 export interface Starter {
   id: StarterId
   label: string
   hint: string
   furnitureByDefault: boolean
+  titlePlaceholder?: string
+  metadata?: string
+  header?: string
+  body?: string
 }
 
+// No `date:` in any starter whose date would be today's (usually the
+// submission date, and the webview cannot format today's in the Mac's
+// region) and no `#` heading: the title block is the document's title.
+// Prompts are few, as a model of tone; the reference list is added after
+// the text, so no starter has a References heading. Chart data is inline,
+// since a chart fetches nothing.
 export const STARTERS: readonly Starter[] = [
   {
     id: 'blank',
@@ -66,32 +81,15 @@ export const STARTERS: readonly Starter[] = [
     label: 'Research article',
     hint: 'Title, author, abstract, and Introduction, Methods, Results, Discussion, Conclusion.',
     furnitureByDefault: true,
-  },
-]
-
-/** Export PDF's running header and footer; lib/pageFurniture.ts fills them. */
-const PAGE_FURNITURE = `header: "{title}"
-footer: "Page {page} of {pages}"
-`
-
-// The placeholder File → New… selects, so typing replaces it. Quoted in the
-// frontmatter, so a title the author types with a colon stays valid YAML.
-const TITLE_PLACEHOLDER = 'Title of the paper'
-
-// No `date:` (usually the submission date, and the webview cannot format
-// today's in the Mac's region) and no `#` heading: the title block is the
-// document's title. Only the Introduction carries a prompt, as a model of
-// tone; the reference list is added after the text, so it has no heading.
-const ARTICLE_METADATA = `title: "${TITLE_PLACEHOLDER}"
-author:
+    titlePlaceholder: 'Title of the paper',
+    metadata: `author:
   - name: Your Name
     affiliation: Your institution
 abstract: |
   One paragraph: the question, what was done, the main result, and why it
   matters.
-`
-
-const ARTICLE_BODY = `
+`,
+    body: `
 ## Introduction
 
 What is known, what is not, and the question this paper answers.
@@ -103,7 +101,197 @@ What is known, what is not, and the question this paper answers.
 ## Discussion
 
 ## Conclusion
-`
+`,
+  },
+  {
+    id: 'assignment',
+    label: 'Assignment',
+    hint: 'Name, course and due date; numbered questions with parts; a worked equation.',
+    furnitureByDefault: true,
+    titlePlaceholder: 'Assignment title',
+    // The name is in the header as well as the title block, so every
+    // printed page says whose it is; the header has no {author} to fill.
+    metadata: `author:
+  - name: Your Name
+    affiliation: Student ID · Course code
+date: "Due date"
+`,
+    header: 'Your Name · {title}',
+    body: `
+## Question 1
+
+**(a)** Show the working, then the result. The kinetic energy of a mass $m$
+moving at speed $v$ is
+
+$$
+E_k = \\tfrac{1}{2} m v^2
+$$ {#eq:kinetic}
+
+so @eq:kinetic gives $E_k = 4\\,\\text{J}$ for $m = 2\\,\\text{kg}$ and
+$v = 2\\,\\text{m/s}$.
+
+**(b)**
+
+## Question 2
+`,
+  },
+  {
+    id: 'lab-report',
+    label: 'Lab report',
+    hint: 'Aim, method, results with a table and a chart, discussion.',
+    furnitureByDefault: true,
+    titlePlaceholder: 'Title of the experiment',
+    metadata: `author:
+  - name: Your Name
+    affiliation: Your institution
+`,
+    body: `
+## Aim
+
+What the experiment set out to measure or test.
+
+## Background
+
+## Materials and method
+
+## Results
+
+@tbl:readings lists the readings, and @fig:readings plots them.
+
+| Time (s) | Temperature (°C) |
+|---------:|-----------------:|
+|        0 |             20.0 |
+|       60 |             31.5 |
+|      120 |             41.2 |
+|      180 |             49.0 |
+|      240 |             55.3 |
+
+: Temperature against time {#tbl:readings}
+
+\`\`\`vega-lite {#fig:readings}
+{
+  "title": "Temperature against time",
+  "data": {
+    "values": [
+      {"time": 0, "temperature": 20.0},
+      {"time": 60, "temperature": 31.5},
+      {"time": 120, "temperature": 41.2},
+      {"time": 180, "temperature": 49.0},
+      {"time": 240, "temperature": 55.3}
+    ]
+  },
+  "mark": {"type": "line", "point": true},
+  "encoding": {
+    "x": {"field": "time", "type": "quantitative", "title": "Time (s)"},
+    "y": {"field": "temperature", "type": "quantitative", "title": "Temperature (°C)"}
+  }
+}
+\`\`\`
+
+## Discussion
+
+## Conclusion
+`,
+  },
+  {
+    id: 'essay',
+    label: 'Essay',
+    hint: 'Title, name and course; introduction, body, conclusion.',
+    furnitureByDefault: true,
+    titlePlaceholder: 'Title of the essay',
+    metadata: `author:
+  - name: Your Name
+    affiliation: Course code
+`,
+    body: `
+## Introduction
+
+The question, why it matters, and the argument this essay makes.
+
+## First argument
+
+## Second argument
+
+## Conclusion
+`,
+  },
+  {
+    id: 'proposal',
+    label: 'Research proposal',
+    hint: 'Background, aims, methods, timeline and expected outcomes.',
+    furnitureByDefault: true,
+    titlePlaceholder: 'Title of the proposal',
+    metadata: `author:
+  - name: Your Name
+    affiliation: Your institution
+abstract: |
+  One paragraph: the problem, what will be done, and what it will show.
+`,
+    body: `
+## Background
+
+## Aims
+
+The questions this research will answer.
+
+## Methods
+
+## Timeline
+
+| Phase                      | Months |
+|----------------------------|-------:|
+| Literature review          |    1–3 |
+| Data collection            |   4–9 |
+| Analysis and writing up    |  10–12 |
+
+: Timeline {#tbl:timeline}
+
+## Expected outcomes
+`,
+  },
+  {
+    id: 'thesis',
+    label: 'Thesis or dissertation',
+    hint: 'Title page, abstract, contents, chapters and appendices.',
+    furnitureByDefault: true,
+    titlePlaceholder: 'Title of the thesis',
+    // The degree and supervisor are body text: the title block has no
+    // fields for them. [[toc]] puts the contents after that paragraph.
+    metadata: `author:
+  - name: Your Name
+    affiliation: Department, Institution
+abstract: |
+  One paragraph: the question, the approach, the main findings, and what
+  they contribute.
+toc: true
+`,
+    body: `
+A thesis submitted for the degree of Doctor of Philosophy, Month Year.
+Supervisor: Name of supervisor.
+
+[[toc]]
+
+## Acknowledgements
+
+## Introduction
+
+## Literature review
+
+## Methodology
+
+## Results
+
+## Discussion
+
+## Conclusion
+
+## Appendix A: Supplementary material
+`,
+  },
+]
+
+/** Export PDF's running footer; lib/pageFurniture.ts fills it. */
+const PAGE_FOOTER = `footer: "Page {page} of {pages}"\n`
 
 /**
  * The text of a document created by File → New…, given the frontmatter value
@@ -131,10 +319,12 @@ export function newDocumentText(
     if (!STYLE_IDS.includes(csl)) throw new Error(`unknown citation style: ${csl}`)
     keys = `bibliography: ${bibliography}\ncsl: ${csl}\n`
   }
-  const metadata = starter === 'article' ? ARTICLE_METADATA : ''
-  const furniture = pageFurniture ? PAGE_FURNITURE : ''
-  const body = starter === 'article' ? ARTICLE_BODY : ''
-  return `---\n${metadata}${keys}${furniture}---\n${body}`
+  const entry = STARTERS.find((s) => s.id === starter)
+  if (!entry) throw new Error(`unknown starter: ${starter}`)
+  // Quoted, so a title the author types with a colon stays valid YAML.
+  const title = entry.titlePlaceholder ? `title: "${entry.titlePlaceholder}"\n` : ''
+  const furniture = pageFurniture ? `header: "${entry.header ?? '{title}'}"\n${PAGE_FOOTER}` : ''
+  return `---\n${title}${entry.metadata ?? ''}${keys}${furniture}---\n${entry.body ?? ''}`
 }
 
 /**
@@ -142,11 +332,15 @@ export function newDocumentText(
  * can select it; null when the text has none (Blank).
  */
 export function titleSelection(text: string): { from: number; to: number } | null {
-  const line = `title: "${TITLE_PLACEHOLDER}"`
-  const at = text.startsWith('---\n') ? text.indexOf(`\n${line}\n`) : -1
-  if (at < 0) return null
-  const from = at + '\ntitle: "'.length
-  return { from, to: from + TITLE_PLACEHOLDER.length }
+  if (!text.startsWith('---\n')) return null
+  for (const { titlePlaceholder } of STARTERS) {
+    if (!titlePlaceholder) continue
+    const at = text.indexOf(`\ntitle: "${titlePlaceholder}"\n`)
+    if (at < 0) continue
+    const from = at + '\ntitle: "'.length
+    return { from, to: from + titlePlaceholder.length }
+  }
+  return null
 }
 
 /**
