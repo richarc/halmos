@@ -868,13 +868,27 @@ describe('Editor citation completion', () => {
     editor.setContent('[@sm', 'end')
     const view = EditorView.findFromDOM(target.querySelector('.cm-editor') as HTMLElement)!
     startCompletion(view)
-    await vi.waitFor(() => expect(target.querySelector('li.cm-citation-option')).not.toBeNull())
-    const row = target.querySelector('li.cm-citation-option')!
+    await vi.waitFor(() => expect(document.querySelector('li.cm-citation-option')).not.toBeNull())
+    const row = document.querySelector('li.cm-citation-option')!
     expect(row.querySelector('.cm-completionLabel')?.textContent).toBe('smith2020')
     expect(row.querySelector('.cm-completionDetail')?.textContent).toBe('Smith')
     expect(row.querySelector('.cm-citation-title')?.textContent).toBe('T')
-    expect(target.querySelector('.cm-completionInfo')).toBeNull()
+    expect(document.querySelector('.cm-completionInfo')).toBeNull()
     cleanup()
+  })
+
+  // #20: inside the editor pane (overflow: auto) the list was cut off at the
+  // pane's edge, because WebKit makes CodeMirror fall back to absolute
+  // positioning. Drawn from document.body, it shows over the preview.
+  it('draws the list outside the editor pane, and removes it with the editor', async () => {
+    const { editor, target, cleanup } = mountEditor({ citations: () => ctx })
+    editor.setContent('[@sm', 'end')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor') as HTMLElement)!
+    startCompletion(view)
+    await vi.waitFor(() => expect(document.querySelector('.cm-tooltip-autocomplete')).not.toBeNull())
+    expect(target.querySelector('.cm-tooltip-autocomplete')).toBeNull()
+    cleanup()
+    expect(document.querySelector('.cm-tooltip-autocomplete')).toBeNull()
   })
 })
 
@@ -976,8 +990,8 @@ describe('Editor cross-references', () => {
     const view = viewOf(target)
     view.dispatch({ selection: { anchor: DOC.indexOf('@fig:') + 5 } })
     startCompletion(view)
-    await vi.waitFor(() => expect(target.querySelector('li.cm-crossref-option')).not.toBeNull())
-    const labels = [...target.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
+    await vi.waitFor(() => expect(document.querySelector('li.cm-crossref-option')).not.toBeNull())
+    const labels = [...document.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
     expect(labels).toEqual(['Figure 1', 'Figure 2'])
     cleanup()
   })
@@ -990,7 +1004,7 @@ describe('Editor cross-references', () => {
     view.dispatch({ selection: { anchor: 4 } })
     editor.openCrossrefList()
     await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
-    const labels = [...target.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
+    const labels = [...document.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
     expect(labels).toEqual(['Figure 1', 'Unnamed equation'])
     // Closing the list ends the all-kinds mode: an explicit request at a
     // plain word offers nothing.

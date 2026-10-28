@@ -4,7 +4,7 @@
   import { markdown } from '@codemirror/lang-markdown'
   import { Table } from '@lezer/markdown'
   import { languages } from '@codemirror/language-data'
-  import { keymap, type Command } from '@codemirror/view'
+  import { keymap, tooltips, type Command } from '@codemirror/view'
   import { EditorState, Prec, Compartment, Transaction } from '@codemirror/state'
   import { HighlightStyle, syntaxHighlighting, syntaxTree, forceParsing } from '@codemirror/language'
   import { tags } from '@lezer/highlight'
@@ -701,6 +701,11 @@
           crossrefAllKinds = false
         }
       }),
+      // Tooltips (the completion list, the citation hover) are drawn from
+      // document.body. Inside the editor they are cut off at the pane's edge
+      // (#20): WebKit makes CodeMirror fall back from fixed to absolute
+      // positioning, and the pane scrolls, so it clips.
+      tooltips({ parent: document.body }),
       citationHover(() => citations?.() ?? null),
       unknownKeyMarks(() => citations?.() ?? null),
       // A clipboard holding an image and no text is a screenshot or a copied
