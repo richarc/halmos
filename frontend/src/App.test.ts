@@ -553,10 +553,13 @@ describe('new documents', () => {
     flushSync()
   }
 
-  it('offers Blank and Research article, Blank first, with the box unticked', async () => {
+  it('offers the seven starters, Blank first, with the box unticked', async () => {
     const target = await openNewDialog()
     const options = [...starterSelect(target).options]
-    expect(options.map((o) => o.textContent)).toEqual(STARTERS.map((s) => s.label))
+    expect(options.map((o) => o.value)).toEqual(['blank', 'article', 'assignment', 'lab-report', 'essay', 'proposal', 'thesis'])
+    expect(options.map((o) => o.textContent)).toEqual([
+      'Blank', 'Research article', 'Assignment', 'Lab report', 'Essay', 'Research proposal', 'Thesis or dissertation',
+    ])
     expect(starterSelect(target).value).toBe('blank')
     expect(furnitureBox(target).checked).toBe(false)
     expect(dialog(target)!.textContent).toContain(STARTERS[0].hint)
@@ -592,6 +595,31 @@ describe('new documents', () => {
     const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
     const { from, to } = view.state.selection.main
     expect(view.state.sliceDoc(from, to)).toBe('Title of the paper')
+  })
+
+  it('ticks the box for the assignment and shows its hint', async () => {
+    const target = await openNewDialog()
+    chooseStarter(target, 'assignment')
+    expect(furnitureBox(target).checked).toBe(true)
+    expect(dialog(target)!.textContent).toContain(
+      'Name, course and due date; numbered questions with parts; a worked equation.',
+    )
+  })
+
+  it('opens a new thesis with its title selected', async () => {
+    DocumentService.ChooseNewDocumentPath.mockResolvedValueOnce('/papers/thesis.md')
+    const target = await openNewDialog()
+    chooseStarter(target, 'thesis')
+    untickBibliography(target)
+    buttonByText(target, 'Create…')!.click()
+
+    await vi.waitFor(() => expect(DocumentService.CreateDocument).toHaveBeenCalled())
+    const [, content] = DocumentService.CreateDocument.mock.calls[0]
+    expect(content).toBe(newDocumentText(null, 'apa', { starter: 'thesis', pageFurniture: true }))
+    await vi.waitFor(() => expect(editorText(target)).toContain('Title of the thesis'))
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const { from, to } = view.state.selection.main
+    expect(view.state.sliceDoc(from, to)).toBe('Title of the thesis')
   })
 
   it('keeps the starter and the box through the bibliography step', async () => {
