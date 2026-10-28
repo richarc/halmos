@@ -541,6 +541,17 @@ one — dissolves when the conversion runs on a server Halmos controls.
       retracted papers (Retraction Watch data in Crossref).
 - [ ] **Word export keeps working citations**, so co-authors can edit the
       `.docx` without breaking references.
+- [ ] **Publish a document to share it.** Added 2026-10-28; details at
+      planning. A **Publish** button sends the document to the portal,
+      which hosts it at a link the user can send to colleagues or friends.
+      A paid service, so it needs Connect. Republishing updates the same
+      link; the user can unpublish. The contract change comes first, and
+      the portal serves it before this release.
+      Open at planning: what is sent (rendered HTML, or the Markdown with
+      its `.bib`, images and data files for the portal to render); where
+      Publish lives (File menu, toolbar, palette); how the editor shows a
+      document's link and whether it is out of date; and what is kept in
+      the document or beside it.
 
 ## v1.2.0 — AI for routine work
 
