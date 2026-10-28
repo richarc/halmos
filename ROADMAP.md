@@ -300,8 +300,20 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       list which other options are worth exposing. Name-format options
       (initials, "and" versus "&") are candidates.
 - [ ] **Wails, KaTeX and Mermaid, then hold dependencies for 1.0.** Wails
-      beta.34 is out (the pin is beta.30); wait until it is 7 days old, as
-      `.npmrc` asks. KaTeX's low advisory is fixed in 0.18, which needs
+      v3.0.0, the stable release, came out on 2026-10-26 (the pin is
+      beta.30); take it, not beta.34, from 2026-11-02, when it is 7 days
+      old as `.npmrc` asks. Its notes ask everyone on beta.30 or earlier to
+      upgrade for security fixes; the ones that touch Halmos on macOS stop
+      reserved `wails:` messages from iframes, and stop ~120 empty
+      `evaluateJavaScript:` calls a second, which on macOS 27 broke
+      click-gated clipboard writes. No API changes since beta.31, but it
+      needs Go 1.26: raise `go.mod` from `go 1.25.0` to `go 1.26.0` (CI
+      already uses 1.26.x). Build releases with Go 1.26.10 or later, for
+      the `crypto/x509` fix GO-2026-6809. Pin `github.com/wailsapp/wails/v3`
+      and `@wailsio/runtime` to exactly `3.0.0` and regenerate bindings.
+      Wails now ships a minor release weekly (3.1.0, 3.2.0, …) and nightly
+      pre-releases; for the 1.0 hold take only `3.0.x` hotfixes. Do Wails
+      first, on its own, then KaTeX and Mermaid. KaTeX's low advisory is fixed in 0.18, which needs
       Mermaid 12 (it changes every diagram's default layout, theme and
       look, so set `layout: dagre`, `theme: default`, `look: classic` to
       keep today's) and an override for `@vscode/markdown-it-katex`, which
