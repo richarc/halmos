@@ -3225,7 +3225,7 @@ describe('citation completion and hover in the mounted app', () => {
     view.coordsAtPos = (() => ({ top: 0, bottom: 20, left: 0, right: 10 })) as typeof view.coordsAtPos
     const line = [...view.contentDOM.querySelectorAll('.cm-line')].find((l) => l.textContent?.includes('smith2020'))!
     line.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 5, clientY: 5 }))
-    await vi.waitFor(() => expect(target.querySelector('.cm-citation-tooltip')?.textContent).toContain('Smith'), {
+    await vi.waitFor(() => expect(document.querySelector('.cm-citation-tooltip')?.textContent).toContain('Smith'), {
       timeout: 2000,
     })
   })
@@ -3513,7 +3513,7 @@ describe('picking a cross-reference', () => {
     const { target, view } = await openAt(DOC, DOC.indexOf('See ') + 4)
     listeners['menu:insert-crossref']({ data: null })
     await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
-    expect(target.querySelector('li.cm-crossref-option .cm-completionLabel')?.textContent).toBe('Unnamed equation')
+    expect(document.querySelector('li.cm-crossref-option .cm-completionLabel')?.textContent).toBe('Unnamed equation')
   })
 
   it('Insert → Cross-reference… says so when there is nothing to refer to', async () => {
@@ -3602,7 +3602,7 @@ describe('picking a cross-reference', () => {
     listeners['menu:insert-crossref']({ data: null })
     await vi.waitFor(() => expect(completionStatus(view.state)).toBe('active'))
     // In document order: the unnamed equation, then the named one.
-    const options = [...target.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
+    const options = [...document.querySelectorAll('li.cm-crossref-option .cm-completionLabel')].map((e) => e.textContent)
     expect(options).toEqual(['Unnamed equation', 'Equation 1'])
     await listReady()
     acceptCompletion(view)
