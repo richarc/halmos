@@ -22,6 +22,30 @@ export interface AccountInfo {
 }
 
 /**
+ * Command is one menu action as the command palette lists it. Path is the
+ * top menu's name followed by any submenu names, without the item's own
+ * label; Accelerator is Wails' display form ("Cmd+Shift+T"), or "" for none.
+ */
+export interface Command {
+    "id": string;
+    "path": string[] | null;
+    "label": string;
+    "accelerator": string;
+    "checked": boolean;
+    "needsDocument": boolean;
+    "detail": string;
+}
+
+/**
+ * CommandList is what the palette shows: every enabled menu command, and
+ * the ids of the commands run from the palette most recently, newest first.
+ */
+export interface CommandList {
+    "commands": Command[] | null;
+    "recent": string[] | null;
+}
+
+/**
  * ConvertRequest is POST /services/convert's body. Optional fields are left
  * out when empty.
  */

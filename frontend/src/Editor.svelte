@@ -387,6 +387,14 @@
    * CodeMirror's fold commands need the view — and a `StateCommand` works when
    * handed a view too, so this one signature serves both kinds.
    */
+  /**
+   * Gives the editor the keyboard back, as after the command palette closes.
+   * CodeMirror keeps the selection while unfocused, so it comes back as it was.
+   */
+  export function focus(): void {
+    view.focus()
+  }
+
   export function runCommand(cmd: Command): void {
     cmd(view)
     view.focus()

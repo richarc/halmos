@@ -71,6 +71,25 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
   }
 })
 
+// The palette's list. Insert and Format need a document; New does not.
+const { CommandService } = vi.hoisted(() => {
+  const c = (path: string[], label: string, accelerator = '', needsDocument = true) => ({
+    id: [...path, label].join(' › '), path, label, accelerator, checked: false, needsDocument, detail: '',
+  })
+  const PALETTE_COMMANDS = [
+    c(['File'], 'New…', 'Cmd+N', false),
+    c(['Insert'], 'Table…', 'Cmd+Shift+T'),
+    c(['Format'], 'Bold', 'Cmd+B'),
+    c(['View'], 'Autosave', '', false),
+  ]
+  return {
+    CommandService: {
+      Commands: vi.fn(async () => ({ commands: PALETTE_COMMANDS, recent: [] as string[] })),
+      RunCommand: vi.fn(async (_id: string) => true),
+    },
+  }
+})
+
 // Signed in with a complimentary seat unless a test says otherwise.
 const { PortalService, SIGNED_IN } = vi.hoisted(() => {
   const SIGNED_IN = {
@@ -110,6 +129,7 @@ vi.mock('@wailsio/runtime', () => ({
 vi.mock('../bindings/hermes', () => ({
   DocumentService,
   PortalService,
+  CommandService,
   DemoService: {
     Script: vi.fn(async () => null),
     StartRecording: vi.fn(async () => {}),
@@ -3654,5 +3674,119 @@ describe('picking a cross-reference', () => {
     flushSync()
     expect(view.state.doc.toString()).toBe('# Results\n\nSee @fig:yield\n\n![Yield](a.png){#fig:yield}\n')
     closeCompletion(view)
+  })
+})
+
+describe('command palette', () => {
+  // The recovery tests leave RecoverDraft offering a draft, whose dialog
+  // would rightly keep the palette shut.
+  beforeEach(() => {
+    DocumentService.RecoverDraft.mockImplementation(async () => ({ found: false, content: '' }))
+  })
+  const TEXT = 'Some words here.\n\n# Results\n'
+  const palette = (target: HTMLElement) => target.querySelector('.palette')
+  const options = (target: HTMLElement) => [...target.querySelectorAll<HTMLElement>('.palette [role="option"]')]
+  const togglePalette = () => {
+    listeners['menu:command-palette']({ data: null })
+    flushSync()
+  }
+
+  async function openWithSelection() {
+    const target = await openDoc(TEXT)
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ selection: { anchor: 5, head: 10 } })
+    togglePalette()
+    await vi.waitFor(() => expect(options(target).length).toBeGreaterThan(0))
+    return { target, view }
+  }
+
+  it('opens on menu:command-palette and closes when it is sent again', async () => {
+    const { target } = await openWithSelection()
+    expect(palette(target)).not.toBeNull()
+    expect(CommandService.Commands).toHaveBeenCalledOnce()
+    togglePalette()
+    expect(palette(target)).toBeNull()
+  })
+
+  it('does not open over the New dialog or a builder', async () => {
+    const target = await openDoc(TEXT)
+    listeners['menu:new']({ data: null })
+    flushSync()
+    togglePalette()
+    expect(palette(target)).toBeNull()
+    buttonByText(target, 'Cancel')!.click()
+    flushSync()
+
+    listeners['menu:insert-chart']({ data: null })
+    flushSync()
+    expect(target.querySelector('.chart-builder')).not.toBeNull()
+    togglePalette()
+    expect(palette(target)).toBeNull()
+  })
+
+  it('does not open over the table builder', async () => {
+    const target = await openDoc(TEXT)
+    listeners['menu:insert-table']({ data: null })
+    flushSync()
+    togglePalette()
+    expect(palette(target)).toBeNull()
+  })
+
+  it('gives the editor back its focus and selection before running a command', async () => {
+    const { target, view } = await openWithSelection()
+    expect(view.hasFocus).toBe(false)
+    let seen: { focused: boolean; from: number; to: number; open: boolean } | null = null
+    CommandService.RunCommand.mockImplementationOnce(async () => {
+      const { from, to } = view.state.selection.main
+      seen = { focused: view.hasFocus, from, to, open: palette(target) !== null }
+      return true
+    })
+    options(target).find((o) => o.textContent?.includes('Insert: Table…'))!.click()
+    flushSync()
+    expect(CommandService.RunCommand).toHaveBeenCalledWith('Insert › Table…')
+    expect(seen).toEqual({ focused: true, from: 5, to: 10, open: false })
+  })
+
+  it('returns focus to the editor with the selection unchanged on Esc', async () => {
+    const { target, view } = await openWithSelection()
+    const input = target.querySelector<HTMLInputElement>('.palette input')!
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    flushSync()
+    expect(palette(target)).toBeNull()
+    expect(view.hasFocus).toBe(true)
+    expect(view.state.selection.main.from).toBe(5)
+    expect(view.state.selection.main.to).toBe(10)
+    expect(CommandService.RunCommand).not.toHaveBeenCalled()
+  })
+
+  it('closes for another menu command, which then acts on the restored selection', async () => {
+    const { target, view } = await openWithSelection()
+    listeners['menu:format']({ data: 'bold' })
+    flushSync()
+    expect(palette(target)).toBeNull()
+    expect(view.state.doc.toString()).toBe('Some **words** here.\n\n# Results\n')
+  })
+
+  it('closes quietly when the command has gone since the list was read', async () => {
+    const { target } = await openWithSelection()
+    CommandService.RunCommand.mockResolvedValueOnce(false)
+    options(target).find((o) => o.textContent?.includes('Format: Bold'))!.click()
+    flushSync()
+    await Promise.resolve()
+    await Promise.resolve()
+    flushSync()
+    expect(palette(target)).toBeNull()
+    expect(target.querySelector('.toast')).toBeNull()
+  })
+
+  it('opens on the welcome screen without the commands that need a document', async () => {
+    recents.current = ['/papers/thesis.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    togglePalette()
+    await vi.waitFor(() => expect(options(target).length).toBeGreaterThan(0))
+    const texts = options(target).map((o) => o.querySelector('.palette-text')?.textContent)
+    expect(texts).toEqual(['File: New…', 'View: Autosave'])
+    expect(texts.some((t) => t?.startsWith('Insert:'))).toBe(false)
   })
 })

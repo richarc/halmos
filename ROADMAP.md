@@ -308,7 +308,7 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       asks for KaTeX 0.16. KaTeX 0.18 also prefixes its CSS classes, so
       check `style.css` and the HTML export. Then hold dependencies still
       for 1.0.
-- [ ] **A command palette, and ⇧⌘T for Table.** Remembering shortcuts is
+- [x] **A command palette, and ⇧⌘T for Table.** Remembering shortcuts is
       the problem, and adding more makes it worse. ⇧⌘P opens a palette
       listing every menu command as `Menu: Item`, with its shortcut on the
       right; typing a few letters finds it, Return runs it. The list is
@@ -318,6 +318,12 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       gets ⇧⌘T, next to ⇧⌘C Citation and ⇧⌘R Cross-reference; Chart stays
       on the palette and the toolbar. Design:
       `docs/superpowers/specs/2026-10-27-command-palette-design.md`.
+      *Done 2026-10-28, not yet released:* `commands.go` registers every
+      menu action as `menu.go` builds the menu, `CommandService` lists and
+      runs them, and `CommandPalette.svelte` is the box. Recents are kept
+      in `palette-recents.json`. Left for later: running "Command Palette…"
+      from the palette reopens it, and a failed list load shows an empty
+      palette with no message.
 - [ ] **An interactive Getting Started tutorial.** Added 2026-10-27. The
       current Getting Started guide is read on the site; this one is done in
       the editor. Help → Getting Started (also on the start screen and the

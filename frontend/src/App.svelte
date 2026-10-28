@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount, untrack, flushSync } from 'svelte'
   import { Events, Browser } from '@wailsio/runtime'
-  import { DocumentService, DemoService, PortalService } from '../bindings/hermes'
+  import { DocumentService, DemoService, PortalService, CommandService } from '../bindings/hermes'
   import type {
     Settings, Draft, UpdateResult, WelcomeInfo, AccountInfo, PortalError, ConvertRequest,
   } from '../bindings/hermes/models'
   import ConnectDialog, { type ConnectState } from './ConnectDialog.svelte'
   import AccountDialog from './AccountDialog.svelte'
+  import CommandPalette from './CommandPalette.svelte'
   import {
     planImages, finalizeImages, checkRequest, buildBibliography, withReferencesHeading,
     type ExportFormat, type ResolvedImage, type ConvertBody,
@@ -1650,6 +1651,7 @@
     closeChartBuilder()
     closeTableBuilder()
     newOpen = false
+    paletteOpen = false
     path = null
     void DocumentService.ForgetDocument().catch((err) => console.warn('ForgetDocument:', err))
     editor.setContent('')
@@ -1661,6 +1663,70 @@
     // Mirrors first launch: with no recents the welcome pane has nothing to
     // show, so start a templated document instead.
     if (recents.length === 0) doNew()
+  }
+
+  // Something modal is on screen: a dialog, the New… sheet or a builder.
+  // Only ⇧⌘P consults it; the per-action guards above keep their own lists.
+  const dialogOpen = $derived(
+    chartOpen ||
+      tableOpen ||
+      newOpen ||
+      pendingAction !== null ||
+      builderClose !== null ||
+      recovery !== null ||
+      diskChange !== null ||
+      overwriteAnswer !== null ||
+      equationAsk !== null ||
+      missingOpen ||
+      unknownOpen ||
+      zoteroHelp !== null ||
+      askUpdates ||
+      updateNotice !== null ||
+      connectState !== null ||
+      accountOpen ||
+      portalAlert !== null,
+  )
+
+  // The command palette (⇧⌘P, View → Command Palette…). It closes before
+  // any other menu command runs (onMenu below), and focus goes back first —
+  // to the editor, whose selection CodeMirror kept, or on the welcome screen
+  // to whatever had it — so a command acts exactly as it would from the menu.
+  let paletteOpen = $state(false)
+  let paletteReturn: Element | null = null
+  function togglePalette() {
+    if (paletteOpen) {
+      closePalette()
+      return
+    }
+    if (dialogOpen) return
+    paletteReturn = document.activeElement
+    paletteOpen = true
+  }
+  function closePalette() {
+    if (!paletteOpen) return
+    paletteOpen = false
+    // The field goes before focus moves and before any command runs, so
+    // nothing sees a palette that is on its way out.
+    flushSync()
+    const back = paletteReturn
+    paletteReturn = null
+    if (!showWelcome) editor.focus()
+    else if (back instanceof HTMLElement && back.isConnected) back.focus()
+  }
+  // A dialog that opens on its own (a change on disk, the update notice)
+  // takes the focus; the palette just goes.
+  $effect(() => {
+    if (dialogOpen) untrack(() => (paletteOpen = false))
+  })
+  // RunCommand is false when the menu was rebuilt since the list was read:
+  // the command is gone, and there is nothing to say about it.
+  async function runFromPalette(id: string) {
+    closePalette()
+    try {
+      await CommandService.RunCommand(id)
+    } catch (err) {
+      toast(`Could not run the command: ${err}`)
+    }
   }
 
   async function startDemo() {
@@ -1687,14 +1753,22 @@
     // ready to be told, and a script that starts before the editor exists
     // would type into nothing.
     void startDemo()
-    Events.On('menu:new', requestNew)
-    Events.On('menu:open', requestOpen)
-    Events.On('menu:open-recent', (ev: { data: unknown }) => {
+    // A menu command while the palette is open closes it first, focus and
+    // selection restored, then does what it does from the menu — ⌘Q included.
+    // Running a palette entry arrives here too, after the palette has closed.
+    const onMenu = (name: string, cb: (ev: { data: unknown }) => void) =>
+      Events.On(name, (ev: { data: unknown }) => {
+        closePalette()
+        cb(ev)
+      })
+    onMenu('menu:new', requestNew)
+    onMenu('menu:open', requestOpen)
+    onMenu('menu:open-recent', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') requestOpenRecent(ev.data)
     })
-    Events.On('menu:save', () => void save())
-    Events.On('menu:save-as', () => void saveAs())
-    Events.On('close:confirm', (ev: { data: unknown }) => {
+    onMenu('menu:save', () => void save())
+    onMenu('menu:save-as', () => void saveAs())
+    onMenu('close:confirm', (ev: { data: unknown }) => {
       // 'close' from the window's close button, 'quit' from ⌘Q. Anything
       // else is treated as a quit, the older and safer reading.
       const intent = ev.data === 'close' ? 'close' : 'quit'
@@ -1727,42 +1801,43 @@
     })
     // Finder's Open With while running (#19); same path as Open Recent, so
     // unsaved changes are asked about first.
-    Events.On('file:open', (ev: { data: unknown }) => {
+    onMenu('file:open', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') requestOpenRecent(ev.data)
     })
     Events.On('recents:changed', () => void refreshRecents())
     Events.On('bib:changed', () => void reloadBibliography())
-    Events.On('menu:insert-citation', () => void insertCitation())
-    Events.On('menu:insert-crossref', () => insertCrossref())
-    Events.On('menu:export-pdf', () => exportPDF())
-    Events.On('menu:export-html', () => void exportHTML())
-    Events.On('menu:export-pandoc', (ev: { data: unknown }) => {
+    onMenu('menu:insert-citation', () => void insertCitation())
+    onMenu('menu:insert-crossref', () => insertCrossref())
+    onMenu('menu:export-pdf', () => exportPDF())
+    onMenu('menu:export-html', () => void exportHTML())
+    onMenu('menu:export-pandoc', (ev: { data: unknown }) => {
       if (ev.data === 'docx' || ev.data === 'latex') void exportPandoc(ev.data)
     })
-    Events.On('menu:account', () => void openAccount())
+    onMenu('menu:account', () => void openAccount())
     Events.On('portal:pairing', (ev: { data: unknown }) => {
       if (ev.data && typeof ev.data === 'object') onPairing(ev.data as { state: string; email?: string })
     })
-    Events.On('menu:insert-chart', () => openChartBuilder())
-    Events.On('menu:insert-table', () => openTableBuilder())
-    Events.On('menu:insert-code', (ev: { data: unknown }) => {
+    onMenu('menu:insert-chart', () => openChartBuilder())
+    onMenu('menu:insert-table', () => openTableBuilder())
+    onMenu('menu:insert-code', (ev: { data: unknown }) => {
       // '' is the Plain text item, and a legitimate payload — a bare fence.
       if (typeof ev.data === 'string') insertCodeBlock(ev.data)
     })
-    Events.On('menu:format', (ev: { data: unknown }) => {
+    onMenu('menu:format', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') applyFormat(ev.data)
     })
-    Events.On('menu:find', (ev: { data: unknown }) => {
+    onMenu('menu:find', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') applyFind(ev.data)
     })
-    Events.On('menu:citation-style', (ev: { data: unknown }) => {
+    onMenu('menu:citation-style', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') void applyCitationStyle(ev.data)
     })
-    Events.On('menu:fold', (ev: { data: unknown }) => {
+    onMenu('menu:fold', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') applyFold(ev.data)
     })
     Events.On('settings:changed', () => void refreshSettings())
-    Events.On('menu:check-updates', () => void checkForUpdates(true))
+    onMenu('menu:check-updates', () => void checkForUpdates(true))
+    Events.On('menu:command-palette', togglePalette)
 
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     systemPrefersDark = media.matches
@@ -2149,6 +2224,13 @@
       >
     {/snippet}
   </Dialog>
+
+  <CommandPalette
+    open={paletteOpen}
+    welcome={showWelcome}
+    onclose={closePalette}
+    onrun={(id) => void runFromPalette(id)}
+  />
 
   {#if toastMsg}
     <div class="toast" role="status">{toastMsg}{#if toastAction}<button

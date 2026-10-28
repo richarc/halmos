@@ -4,6 +4,7 @@ import (
 	"embed"
 
 	"log"
+	"path/filepath"
 
 	"github.com/adrg/xdg"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -71,6 +72,11 @@ func main() {
 	// Connecting to the Halmos portal and exporting to Word or LaTeX
 	// through it (portalservice.go).
 	portal := NewPortalService()
+	// The command palette: the menu's actions, registered by installMenu and
+	// run by id (commands.go, commandservice.go). Its recents sit beside the
+	// settings and drafts.
+	commands := &commandRegistry{}
+	palette := newCommandService(commands, filepath.Dir(recentsPath))
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -84,7 +90,7 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "Halmos Editor",
 		Description: "Academic markdown editor",
-		Services:    []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal)},
+		Services:    []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal), application.NewService(palette)},
 		// A recording the script left running is stopped so the file on disk
 		// is closed, whichever way the app ends.
 		OnShutdown: demo.shutdown,
@@ -177,13 +183,13 @@ func main() {
 	// for the AppKit calls; the event lets the frontend refresh its own list.
 	docs.onRecentsChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs)
+			installMenu(app, win, docs, commands)
 		})
 		app.Event.Emit("recents:changed")
 	}
 	docs.onCitationStyleChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs)
+			installMenu(app, win, docs, commands)
 		})
 	}
 	// One notification for every preference: the menu re-reads whichever ones
@@ -191,12 +197,12 @@ func main() {
 	// a setting needs no new wiring here.
 	docs.settings.onChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs)
+			installMenu(app, win, docs, commands)
 		})
 		app.Event.Emit("settings:changed")
 	}
 
-	installMenu(app, win, docs)
+	installMenu(app, win, docs, commands)
 
 	// Run the application. This blocks until the application has been exited.
 	err = app.Run()
