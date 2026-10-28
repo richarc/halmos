@@ -31,15 +31,32 @@ a **New Document** button, and **Open…**.
 This is the normal way to start a paper. It asks a few things before the
 save panel opens:
 
-1. **Start from** — *Blank* is an empty document. *Research article* starts
-   with a title, an author with an affiliation, an abstract, and the
-   sections Introduction, Methods, Results, Discussion and Conclusion. The
-   document opens with the title selected, so you can type it straight away.
-   Replace "Your Name" and "Your institution" in the frontmatter too.
+1. **Start from** — *Blank* is an empty document. The others each start
+   with a title, an author and the sections that kind of document needs:
+   - *Research article*: an abstract, and Introduction, Methods, Results,
+     Discussion and Conclusion.
+   - *Assignment*: your student ID and course under your name, a due date,
+     and two numbered questions with parts (a) and (b), one with a worked,
+     numbered equation. Your name is also in the page header, so every
+     printed page says whose it is.
+   - *Lab report*: Aim, Background, Materials and method, Results,
+     Discussion and Conclusion. Results has a small data set as a captioned
+     table and as a chart, both referred to in the text.
+   - *Essay*: your course under your name, an introduction, two body
+     sections and a conclusion.
+   - *Research proposal*: an abstract, Background, Aims, Methods, a Timeline
+     table and Expected outcomes.
+   - *Thesis or dissertation*: an abstract, a paragraph for the degree and
+     supervisor, a contents list, chapters from Acknowledgements to
+     Conclusion, and an appendix.
+
+   The document opens with the title selected, so you can type it straight
+   away. Replace "Your Name" and the other placeholders in the frontmatter
+   too, and replace or delete the sample table, chart or equation.
 2. **Page header and footer** — puts the title at the top of each page of an
    exported PDF, from page 2 on (page 1 already shows it in the title block),
-   and "Page 1 of 5" at the bottom of every page. It is ticked for a research
-   article; untick it if you don't want them.
+   and "Page 1 of 5" at the bottom of every page. It is ticked for every
+   starter except Blank; untick it if you don't want them.
 3. **Include a bibliography** — tick this if you will cite anything. A
    citation-style menu appears; pick one of the five bundled styles
    (`apa`, `chicago-author-date`, `ieee`, `vancouver`, `harvard`). You can

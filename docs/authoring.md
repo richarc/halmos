@@ -48,9 +48,10 @@ header is left off page 1, where the title already shows; the footer is not.
 `title`, `author`, `date` and `abstract` are Pandoc's names, and make a title
 block at the top of the preview, the PDF and the HTML export. Word and LaTeX
 get the same block from Pandoc. Each is optional, and the block shows only
-the ones you set. File → New… with *Start from: Research article* fills in
-`title`, `author` and `abstract` for you; add a `date:` line yourself when
-you want one.
+the ones you set. File → New… with any starter except *Blank* fills in
+`title` and `author` for you, `abstract` for a research article, proposal
+or thesis, and `date` for an assignment's due date; add a `date:` line
+yourself when you want one.
 
 - `title` is one line. Emphasis and inline maths work. A citation in it is
   shown as you typed it, not formatted.

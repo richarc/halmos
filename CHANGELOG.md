@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commands that work there.
 - Insert → Table… has the shortcut ⇧⌘T, next to ⇧⌘C for Citation… and ⇧⌘R
   for Cross-reference….
+- Five more starters in File → New…: Assignment, Lab report, Essay,
+  Research proposal, and Thesis or dissertation. An assignment has your
+  student ID, course and due date, numbered questions with parts and a
+  worked equation, and your name in the page header. A lab report has a
+  small data set as a captioned table and a chart. An essay has an
+  introduction, two body sections and a conclusion. A research proposal
+  has an abstract and a timeline table. A thesis has an abstract, the
+  degree and supervisor, a contents list, chapters and an appendix. Each
+  opens with its title selected, with the page header and footer ticked.
 
 ### Fixed
 
@@ -25,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hover, are no longer cut off under the preview when the cursor is near
   the editor's right edge
   ([#20](https://github.com/richarc/halmos/issues/20)).
+- With `toc: true`, the `[[toc]]` line that places the contents in the
+  preview is no longer printed as text in Word and LaTeX exports.
 
 ## [0.15.0] - 2026-10-27
 

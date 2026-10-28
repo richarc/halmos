@@ -126,8 +126,134 @@ describe('starters', () => {
   const article = (bib: string | null, pageFurniture = false) =>
     newDocumentText(bib, 'apa', { starter: 'article', pageFurniture })
 
-  it('lists Blank and Research article, in that order', () => {
-    expect(STARTERS.map((s) => s.id)).toEqual(['blank', 'article'])
+  it('lists the seven starters in order, header and footer on for all but Blank', () => {
+    expect(STARTERS.map((s) => s.id)).toEqual(['blank', 'article', 'assignment', 'lab-report', 'essay', 'proposal', 'thesis'])
+    expect(STARTERS.map((s) => s.label)).toEqual([
+      'Blank', 'Research article', 'Assignment', 'Lab report', 'Essay', 'Research proposal', 'Thesis or dissertation',
+    ])
+    expect(STARTERS.map((s) => s.furnitureByDefault)).toEqual([false, true, true, true, true, true, true])
+  })
+
+  // Pinned before the starters became data, so the move cannot change it.
+  it('keeps the research article exactly as before', () => {
+    expect(article('paper.bib', true)).toBe(
+      "---\ntitle: \"Title of the paper\"\nauthor:\n  - name: Your Name\n    affiliation: Your institution\nabstract: |\n  One paragraph: the question, what was done, the main result, and why it\n  matters.\nbibliography: paper.bib\ncsl: apa\nheader: \"{title}\"\nfooter: \"Page {page} of {pages}\"\n---\n\n## Introduction\n\nWhat is known, what is not, and the question this paper answers.\n\n## Methods\n\n## Results\n\n## Discussion\n\n## Conclusion\n",
+    )
+    expect(article(null)).toBe(
+      "---\ntitle: \"Title of the paper\"\nauthor:\n  - name: Your Name\n    affiliation: Your institution\nabstract: |\n  One paragraph: the question, what was done, the main result, and why it\n  matters.\n# To cite: name a .bib file below, then type [@ in\n# your text. Styles (or Format → Citation Style):\n# apa, chicago-author-date, ieee, vancouver, harvard.\n# bibliography: references.bib\n# csl: apa\n# toc: true  # a [[toc]] paragraph positions the contents\n---\n\n## Introduction\n\nWhat is known, what is not, and the question this paper answers.\n\n## Methods\n\n## Results\n\n## Discussion\n\n## Conclusion\n",
+    )
+  })
+
+  const titles: Record<string, string> = {
+    article: 'Title of the paper',
+    assignment: 'Assignment title',
+    'lab-report': 'Title of the experiment',
+    essay: 'Title of the essay',
+    proposal: 'Title of the proposal',
+    thesis: 'Title of the thesis',
+  }
+  const sections = (html: string) =>
+    [...html.matchAll(/<h2[^>]*>([^<]*)<\/h2>/g)].map((m) => m[1]).filter((t) => t !== 'Abstract' && t !== 'Contents')
+
+  for (const s of STARTERS.filter((s) => s.id !== 'blank')) {
+    it(`starts ${s.label} cleanly, with or without a bibliography and page furniture`, () => {
+      for (const bib of [null, 'paper.bib']) {
+        for (const pageFurniture of [false, true]) {
+          const text = newDocumentText(bib, 'apa', { starter: s.id, pageFurniture })
+          const fm = parseFrontmatter(text)
+          expect(fm.title).toBe(titles[s.id])
+          expect(fm.authors?.[0]?.name).toBe('Your Name')
+          expect(fm.bibliography).toBe(bib ?? undefined)
+          expect(fm.footer).toBe(pageFurniture ? 'Page {page} of {pages}' : undefined)
+          if (!pageFurniture) expect(fm.header).toBeUndefined()
+          const sel = titleSelection(text)!
+          expect(text.slice(sel.from, sel.to)).toBe(titles[s.id])
+          const result = renderDocument(text)
+          expect(result.crossrefs.missing).toEqual([])
+          expect(result.crossrefs.duplicates).toEqual([])
+          expect(text).not.toContain('<!--')
+          expect(text.slice(text.indexOf('\n---\n') + 5)).not.toMatch(/^# /m)
+        }
+      }
+    })
+
+    it(`keeps ${s.label}'s frontmatter valid with a colon typed in the title`, () => {
+      const text = newDocumentText(null, 'apa', { starter: s.id })
+      const sel = titleSelection(text)!
+      const typed = text.slice(0, sel.from) + 'Lab 3: Pendulum' + text.slice(sel.to)
+      expect(parseFrontmatter(typed).title).toBe('Lab 3: Pendulum')
+    })
+  }
+
+  it('assignment: student and due date, header names the student, a numbered equation', () => {
+    const text = newDocumentText(null, 'apa', { starter: 'assignment' })
+    const fm = parseFrontmatter(text)
+    expect(fm.authors).toEqual([{ name: 'Your Name', affiliation: 'Student ID · Course code' }])
+    expect(fm.date).toBe('Due date')
+    expect(parseFrontmatter(newDocumentText(null, 'apa', { starter: 'assignment', pageFurniture: true })).header).toBe(
+      'Your Name · {title}',
+    )
+    const result = renderDocument(text)
+    expect(sections(result.html)).toEqual(['Question 1', 'Question 2'])
+    expect(result.html).toContain('<strong>(a)</strong>')
+    expect(result.html).toContain('<strong>(b)</strong>')
+    const equations = result.crossrefs.targets.filter((t) => t.kind === 'eq')
+    expect(equations.map((t) => t.number)).toEqual([1])
+    expect(result.html).toMatch(/<a class="crossref" href="#eq:[^"]+">Equation\u00a01<\/a>/)
+  })
+
+  it('lab report: sections, Table 1 and Figure 1, both referenced, data inline', () => {
+    const text = newDocumentText(null, 'apa', { starter: 'lab-report' })
+    const result = renderDocument(text)
+    expect(sections(result.html)).toEqual(['Aim', 'Background', 'Materials and method', 'Results', 'Discussion', 'Conclusion'])
+    const targets = result.crossrefs.targets
+    expect(targets.filter((t) => t.kind === 'tbl').map((t) => t.number)).toEqual([1])
+    expect(targets.filter((t) => t.kind === 'fig').map((t) => t.number)).toEqual([1])
+    expect(result.html).toMatch(/<a class="crossref" href="#tbl:[^"]+">Table\u00a01<\/a>/)
+    expect(result.html).toMatch(/<a class="crossref" href="#fig:[^"]+">Figure\u00a01<\/a>/)
+    expect(text).not.toContain('"url"')
+  })
+
+  it('essay: introduction, two body sections, conclusion, no maths or charts', () => {
+    const text = newDocumentText(null, 'apa', { starter: 'essay' })
+    expect(parseFrontmatter(text).authors).toEqual([{ name: 'Your Name', affiliation: 'Course code' }])
+    expect(sections(renderDocument(text).html)).toEqual(['Introduction', 'First argument', 'Second argument', 'Conclusion'])
+    expect(text).not.toContain('$$')
+    expect(text).not.toContain('```')
+  })
+
+  it('research proposal: abstract and a captioned timeline', () => {
+    const text = newDocumentText(null, 'apa', { starter: 'proposal' })
+    expect(parseFrontmatter(text).abstract).toBeTruthy()
+    const result = renderDocument(text)
+    expect(sections(result.html)).toEqual(['Background', 'Aims', 'Methods', 'Timeline', 'Expected outcomes'])
+    expect(result.crossrefs.targets.filter((t) => t.kind === 'tbl').map((t) => t.number)).toEqual([1])
+  })
+
+  // Uncommenting the guidance's `# toc: true` beside the live key would make
+  // the YAML invalid (a duplicate key) and lose the whole title block.
+  it('gives a thesis without a bibliography no commented toc line beside its live one', () => {
+    const text = newDocumentText(null, 'apa', { starter: 'thesis' })
+    expect(text.match(/^#? ?toc:/gm)).toEqual(['toc:'])
+    expect(text).toContain('# bibliography: references.bib')
+  })
+
+  it('thesis: contents after the opening paragraph, chapters and an appendix', () => {
+    const text = newDocumentText(null, 'apa', { starter: 'thesis' })
+    const fm = parseFrontmatter(text)
+    expect(fm.toc).toBe('true')
+    expect(fm.abstract).toBeTruthy()
+    expect(fm.authors).toEqual([{ name: 'Your Name', affiliation: 'Department, Institution' }])
+    const html = renderDocument(text).html
+    const opening = html.indexOf('Supervisor:')
+    expect(opening).toBeGreaterThan(-1)
+    expect(html.indexOf('<nav class="toc"')).toBeGreaterThan(opening)
+    expect(html).not.toContain('[[toc]]')
+    const chapters = sections(html)
+    expect(chapters.slice(0, -1)).toEqual([
+      'Acknowledgements', 'Introduction', 'Literature review', 'Methodology', 'Results', 'Discussion', 'Conclusion',
+    ])
+    expect(chapters.at(-1)?.startsWith('Appendix A')).toBe(true)
   })
 
   it('keeps Blank without a header and footer exactly as before', () => {

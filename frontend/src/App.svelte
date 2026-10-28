@@ -15,6 +15,7 @@
   import { diagramImages, replaceDiagramFences } from './lib/exportDiagrams'
   import { abstractReferencesForExport, labelForExport } from './lib/exportCrossrefs'
   import { authorsForExport } from './lib/exportMetadata'
+  import { tocMarkerForExport } from './lib/exportToc'
   import { toPng } from './lib/rasterise'
   import { messageFor, problemMessage } from './lib/portalMessages'
   import Editor from './Editor.svelte'
@@ -911,6 +912,7 @@
     markdown = labelForExport(markdown)
     markdown = abstractReferencesForExport(markdown)
     markdown = authorsForExport(markdown)
+    markdown = tocMarkerForExport(markdown)
     const images: Record<string, string> = {}
     if (format === 'docx') {
       const root = await preview.exportRoot()
