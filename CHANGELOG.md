@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Insert → Table… has the shortcut ⇧⌘T, next to ⇧⌘C for Citation… and ⇧⌘R
   for Cross-reference….
 
+### Fixed
+
+- The completion list for citations and cross-references, and the citation
+  hover, are no longer cut off under the preview when the cursor is near
+  the editor's right edge
+  ([#20](https://github.com/richarc/halmos/issues/20)).
+
 ## [0.15.0] - 2026-10-27
 
 ### Added

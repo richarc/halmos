@@ -402,13 +402,17 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       Open: whether a starter can bring a sample data file (the lab
       report's chart) or writes its data inline; and whether the dialog's
       list becomes a list with a short preview once there are seven.
-- [ ] **The completion list stays visible near the preview.** Added
+- [x] **The completion list stays visible near the preview.** Added
       2026-10-28, [#20](https://github.com/richarc/halmos/issues/20).
       Typing `@fig:`, `@tbl:` or a citation `@` near the editor's right
       edge opens the list under the preview. It should flip left when
       there is no room on the right, or be drawn over the preview as the
       command palette is. Likely `tooltips({ parent: document.body })` in
       `Editor.svelte`; check the citation hover tooltip too.
+      *Done 2026-10-28 (not yet released):* in WebKit CodeMirror falls back
+      to absolute positioning, so the list sat inside the scrolling editor
+      pane and was clipped. Tooltips, the citation hover included, are now
+      drawn from `document.body`.
 - [ ] **Release v0.16.0**, once the items above are done. Cut by hand with
       `wails3 task release`, as v0.15.0 was. The portal's parts (Word and
       LaTeX headers and footers, the tutorial bundle) are deployed before
