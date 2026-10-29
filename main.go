@@ -77,6 +77,9 @@ func main() {
 	// settings and drafts.
 	commands := &commandRegistry{}
 	palette := newCommandService(commands, filepath.Dir(recentsPath))
+	// Find a Style…: the CSL repository's styles through the portal, and
+	// the library of those installed (styleservice.go).
+	styles := NewStyleService(filepath.Dir(recentsPath))
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -90,7 +93,7 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "Halmos Editor",
 		Description: "Academic markdown editor",
-		Services:    []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal), application.NewService(palette)},
+		Services:    []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal), application.NewService(palette), application.NewService(styles)},
 		// A recording the script left running is stopped so the file on disk
 		// is closed, whichever way the app ends.
 		OnShutdown: demo.shutdown,

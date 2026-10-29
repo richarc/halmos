@@ -145,6 +145,17 @@ export interface PortalError {
 }
 
 /**
+ * ResolvedStyle is what formats a document's `csl:` value. Installed is true
+ * when resolving it installed the style from the repository.
+ */
+export interface ResolvedStyle {
+    "xml": string;
+    "title": string;
+    "installed": boolean;
+    "error": string;
+}
+
+/**
  * SaveResult tells the frontend whether Save wrote. Conflict means the file
  * changed on disk since the editor last matched it, and nothing was written.
  */
@@ -191,6 +202,53 @@ export interface Settings {
      * frontend/src/lib/bodyFont.ts; menu_test.go keeps the two key lists equal.
      */
     "bodyFont": string;
+}
+
+/**
+ * StyleIndexStatus is what the window needs before its first search. Error
+ * is "" (Ready), "offline" or "busy"; a failed refresh with a cached index
+ * is still Ready.
+ */
+export interface StyleIndexStatus {
+    "ready": boolean;
+    "error": string;
+    "fields": string[] | null;
+    "updates": number;
+}
+
+export interface StyleInstallResult {
+    "id": string;
+    "title": string;
+    "error": string;
+}
+
+export interface StyleSearchResult {
+    "styles": StyleSummary[] | null;
+    "total": number;
+}
+
+/**
+ * StyleSummary is one style as the Find a Style window shows it.
+ */
+export interface StyleSummary {
+    "id": string;
+    "title": string;
+    "titleShort": string;
+    "format": string;
+    "fields": string[] | null;
+    "parent": string;
+    "parentTitle": string;
+    "installed": boolean;
+    "update": boolean;
+}
+
+/**
+ * StyleText is a style's formatting XML for the window's sample.
+ */
+export interface StyleText {
+    "xml": string;
+    "title": string;
+    "error": string;
 }
 
 /**
