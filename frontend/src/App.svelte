@@ -2140,6 +2140,7 @@
   {#if chartOpen}
     <ChartBuilder
       initial={chartInitial}
+      docPath={path ?? ''}
       oncommit={commitChart}
       oncancel={closeChartBuilder}
     />

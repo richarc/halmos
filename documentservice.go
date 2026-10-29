@@ -241,11 +241,18 @@ func (s *DocumentService) Open() (Document, error) {
 // ImportData opens a native picker for a delimited data file and returns its
 // contents. The reading half is split into readDataFile so it stays testable,
 // the same way ReadBibliography is testable while Open is not.
-func (s *DocumentService) ImportData() (string, error) {
-	path, err := application.Get().Dialog.OpenFile().
+//
+// docPath is the open document's, "" for an untitled one: the panel starts
+// in its folder, where a document's data usually sits (the tutorial's
+// rainfall.csv). Any file can still be picked.
+func (s *DocumentService) ImportData(docPath string) (string, error) {
+	dialog := application.Get().Dialog.OpenFile().
 		SetTitle("Import Data").
-		AddFilter("Data files", "*.csv;*.tsv;*.txt").
-		PromptForSingleSelection()
+		AddFilter("Data files", "*.csv;*.tsv;*.txt")
+	if docPath != "" {
+		dialog.SetDirectory(filepath.Dir(docPath))
+	}
+	path, err := dialog.PromptForSingleSelection()
 	if err != nil || path == "" {
 		return "", err
 	}

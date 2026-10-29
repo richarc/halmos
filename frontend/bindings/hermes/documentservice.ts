@@ -131,9 +131,13 @@ export function ForgetDocument(): $CancellablePromise<void> {
  * ImportData opens a native picker for a delimited data file and returns its
  * contents. The reading half is split into readDataFile so it stays testable,
  * the same way ReadBibliography is testable while Open is not.
+ * 
+ * docPath is the open document's, "" for an untitled one: the panel starts
+ * in its folder, where a document's data usually sits (the tutorial's
+ * rainfall.csv). Any file can still be picked.
  */
-export function ImportData(): $CancellablePromise<string> {
-    return $Call.ByID(2788725769);
+export function ImportData(docPath: string): $CancellablePromise<string> {
+    return $Call.ByID(2788725769, docPath);
 }
 
 export function IsDirty(): $CancellablePromise<boolean> {
