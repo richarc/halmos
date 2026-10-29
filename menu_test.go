@@ -585,3 +585,59 @@ func TestViewMenuOpensCommandPalette(t *testing.T) {
 		t.Errorf("emitted %v, want [menu:command-palette]", emitted)
 	}
 }
+
+// citationStyleMenu builds the Format menu with the given installed styles
+// and returns the Citation Style submenu's labels (separators as "-") and a
+// registry to run its items through.
+func citationStyleMenu(t *testing.T, installed []StyleSummary, emit func(string, ...any)) ([]string, *commandRegistry) {
+	t.Helper()
+	testApp()
+	menu := application.NewMenu()
+	cmds := newCommandSet()
+	addFormatMenu(menu, newTestService(t), installed, emit, cmds)
+	format := menu.ItemAt(0).GetSubmenu()
+	var style *application.Menu
+	for i := 0; format.ItemAt(i) != nil; i++ {
+		if format.ItemAt(i).Label() == "Citation Style" {
+			style = format.ItemAt(i).GetSubmenu()
+		}
+	}
+	if style == nil {
+		t.Fatal("no Citation Style submenu")
+	}
+	var labels []string
+	for i := 0; style.ItemAt(i) != nil; i++ {
+		if it := style.ItemAt(i); it.IsSeparator() {
+			labels = append(labels, "-")
+		} else {
+			labels = append(labels, it.Label())
+		}
+	}
+	r := &commandRegistry{}
+	r.replace(cmds)
+	return labels, r
+}
+
+func TestCitationStyleMenuListsInstalledByTitle(t *testing.T) {
+	var got []any
+	labels, r := citationStyleMenu(t, []StyleSummary{{ID: "b", Title: "Zeta"}, {ID: "a", Title: "Alpha"}},
+		func(name string, data ...any) { got = append([]any{name}, data...) })
+	want := []string{"APA", "Chicago (author-date)", "Harvard", "IEEE", "Vancouver", "-", "Alpha", "Zeta", "-", "Find a Style…"}
+	if !reflect.DeepEqual(labels, want) {
+		t.Fatalf("labels %q", labels)
+	}
+	if !r.run("Format › Citation Style › Alpha") || !reflect.DeepEqual(got, []any{"menu:citation-style", "a"}) {
+		t.Fatalf("installed style emitted %v", got)
+	}
+	if !r.run("Format › Citation Style › Find a Style…") || !reflect.DeepEqual(got, []any{"menu:citation-style", "find"}) {
+		t.Fatalf("Find a Style… emitted %v", got)
+	}
+}
+
+func TestCitationStyleMenuWithNothingInstalled(t *testing.T) {
+	labels, _ := citationStyleMenu(t, nil, func(string, ...any) {})
+	want := []string{"APA", "Chicago (author-date)", "Harvard", "IEEE", "Vancouver", "-", "Find a Style…"}
+	if !reflect.DeepEqual(labels, want) {
+		t.Fatalf("labels %q", labels)
+	}
+}

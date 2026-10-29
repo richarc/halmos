@@ -186,26 +186,29 @@ func main() {
 	// for the AppKit calls; the event lets the frontend refresh its own list.
 	docs.onRecentsChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands)
+			installMenu(app, win, docs, commands, styles)
 		})
 		app.Event.Emit("recents:changed")
 	}
 	docs.onCitationStyleChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands)
+			installMenu(app, win, docs, commands, styles)
 		})
 	}
+	// A style installed from Find a Style…, or by opening a document that
+	// names one, joins the Citation Style menu.
+	styles.onChanged = docs.onCitationStyleChanged
 	// One notification for every preference: the menu re-reads whichever ones
 	// it renders, and the frontend is told so it can pick up the rest. Adding
 	// a setting needs no new wiring here.
 	docs.settings.onChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands)
+			installMenu(app, win, docs, commands, styles)
 		})
 		app.Event.Emit("settings:changed")
 	}
 
-	installMenu(app, win, docs, commands)
+	installMenu(app, win, docs, commands, styles)
 
 	// Run the application. This blocks until the application has been exited.
 	err = app.Run()

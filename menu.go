@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/mac"
@@ -35,7 +37,7 @@ func citationStyleClicked(docs *DocumentService, emit func()) {
 // what attaches the click handler, so the command palette lists and runs the
 // same functions the menu does. The new set replaces the old one in reg once
 // the menu is installed.
-func installMenu(app *application.App, win *application.WebviewWindow, docs *DocumentService, reg *commandRegistry) {
+func installMenu(app *application.App, win *application.WebviewWindow, docs *DocumentService, reg *commandRegistry, styles *StyleService) {
 	menu := application.NewMenu()
 	cmds := newCommandSet()
 	appName := app.Config().Name
@@ -156,7 +158,11 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	addExportMenu(menu, docEmit, cmds)
 	addEditMenu(menu, docEmit, cmds)
 	addInsertMenu(menu, docEmit, cmds)
-	addFormatMenu(menu, docs, docEmit, cmds)
+	var installed []StyleSummary
+	if styles != nil {
+		installed = styles.Installed()
+	}
+	addFormatMenu(menu, docs, installed, docEmit, cmds)
 	addViewMenu(menu, docs, docEmit, cmds)
 
 	menu.AddRole(application.WindowMenu)
@@ -293,7 +299,9 @@ func addEditMenu(menu *application.Menu, emit func(name string, data ...any), cm
 }
 
 // addFormatMenu adds the Format menu; every item edits the document.
-func addFormatMenu(menu *application.Menu, docs *DocumentService, emit func(name string, data ...any), cmds *commandSet) {
+// installed is the styles chosen from Find a Style…, listed after the
+// bundled ones so they are a click away.
+func addFormatMenu(menu *application.Menu, docs *DocumentService, installed []StyleSummary, emit func(name string, data ...any), cmds *commandSet) {
 	doc := commandOpts{needsDocument: true}
 	formatP := []string{"Format"}
 	format := menu.AddSubmenu("Format")
@@ -332,8 +340,21 @@ func addFormatMenu(menu *application.Menu, docs *DocumentService, emit func(name
 		}, doc)
 	}
 	style.AddSeparator()
-	cmds.item(style.Add("Other Style File…"), styleP, func() {
-		emit("menu:citation-style", "other")
+	chosen := append([]StyleSummary(nil), installed...)
+	sort.SliceStable(chosen, func(i, j int) bool { return strings.ToLower(chosen[i].Title) < strings.ToLower(chosen[j].Title) })
+	for _, st := range chosen {
+		id := st.ID
+		cmds.item(style.AddCheckbox(st.Title, currentStyle == id), styleP, func() {
+			citationStyleClicked(docs, func() { emit("menu:citation-style", id) })
+		}, doc)
+	}
+	if len(chosen) > 0 {
+		style.AddSeparator()
+	}
+	// The window searches the CSL repository and also offers Choose a
+	// file…, which was Other Style File… here.
+	cmds.item(style.Add("Find a Style…"), styleP, func() {
+		emit("menu:citation-style", "find")
 	}, doc)
 
 	format.AddSeparator()
