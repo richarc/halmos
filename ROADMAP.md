@@ -353,7 +353,7 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       in `palette-recents.json`. Left for later: running "Command Palette…"
       from the palette reopens it, and a failed list load shows an empty
       palette with no message.
-- [ ] **An interactive Getting Started tutorial.** Added 2026-10-27. The
+- [x] **An interactive Getting Started tutorial.** Added 2026-10-27. The
       current Getting Started guide is read on the site; this one is done in
       the editor. Help → Getting Started (also on the start screen and the
       command palette) downloads a tutorial from halmoseditor.com, a
@@ -384,6 +384,17 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
         with the app, built from the same `docs/tutorial/`. A second run
         offers to open the existing folder or start fresh, and never
         overwrites the user's edits.
+      *Done 2026-10-29, not yet released:* `tutorialservice.go` downloads
+      and checks the tutorial (or uses `docs/tutorial/`, embedded in the
+      app), writes it to a new `Halmos Tutorial` folder in the place the
+      user picks, and `GettingStarted.svelte` opens it. Halmos checks the
+      tasks itself: a task ends in a hidden marker
+      (`<!-- check: chart -->`), and `lib/tutorialTasks.ts` ticks it in the
+      preview when the result is below it, before the next heading; the
+      text keeps `- [ ]`. A first launch points to it with a toast. Design:
+      `docs/superpowers/specs/2026-10-29-tutorial-design.md`. Left for
+      later: screenshots in `images/`; the online path is checked by eye
+      once the files are synced to the portal and the version is 0.16.0.
 - [x] **Find a citation style from the CSL repository.** Added
       2026-10-28. Five styles are bundled; any other means finding the
       journal's `.csl` file, downloading it and choosing it with Other Style
