@@ -515,6 +515,17 @@ one — dissolves when the conversion runs on a server Halmos controls.
       product work outside this repository: see the M1.1 milestone.
       *Done 2026-10-20*: Connect pairs the Mac with the portal, Account…
       in the app menu shows the connection and the subscription.
+- [ ] **Check that signed builds never ask for the Keychain password.**
+      Added 2026-10-29. Development builds are signed ad hoc, so each
+      rebuild is a new app to the Keychain and asks for the login password
+      at every paid-service call (the refresh token is rewritten on each
+      refresh). Release builds are signed with Developer ID, which should
+      keep access across versions without asking. Before release, check it:
+      install a signed build, Connect and use a paid service; update to a
+      second signed build and use it again. Neither should ask. If one
+      does, consider the data protection keychain
+      (`kSecUseDataProtectionKeychain`), which needs a keychain access
+      group and an embedded provisioning profile.
 - [ ] **Contributor licence agreement** before accepting outside pull
       requests. Today every commit is the author's, so the licence of future
       versions can still be changed; outside contributions without an
