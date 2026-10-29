@@ -27,6 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   has an abstract and a timeline table. A thesis has an abstract, the
   degree and supervisor, a contents list, chapters and an appendix. Each
   opens with its title selected, with the page header and footer ticked.
+- Format → Citation Style → Find a Style… searches every style in the CSL
+  repository, over 10,000, by journal name or abbreviation, and filters by
+  field and by format (author-date, numeric, note). The selected style shows
+  a sample citation and reference. Use Style installs it and writes
+  `csl: <id>` into the frontmatter; it then appears in the Citation Style
+  menu. A journal's style that borrows another's formatting brings that
+  style with it. A document naming a style that is not installed fetches it
+  when it opens, so co-authors get the same style. Installed styles work
+  offline, and the window offers updates when the repository's copy
+  changes. Choose a file… in the same window opens a `.csl` file from disk,
+  as Other Style File… did.
 
 ### Fixed
 
@@ -36,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#20](https://github.com/richarc/halmos/issues/20)).
 - With `toc: true`, the `[[toc]]` line that places the contents in the
   preview is no longer printed as text in Word and LaTeX exports.
+- A journal's `.csl` file that borrows another style's formatting (most
+  journal styles) formatted no references at all. It now formats with that
+  style, installed from the CSL repository if needed.
 
 ## [0.15.0] - 2026-10-27
 

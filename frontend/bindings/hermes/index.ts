@@ -5,11 +5,13 @@ import * as CommandService from "./commandservice.js";
 import * as DemoService from "./demoservice.js";
 import * as DocumentService from "./documentservice.js";
 import * as PortalService from "./portalservice.js";
+import * as StyleService from "./styleservice.js";
 export {
     CommandService,
     DemoService,
     DocumentService,
-    PortalService
+    PortalService,
+    StyleService
 };
 
 export type {
@@ -24,8 +26,14 @@ export type {
     PageFurniture,
     PairingInfo,
     PortalError,
+    ResolvedStyle,
     SaveResult,
     Settings,
+    StyleIndexStatus,
+    StyleInstallResult,
+    StyleSearchResult,
+    StyleSummary,
+    StyleText,
     UpdateResult,
     WelcomeInfo
 } from "./models.js";

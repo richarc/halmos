@@ -147,11 +147,32 @@ Format → Citation Style lists APA, Chicago (author-date), Harvard, IEEE and
 Vancouver. The current one is ticked. Choosing one rewrites the `csl:` line in
 the frontmatter.
 
-Other Style File… opens a `.csl` file from disk. If the file is inside the
-document's folder, `csl:` holds a path relative to the document; otherwise it
-holds the absolute path. A document that has not been saved yet has no folder,
-so save it first. Halmos does not watch the style file: after editing it,
-reopen the document or choose the style again.
+Find a Style… searches the CSL project's repository of over 10,000 styles.
+Type a journal's name or abbreviation, or narrow the list by field and by
+format (author-date, numeric or note). The selected style shows a sample
+citation and reference. Use Style installs it and writes its name into the
+frontmatter, for example `csl: nature-communications`. Installed styles are
+listed in the Citation Style menu after the bundled ones and work offline.
+When the repository's copy of an installed style changes, Find a Style…
+offers the update; nothing changes until you choose it.
+
+A document that names a style you have not installed fetches it when it
+opens, so a co-author's Halmos formats it the same way. This needs an
+internet connection the first time; without one, the document uses APA
+and says why.
+
+Many journal styles borrow the formatting of another style (Nature
+Communications uses Nature's). Halmos installs that style too, and Word and
+LaTeX export send it.
+
+Choose a file… in the same window opens a `.csl` file from disk. If the file
+is inside the document's folder, `csl:` holds a path relative to the
+document; otherwise it holds the absolute path. A document that has not been
+saved yet has no folder, so save it first. Halmos does not watch the style
+file: after editing it, reopen the document or choose the style again.
+
+The styles come from the [CSL project](https://citationstyles.org/) and are
+shared under the Creative Commons Attribution-ShareAlike 3.0 licence.
 
 ## Footnotes
 

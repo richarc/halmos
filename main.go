@@ -77,6 +77,9 @@ func main() {
 	// settings and drafts.
 	commands := &commandRegistry{}
 	palette := newCommandService(commands, filepath.Dir(recentsPath))
+	// Find a Style…: the CSL repository's styles through the portal, and
+	// the library of those installed (styleservice.go).
+	styles := NewStyleService(filepath.Dir(recentsPath))
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -90,7 +93,7 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "Halmos Editor",
 		Description: "Academic markdown editor",
-		Services:    []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal), application.NewService(palette)},
+		Services:    []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal), application.NewService(palette), application.NewService(styles)},
 		// A recording the script left running is stopped so the file on disk
 		// is closed, whichever way the app ends.
 		OnShutdown: demo.shutdown,
@@ -183,26 +186,29 @@ func main() {
 	// for the AppKit calls; the event lets the frontend refresh its own list.
 	docs.onRecentsChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands)
+			installMenu(app, win, docs, commands, styles)
 		})
 		app.Event.Emit("recents:changed")
 	}
 	docs.onCitationStyleChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands)
+			installMenu(app, win, docs, commands, styles)
 		})
 	}
+	// A style installed from Find a Style…, or by opening a document that
+	// names one, joins the Citation Style menu.
+	styles.onChanged = docs.onCitationStyleChanged
 	// One notification for every preference: the menu re-reads whichever ones
 	// it renders, and the frontend is told so it can pick up the rest. Adding
 	// a setting needs no new wiring here.
 	docs.settings.onChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands)
+			installMenu(app, win, docs, commands, styles)
 		})
 		app.Event.Emit("settings:changed")
 	}
 
-	installMenu(app, win, docs, commands)
+	installMenu(app, win, docs, commands, styles)
 
 	// Run the application. This blocks until the application has been exited.
 	err = app.Run()

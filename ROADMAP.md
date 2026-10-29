@@ -362,7 +362,7 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
         message with the guides' link.
       - A second run: open the existing folder or start fresh, never
         overwrite the user's edits silently.
-- [ ] **Find a citation style from the CSL repository.** Added
+- [x] **Find a citation style from the CSL repository.** Added
       2026-10-28. Five styles are bundled; any other means finding the
       journal's `.csl` file, downloading it and choosing it with Other Style
       File…. The CSL repository has over 10,000. Other Style File… becomes
@@ -379,13 +379,22 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
         the parent, and Word and LaTeX export send the parent's CSL. Check
         first whether a dependent style loads today.
       - Installed styles live in a library in
-        `~/Library/Application Support/Halmos/styles/`. The frontmatter
+        `~/Library/Application Support/hermes/styles/`, inside the app's
+        data folder, which keeps the old name (see CLAUDE.md). The frontmatter
         names the style by its ID (`csl: nature`), so a co-author's Halmos
         finds or fetches the same style; a path still works as today.
       - Each style records when it was installed, and Halmos offers
         updates. Offline, the bundled and installed styles still work.
       - The styles are CC BY-SA 3.0: list them in the third-party licence
         notices (v1.0.0).
+      *Done 2026-10-29 (not yet released):* checked first, a dependent
+      style loaded today without an error and formatted nothing.
+      `StyleService` (Go) fetches and caches the index, searches it, and
+      installs a style with its parent after checking each file's SHA-256;
+      every `csl:` value that is not bundled resolves through it to the XML
+      that formats, so a dependent style uses its parent in the preview and
+      in Word and LaTeX export. Updates are offered in the window only. The licence notice stays with v1.0.0;
+      the window carries the CSL project's attribution.
 - [x] **More starters in the New dialog: Assignment, and the other
       common shapes.** Added 2026-10-28. Each is one more `STARTERS` entry
       in `lib/documentTemplate.ts`, next to Blank and Research article.

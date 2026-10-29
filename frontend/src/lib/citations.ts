@@ -83,6 +83,11 @@ export interface CitationFormatter {
   reference(key: string): string | null
 }
 
+/** True for a style bundled with the app; anything else is resolved by Go. */
+export function isBundledStyle(csl: string): boolean {
+  return STYLE_IDS.includes(csl)
+}
+
 /** True for a `csl:` value that names a style file rather than a bundled id. */
 export function isStyleFile(csl: string): boolean {
   return !STYLE_IDS.includes(csl) && /\.csl$/i.test(csl)

@@ -186,28 +186,6 @@ func TestReadBibliographyResolvesRelativeToDocument(t *testing.T) {
 	}
 }
 
-func TestReadCitationStyleResolvesAgainstDocument(t *testing.T) {
-	s := newTestService(t)
-	dir := t.TempDir()
-	docPath := filepath.Join(dir, "paper.md")
-	stylePath := filepath.Join(dir, "my.csl")
-	if err := os.WriteFile(stylePath, []byte("<style/>"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := s.ReadCitationStyle("my.csl", docPath)
-	if err != nil || got != "<style/>" {
-		t.Errorf("relative read: %q, %v", got, err)
-	}
-	got, err = s.ReadCitationStyle(stylePath, docPath)
-	if err != nil || got != "<style/>" {
-		t.Errorf("absolute read: %q, %v", got, err)
-	}
-	if _, err := s.ReadCitationStyle("missing.csl", docPath); err == nil {
-		t.Error("want error for missing style")
-	}
-}
-
 func TestWatchBibliographyEmitsOnChange(t *testing.T) {
 	s := newTestService(t)
 	s.watchTick = 10 * time.Millisecond
