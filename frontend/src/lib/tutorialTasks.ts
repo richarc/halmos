@@ -11,10 +11,12 @@ import { keyLabel, type CrossrefEnv, type CrossrefMeta } from './crossrefTargets
 // `html: false`, so the rule removes the marker from what is rendered (the
 // children only; `content` keeps it, as taskAlerts.ts requires).
 //
-// A task is done when its area — everything after its list, up to the next
-// heading — holds the result. The finished example sits above the list, so
-// it never counts. Only the preview's checkbox changes: the document keeps
-// `- [ ]`.
+// A task is done when its area — everything after its marker, up to the
+// next heading — holds the result. That takes in text typed straight under
+// the last task with no blank line (Markdown makes it part of that task) and
+// a new `- [ ]` line made by pressing Return; the finished example sits above
+// the task list, so it never counts. Only the preview's checkbox changes: the
+// document keeps `- [ ]`.
 
 export const CHECKS = [
   'inline-math',
@@ -66,39 +68,31 @@ function found(check: Check, token: Token, env: CrossrefEnv): boolean {
   }
 }
 
-function closeOf(tokens: Token[], open: number): number {
-  const type = tokens[open].type.replace('_open', '_close')
-  for (let k = open + 1; k < tokens.length; k++) {
-    if (tokens[k].type === type && tokens[k].level === tokens[open].level) return k
-  }
-  return tokens.length
-}
-
 function tickTasks(state: StateCore): boolean {
   const tokens = state.tokens
   const env = state.env as CrossrefEnv
   for (let i = 0; i < tokens.length; i++) {
     if (tokens[i].type !== 'list_item_open' || !tokens[i].attrGet('class')?.includes('task-list-item')) continue
-    const kids = tokens[i + 2]?.children
+    const inline = i + 2
+    const kids = tokens[inline]?.children
     if (!kids) continue
-    // makeTasks wraps the item's text in a label, so the marker is in the
-    // last text token before the closing one.
-    const last = kids.findLastIndex((t) => t.type === 'text')
-    const m = last === -1 ? null : MARKER.exec(kids[last].content)
-    if (!m) continue
-    kids[last].content = kids[last].content.slice(0, m.index)
+    // The first text token that ends in a marker: a softbreak ends a token,
+    // so a marker on the task's first line is found with text typed after it.
+    const at = kids.findIndex((t) => t.type === 'text' && MARKER.test(t.content))
+    if (at === -1) continue
+    const m = MARKER.exec(kids[at].content)!
+    kids[at].content = kids[at].content.slice(0, m.index)
+    // makeTasks closed its label at the end of the item; close it at the
+    // marker instead, so a tick strikes through the task and not the work.
+    const shut = kids.findLastIndex((t) => t.type === 'html_inline' && t.content === '</label>')
+    if (shut > at) kids.splice(at + 1, 0, ...kids.splice(shut, 1))
     const check = m[1] as Check
     if (!CHECKS.includes(check)) continue
 
-    let list = i - 1
-    while (list >= 0 && !(tokens[list].type.endsWith('_list_open') && tokens[list].level === tokens[i].level - 1)) list--
-    if (list < 0) continue
-    const from = closeOf(tokens, list) + 1
-    let to = from
+    let to = inline + 1
     while (to < tokens.length && tokens[to].type !== 'heading_open') to++
-
-    let done = false
-    for (const t of area(tokens, from, to)) {
+    let done = kids.slice(at + 2).some((t) => found(check, t, env))
+    for (const t of done ? [] : area(tokens, inline + 1, to)) {
       if (found(check, t, env)) {
         done = true
         break

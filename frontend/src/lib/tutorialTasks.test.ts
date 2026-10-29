@@ -83,6 +83,26 @@ describe('tutorial tasks', () => {
     expect(isDone(li)).toBe(false)
   })
 
+  it('counts work typed straight after the last task, with no blank line', () => {
+    const md = '## Try it\n\n- [ ] One. <!-- check: chart -->\n- [ ] Two. <!-- check: inline-math -->\nThe area is $x$.\n\n## Next\n'
+    const html = render(md)
+    expect(html).not.toContain('check:')
+    expect(isDone(taskItem(html, 'Two.'))).toBe(true)
+    expect(isDone(taskItem(html, 'One.'))).toBe(false)
+  })
+
+  it('counts work typed as a new task after the task', () => {
+    const md = '## Try it\n\n- [ ] One. <!-- check: inline-math -->\n- [ ] The area is $x$.\n\n## Next\n'
+    expect(isDone(taskItem(render(md), 'One.'))).toBe(true)
+  })
+
+  it('strikes through only the task, not the work typed after it', () => {
+    const md = '## Try it\n\n- [ ] Two. <!-- check: inline-math -->\nThe area is $x$.\n'
+    const label = taskItem(render(md), 'Two.').querySelector('.task-list-item-label')!
+    expect(label.textContent).toContain('Two.')
+    expect(label.textContent).not.toContain('The area')
+  })
+
   it('hides the marker', () => {
     const html = render(section('chart', CHART))
     expect(html).not.toContain('check:')

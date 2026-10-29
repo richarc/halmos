@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -219,8 +220,11 @@ func (s *TutorialService) online() (content *tutorialContent, needsUpdate bool) 
 }
 
 // writeTutorial creates folder (or takes it when empty), images/ in it when
-// a name needs it, and each file, never replacing one; the marker last.
-func writeTutorial(folder string, c *tutorialContent, now time.Time) error {
+// a name needs it, and each file, never replacing one; the marker last. On
+// a failure it removes what it wrote, so Start can be tried again.
+func writeTutorial(folder string, c *tutorialContent, now time.Time) (err error) {
+	_, statErr := os.Stat(folder)
+	created := errors.Is(statErr, os.ErrNotExist)
 	if err := os.MkdirAll(folder, 0o755); err != nil {
 		return err
 	}
@@ -231,24 +235,45 @@ func writeTutorial(folder string, c *tutorialContent, now time.Time) error {
 	if len(entries) > 0 {
 		return fmt.Errorf("%s already has files in it", filepath.Base(folder))
 	}
+	// Removed in reverse on failure: files, then images/, then the folder if
+	// this call made it. os.Remove leaves anything it did not write.
+	var written []string
+	if created {
+		written = append(written, folder)
+	}
+	defer func() {
+		if err == nil {
+			return
+		}
+		for i := len(written) - 1; i >= 0; i-- {
+			_ = os.Remove(written[i])
+		}
+	}()
+	images := filepath.Join(folder, "images")
 	for _, name := range c.Order {
 		if err := checkTutorialName(name); err != nil {
 			return err
 		}
-		if strings.HasPrefix(name, "images/") {
-			if err := os.Mkdir(filepath.Join(folder, "images"), 0o755); err != nil && !errors.Is(err, os.ErrExist) {
+		if strings.HasPrefix(name, "images/") && !slices.Contains(written, images) {
+			if err := os.Mkdir(images, 0o755); err != nil {
 				return err
 			}
+			written = append(written, images)
 		}
-		if err := writeNewFile(filepath.Join(folder, filepath.FromSlash(name)), c.Files[name]); err != nil {
+		path := filepath.Join(folder, filepath.FromSlash(name))
+		if err := writeNewFileFn(path, c.Files[name]); err != nil {
 			return err
 		}
+		written = append(written, path)
 	}
 	marker, _ := json.MarshalIndent(tutorialMarker{
 		Revision: c.Revision, Source: c.Source, Entry: c.Entry, Created: now.UTC().Format(time.RFC3339),
 	}, "", "  ")
-	return writeNewFile(filepath.Join(folder, tutorialMarkerName), append(marker, '\n'))
+	return writeNewFileFn(filepath.Join(folder, tutorialMarkerName), append(marker, '\n'))
 }
+
+// writeNewFileFn is writeNewFile, replaced by a test to fail partway.
+var writeNewFileFn = writeNewFile
 
 // writeNewFile writes a file that must not exist yet.
 func writeNewFile(path string, data []byte) error {
@@ -256,9 +281,12 @@ func writeNewFile(path string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	if _, err := f.Write(data); err != nil {
-		f.Close()
-		return err
+	_, err = f.Write(data)
+	if cerr := f.Close(); err == nil {
+		err = cerr
 	}
-	return f.Close()
+	if err != nil {
+		_ = os.Remove(path) // this call created it
+	}
+	return err
 }

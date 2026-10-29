@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"net/http"
 	"os"
@@ -196,5 +197,38 @@ func TestStateForgetsMissingFolder(t *testing.T) {
 	}
 	if st := s.State(); st.Existing != "" || st.Suggested != folder {
 		t.Fatalf("state %+v", st)
+	}
+}
+
+func TestWriteTutorialCleansUpAfterAFailure(t *testing.T) {
+	folder := filepath.Join(t.TempDir(), "Halmos Tutorial")
+	calls := 0
+	writeNewFileFn = func(path string, data []byte) error {
+		calls++
+		if calls == 2 {
+			return errors.New("no space left on device")
+		}
+		return writeNewFile(path, data)
+	}
+	t.Cleanup(func() { writeNewFileFn = writeNewFile })
+	if err := writeTutorial(folder, sampleContent(), time.Now()); err == nil {
+		t.Fatal("no error")
+	}
+	if _, err := os.Stat(folder); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("folder left behind: %v", err)
+	}
+
+	// A folder the user chose that already existed (empty) is kept, emptied.
+	existing := t.TempDir()
+	calls = 0
+	if err := writeTutorial(existing, sampleContent(), time.Now()); err == nil {
+		t.Fatal("no error")
+	}
+	if entries, err := os.ReadDir(existing); err != nil || len(entries) != 0 {
+		t.Fatalf("left %v %v", entries, err)
+	}
+	writeNewFileFn = writeNewFile
+	if err := writeTutorial(existing, sampleContent(), time.Now()); err != nil {
+		t.Fatalf("retry: %v", err)
 	}
 }

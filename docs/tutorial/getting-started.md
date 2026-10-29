@@ -12,8 +12,8 @@ Markdown document in a folder of its own, beside its bibliography
 anything you like: nothing here can break.
 
 Each section shows a finished example, then gives you a few tasks to do in
-this document, just below them. When Halmos sees a task done, it ticks it
-in the preview on the right.
+this document, just below them, after a blank line. When Halmos sees a
+task done, it ticks it in the preview on the right.
 
 Every command has a name. Press **⇧⌘P** to open the command palette, type
 a few letters of what you want ("chart", "cite", "table") and press Return.
@@ -81,11 +81,12 @@ brackets: literate programming [@knuth1984literate] treats a program as a
 piece of writing. Halmos formats it in the document's style (APA here, set
 by `csl:` at the top) and lists the work under References at the end.
 
-Your turn. Write a sentence below the tasks, then open the palette and
-choose **Insert: Citation…** (or type `[@`) and pick a work from the
-list.
+Your turn. Write a sentence below the tasks, then type `[@` where the
+citation goes: Halmos lists the works in `getting-started.bib`, and Return
+picks one. (If you keep your library in Zotero, **Insert: Citation…**
+(⇧⌘C) opens Zotero's own picker instead.)
 
-- [ ] Cite a work from `getting-started.bib` with **Insert: Citation…**. <!-- check: citation -->
+- [ ] Cite a work from `getting-started.bib` by typing `[@`. <!-- check: citation -->
 
 # Tables
 
@@ -99,8 +100,9 @@ after it is its caption, and a label numbers it:
 
 : The wettest month in each city {#tbl:wettest}
 
-Your turn. Open the palette and choose **Insert: Table…** (⇧⌘T). Fill in
-a few cells and click **Insert**. Then add a caption: a blank line after
+Your turn. Put the cursor on an empty line below the tasks, then open the
+palette and choose **Insert: Table…** (⇧⌘T). Fill in a few cells and
+click **Insert**. Then add a caption: a blank line after
 the table, and a line that starts with a colon and a space.
 
 - [ ] Insert a table with **Insert: Table…** and give it a caption. <!-- check: table-caption -->

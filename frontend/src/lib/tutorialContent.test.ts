@@ -32,6 +32,18 @@ describe('the Getting Started tutorial', () => {
     expect(crossrefs.duplicates).toEqual([])
   })
 
+  it('says where to do every task', () => {
+    for (const section of MD.split(/^# /m).filter((x) => x.includes('<!-- check:'))) {
+      expect(section, section.slice(0, 40)).toMatch(/below the tasks/i)
+    }
+  })
+
+  it('leads the citation task with typing [@, which lists the bibliography', () => {
+    const cite = MD.split(/^# /m).find((x) => x.startsWith('Citations'))!
+    expect(cite.indexOf('`[@`')).toBeGreaterThan(-1)
+    expect(cite.indexOf('`[@`')).toBeLessThan(cite.indexOf('Insert: Citation…'))
+  })
+
   it('names a bibliography that has every key it cites', () => {
     expect(MD).toMatch(/^bibliography: getting-started\.bib$/m)
     const keys = new Set(parseBib(readFileSync(join(DIR, 'getting-started.bib'), 'utf8')).entries.map((e) => e.id))
