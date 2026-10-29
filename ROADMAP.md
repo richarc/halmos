@@ -471,6 +471,23 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       to absolute positioning, so the list sat inside the scrolling editor
       pane and was clipped. Tooltips, the citation hover included, are now
       drawn from `document.body`.
+- [ ] **Floating surfaces, dialogs and start-screen buttons stand out
+      in dark.** Added 2026-10-29; decided in the design system first
+      (2026-10-29: "Elevation in dark"). In dark, dialogs are the window's
+      own colour (`overlay-bg` = `bg`, 1.0:1), the completion list is
+      1.06:1 with a 1.41:1 edge, and the start screen's Open… and Getting
+      Started are 1.06:1 with a 1.32:1 edge. Add three tokens to
+      `style.css`, in all three themes:
+      `--popover-bg` (`#ffffff` / `#2c2c2c` / `#f6eedb`),
+      `--edge-strong` (`#8a8a8a` / `#707070` / `#8c7853`, 3:1 or better
+      on `bg`, `overlay-bg` and `panel`) and `--popover-shadow`
+      (`rgba(0,0,0,.18)` / `rgba(0,0,0,.6)` / `rgba(60,40,10,.25)`).
+      Then: the completion list and the citation hover (`.cm-tooltip` in
+      `Editor.svelte`) and the command palette take `popover-bg`, a 1px
+      `edge-strong` border and `0 8px 24px popover-shadow`; `dialog` takes
+      a 1px `edge-strong` border; `.welcome-actions button:not(.primary)`
+      takes `surface` and `edge-strong`. Check all three themes, then
+      re-sync the design system from `style.css`.
 - [ ] **Release v0.16.0**, once the items above are done. Cut by hand with
       `wails3 task release`, as v0.15.0 was. The portal's parts (Word and
       LaTeX headers and footers, the tutorial bundle) are deployed before
