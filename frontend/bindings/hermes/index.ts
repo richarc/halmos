@@ -6,12 +6,14 @@ import * as DemoService from "./demoservice.js";
 import * as DocumentService from "./documentservice.js";
 import * as PortalService from "./portalservice.js";
 import * as StyleService from "./styleservice.js";
+import * as TutorialService from "./tutorialservice.js";
 export {
     CommandService,
     DemoService,
     DocumentService,
     PortalService,
-    StyleService
+    StyleService,
+    TutorialService
 };
 
 export type {
@@ -34,6 +36,8 @@ export type {
     StyleSearchResult,
     StyleSummary,
     StyleText,
+    TutorialResult,
+    TutorialState,
     UpdateResult,
     WelcomeInfo
 } from "./models.js";
