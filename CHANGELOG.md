@@ -68,6 +68,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- In dark, dialogs, the completion list, the citation hover, the command
+  palette and the start screen's Open… and Getting Started buttons were
+  hard to tell from what was behind them. Floating surfaces are now lighter
+  than the window, with a visible edge and a shadow; dialogs and those
+  buttons have a visible edge. Light and sepia gain the same edges.
 - The completion list for citations and cross-references, and the citation
   hover, are no longer cut off under the preview when the cursor is near
   the editor's right edge

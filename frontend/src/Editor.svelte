@@ -129,10 +129,14 @@
       color: 'var(--editor-fg)',
       border: '1px solid var(--border-strong)',
     },
+    // The completion list and the citation hover float over the editor with
+    // no backdrop: popover-bg, a visible edge and a shadow, as the command
+    // palette (design system, "Elevation in dark").
     '.cm-tooltip': {
-      backgroundColor: 'var(--editor-gutter-bg)',
-      color: 'var(--editor-fg)',
-      border: '1px solid var(--border)',
+      backgroundColor: 'var(--popover-bg)',
+      color: 'var(--fg)',
+      border: '1px solid var(--edge-strong)',
+      boxShadow: '0 8px 24px var(--popover-shadow)',
     },
     '.cm-citation-tooltip': { maxWidth: '32em', padding: '4px 8px' },
     // The suggestion list. CodeMirror's base draws it in monospace with 1px
