@@ -371,14 +371,19 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       - How a step is marked done: Halmos checks the step's section for the
         result (an equation, a chart fence, a `[@key]`, an `@fig:` reference)
         and ticks its task, or the user ticks it.
-      - The bundle is written in `docs/` like the guides and served by the
-        portal; its format, version and the URL (an addition to `/api/v1`
-        or a public file) are agreed with the portal first, which serves it
-        before this release ships. No account needed.
-      - Offline: a copy bundled with the app as the fallback, or a plain
-        message with the guides' link.
-      - A second run: open the existing folder or start fresh, never
-        overwrite the user's edits silently.
+      - *Agreed 2026-10-29 with the portal*: the tutorial is written in
+        `docs/tutorial/` (a hand-written `tutorial.json`, the Markdown, the
+        `.bib`, the data set, and screenshots and example images in
+        `images/`, PNG or JPEG) and served as public files: a manifest at
+        `/tutorial/manifest.json` with each file's size and SHA-256, a
+        `revision` and a `min_editor`, and each file at
+        `/tutorial/<revision>/<name>`. No account. The editor checks every
+        name and hash before writing anything, creates no folder but
+        `images/`, and records the revision in the folder. Offline, on any
+        error, or when `min_editor` is newer than the app: a copy bundled
+        with the app, built from the same `docs/tutorial/`. A second run
+        offers to open the existing folder or start fresh, and never
+        overwrites the user's edits.
 - [x] **Find a citation style from the CSL repository.** Added
       2026-10-28. Five styles are bundled; any other means finding the
       journal's `.csl` file, downloading it and choosing it with Other Style
