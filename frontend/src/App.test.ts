@@ -3149,6 +3149,59 @@ describe('repository styles', () => {
   })
 })
 
+describe('reference formatting options', () => {
+  const two = '@article{a, title={A}, author={Doe, Jane and Roe, Kim}, year={2020}}'
+  const three = '@article{a, title={A}, author={Doe, Jane and Roe, Kim and Poe, Lee}, journal={J}, year={2020}}'
+  const toastText = (t: HTMLElement) => t.querySelector('.toast')?.textContent ?? ''
+  const previewText = (t: HTMLElement) => t.querySelector('.preview-pane')?.textContent ?? ''
+
+  afterEach(() => {
+    DocumentService.ReadBibliography.mockResolvedValue('')
+    StyleService.ResolveStyle.mockReset()
+    StyleService.ResolveStyle.mockResolvedValue({ xml: '', title: '', installed: false, error: 'not_found' })
+  })
+
+  it('the preview follows citation-et-al-min', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(two)
+    const target = await openDoc('---\nbibliography: refs.bib\ncitation-et-al-min: 2\n---\n# Results\n\nSee [@a].\n')
+    await vi.waitFor(() => expect(previewText(target)).toContain('(Doe et al., 2020)'))
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    const line = 'citation-et-al-min: 2\n'
+    const at = view.state.doc.toString().indexOf(line)
+    view.dispatch({ changes: { from: at, to: at + line.length, insert: '' } })
+    flushSync()
+    await vi.waitFor(() => expect(previewText(target)).toContain('(Doe & Roe, 2020)'))
+  })
+
+  it('applies to a resolved style', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(three)
+    StyleService.ResolveStyle.mockResolvedValue({ xml: (await loadStyleXml('ieee'))!, title: 'X', installed: false, error: '' })
+    const target = await openDoc(
+      '---\nbibliography: refs.bib\ncsl: x\nbibliography-et-al-min: 2\nbibliography-et-al-use-first: 1\n---\n# Results\n\nSee [@a].\n',
+    )
+    await vi.waitFor(() => expect(previewText(target)).toContain('J. Doe et al.'))
+  })
+
+  it('keeps the formatter when nothing changed', async () => {
+    DocumentService.ReadBibliography.mockResolvedValue(two)
+    const target = await openDoc('---\nbibliography: refs.bib\ncitation-et-al-min: 2\n---\n# Results\n\nSee [@a].\n')
+    await vi.waitFor(() => expect(previewText(target)).toContain('(Doe et al., 2020)'))
+    const before = citationsSpy.created
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: view.state.doc.length, insert: 'More prose.\n' } })
+    flushSync()
+    await new Promise((r) => setTimeout(r, 400))
+    expect(citationsSpy.created).toBe(before)
+  })
+
+  it('says when a value is ignored', async () => {
+    const target = await openDoc('---\ncitation-et-al-min: lots\n---\n# Results\n')
+    await vi.waitFor(() =>
+      expect(toastText(target)).toBe('citation-et-al-min must be a whole number from 1 to 100 — ignored'),
+    )
+  })
+})
+
 describe('csl style files in an unsaved document', () => {
   async function typeIntoUntitled(text: string) {
     const { target } = mountApp()
@@ -3554,6 +3607,15 @@ describe('Word and LaTeX export', () => {
     await vi.waitFor(() => expect(dialog(target, 'Connect to Halmos')!.textContent).toContain('BDFG-HJKL'))
     listeners['portal:pairing']({ data: { state: 'approved', email: 'c@x.com' } })
     await vi.waitFor(() => expect(PortalService.ChooseExportPath).toHaveBeenCalledWith('docx', '/tmp/paper.md'))
+  })
+
+  it('sends the CSL with the reference formatting options', async () => {
+    await openPaper('---\ncitation-et-al-min: 2\n---\n# Results\n')
+    PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.docx')
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(PortalService.Export).toHaveBeenCalled())
+    const [, req] = PortalService.Export.mock.calls[0]
+    expect(String(req.csl)).toMatch(/<citation [^>]*et-al-min="2"/)
   })
 
   it('sends the resolved style for a repository id', async () => {

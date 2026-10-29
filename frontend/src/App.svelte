@@ -40,6 +40,7 @@
   } from './lib/documentTemplate'
   import NewDocument, { type BibliographyChoice } from './NewDocument.svelte'
   import StyleFinder from './StyleFinder.svelte'
+  import { applyStyleOptions, hasStyleOptions, readStyleOptions, STYLE_OPTION_KEYS } from './lib/styleOptions'
   import { parseFrontmatter, frontmatterKeyChange } from './lib/frontmatter'
   import { pageFurniture } from './lib/pageFurniture'
   import { type CSLEntry } from './lib/bibliography'
@@ -255,6 +256,22 @@
       : null,
   )
   const fmCsl = $derived(fm.csl)
+  // The reference formatting keys' raw text as one string, so the reload
+  // below reruns when one of them changes and not on every keystroke.
+  const fmStyleOptions = $derived(JSON.stringify(STYLE_OPTION_KEYS.map((k) => fm[k] ?? '')))
+  const styleOptions = $derived.by(() => {
+    const raw: string[] = JSON.parse(fmStyleOptions)
+    return readStyleOptions(Object.fromEntries(STYLE_OPTION_KEYS.map((k, i) => [k, raw[i]])))
+  })
+
+  // A value that was ignored says so once, until the set of them changes.
+  let warnedOptions = ''
+  $effect(() => {
+    const invalid = styleOptions.invalid.join('; ')
+    if (invalid === warnedOptions) return
+    warnedOptions = invalid
+    if (invalid) toast(invalid)
+  })
 
   // Format → Citation Style ticks the current style; tell Go whenever it
   // changes (including on open and close, where content changes under it).
@@ -432,6 +449,14 @@
         }
         xml = resolved.xml || null
       }
+      // The frontmatter's reference formatting options are applied to the
+      // style's XML; a bundled style is loaded here so it can be changed.
+      const { options } = styleOptions
+      if (hasStyleOptions(options)) {
+        if (!resolved) xml = await loadStyleXml(csl)
+        if (gen !== reloadGeneration) return
+        if (xml !== null) xml = applyStyleOptions(xml, options)
+      }
       // Building a formatter costs its first formatting pass (up to 0.9 s on
       // a long paper), so the same text and style keep the one there is:
       // saving an untitled document, for one, changes the path but not these.
@@ -457,7 +482,7 @@
           styleNotice = styleProblem(csl, xml === null ? resolved.error : 'invalid')
         }
       } else {
-        next = await createCitationFormatter(entries, csl)
+        next = await createCitationFormatter(entries, csl, xml ?? undefined)
       }
       if (gen !== reloadGeneration) return // superseded while the style loaded
       formatter = next
@@ -479,6 +504,7 @@
   $effect(() => {
     void fmBibliography
     void fmCsl
+    void fmStyleOptions
     void path
     void reloadBibliography()
   })
@@ -982,7 +1008,9 @@
       fmCsl && !isBundledStyle(fmCsl)
         ? (await StyleService.ResolveStyle(fmCsl, docPath, true).catch(() => null))?.xml || null
         : await loadStyleXml(fmCsl ?? 'apa')
-    const csl = resolvedXml ?? (await loadStyleXml('apa')) ?? undefined
+    let csl = resolvedXml ?? (await loadStyleXml('apa')) ?? undefined
+    // The same reference formatting options the preview uses.
+    if (csl !== undefined && hasStyleOptions(styleOptions.options)) csl = applyStyleOptions(csl, styleOptions.options)
     const bibText =
       fmBibliography && path ? await DocumentService.ReadBibliography(fmBibliography, path).catch(() => '') : ''
     const bibliography = buildBibliography(markdown, bibText)
