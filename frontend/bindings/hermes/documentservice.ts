@@ -181,15 +181,6 @@ export function ReadBibliography(path: string, docPath: string): $CancellablePro
 }
 
 /**
- * ReadCitationStyle returns the text of a CSL style file named by a
- * document's `csl:` key, resolved against the document the same way
- * ReadBibliography resolves a bibliography.
- */
-export function ReadCitationStyle(path: string, docPath: string): $CancellablePromise<string> {
-    return $Call.ByID(1006359938, path, docPath);
-}
-
-/**
  * ReadImageDataURI returns an image beside the document as a data: URI, so an
  * exported page carries its images with it. It reads only what the
  * /_hermes/image route would serve (localImageFile).

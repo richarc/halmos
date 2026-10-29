@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount, untrack, flushSync } from 'svelte'
   import { Events, Browser } from '@wailsio/runtime'
-  import { DocumentService, DemoService, PortalService, CommandService } from '../bindings/hermes'
+  import { DocumentService, DemoService, PortalService, CommandService, StyleService } from '../bindings/hermes'
   import type {
-    Settings, Draft, UpdateResult, WelcomeInfo, AccountInfo, PortalError, ConvertRequest,
+    Settings, Draft, UpdateResult, WelcomeInfo, AccountInfo, PortalError, ConvertRequest, ResolvedStyle,
   } from '../bindings/hermes/models'
   import ConnectDialog, { type ConnectState } from './ConnectDialog.svelte'
   import AccountDialog from './AccountDialog.svelte'
@@ -45,7 +45,7 @@
   import { createBibParser } from './lib/bibLoader'
   import type { CitationContext } from './lib/citationCompletion'
   import { resolveTheme, applyTheme, type ThemeSetting } from './lib/theme'
-  import { createCitationFormatter, isStyleFile, loadStyleXml, STYLE_IDS, type CitationFormatter } from './lib/citations'
+  import { createCitationFormatter, isBundledStyle, isStyleFile, loadStyleXml, STYLE_IDS, type CitationFormatter } from './lib/citations'
   import {
     unresolvedInsertionMessage,
     unsavedBibliographyMessage,
@@ -364,6 +364,21 @@
     )
   }
 
+  // Why a document's style could not be used, for ResolveStyle's error word.
+  function styleProblem(csl: string, error: string): string {
+    switch (error) {
+      case 'not_found':
+        return `Unknown citation style "${csl}" — using APA`
+      case 'offline':
+      case 'busy':
+        return `Citation style "${csl}" isn't installed and Halmos can't reach the style list — using APA`
+      case 'parent_missing':
+        return `Citation style ${csl} depends on a style Halmos can't find — using APA`
+      default:
+        return `Citation style could not be loaded: ${csl} — using APA`
+    }
+  }
+
   async function reloadBibliography() {
     const gen = ++reloadGeneration
     const wanted = fmBibliography ?? null
@@ -386,17 +401,19 @@
       const text = await DocumentService.ReadBibliography(wanted, path)
       if (gen !== reloadGeneration) return // superseded by a newer request
       const csl = fmCsl ?? 'apa'
-      // A style file resolves relative to the document, like the bibliography.
-      // A failure to read it falls back to APA below, never to no citations.
+      // Anything not bundled is Go's to resolve: a style file (relative to
+      // the document, like the bibliography), an installed style, or one
+      // from the CSL repository, installed on the way. A dependent style
+      // comes back as its parent's XML. A failure falls back to APA below,
+      // never to no citations.
       let xml: string | null = null
-      let styleUnreadable = false
-      if (isStyleFile(csl)) {
-        try {
-          xml = await DocumentService.ReadCitationStyle(csl, path)
-        } catch {
-          styleUnreadable = true
-        }
-        if (gen !== reloadGeneration) return // superseded while the file was read
+      let resolved: ResolvedStyle | null = null
+      if (!isBundledStyle(csl)) {
+        resolved = await StyleService.ResolveStyle(csl, path).catch(
+          () => ({ xml: '', title: '', installed: false, error: 'unreadable' }) as ResolvedStyle,
+        )
+        if (gen !== reloadGeneration) return // superseded while the style was resolved
+        xml = resolved.xml || null
       }
       // Building a formatter costs its first formatting pass (up to 0.9 s on
       // a long paper), so the same text and style keep the one there is:
@@ -411,18 +428,19 @@
         toast(`Bibliography: ${warnings.length} entr${warnings.length === 1 ? 'y' : 'ies'} could not be parsed`)
       let next: CitationFormatter
       let styleNotice: string | null = null
-      if (isStyleFile(csl)) {
+      let installedNotice: string | null = null
+      if (resolved) {
         try {
-          if (styleUnreadable) throw new Error('unreadable')
-          next = await createCitationFormatter(entries, csl, xml ?? undefined)
+          if (xml === null) throw new Error(resolved.error)
+          next = await createCitationFormatter(entries, csl, xml)
+          if (resolved.installed) installedNotice = `Installed citation style ${resolved.title || csl}`
         } catch {
           if (gen !== reloadGeneration) return
           next = await createCitationFormatter(entries, 'apa')
-          styleNotice = `Citation style could not be loaded: ${csl} — using APA`
+          styleNotice = styleProblem(csl, xml === null ? resolved.error : 'invalid')
         }
       } else {
         next = await createCitationFormatter(entries, csl)
-        if (fmCsl && !STYLE_IDS.includes(fmCsl)) styleNotice = `Unknown citation style "${fmCsl}" — using APA`
       }
       if (gen !== reloadGeneration) return // superseded while the style loaded
       formatter = next
@@ -430,6 +448,7 @@
       warnShadowed(shadowedKeys(entries))
       loadedBib = styleNotice ? null : { text, csl, xml }
       if (styleNotice) toast(styleNotice)
+      else if (installedNotice) toast(installedNotice)
     } catch {
       if (gen !== reloadGeneration) return // superseded by a newer request
       formatter = undefined
@@ -940,10 +959,12 @@
       resolved.push({ key: ref.key, src: ref.src, ext })
     }
     markdown = finalizeImages(plan.markdown, resolved)
-    const csl =
-      fmCsl && isStyleFile(fmCsl)
-        ? await DocumentService.ReadCitationStyle(fmCsl, docPath).catch(() => undefined)
-        : ((await loadStyleXml(fmCsl ?? 'apa')) ?? (await loadStyleXml('apa')) ?? undefined)
+    // The style that formats: a dependent style's parent, as in the preview.
+    const resolvedXml =
+      fmCsl && !isBundledStyle(fmCsl)
+        ? (await StyleService.ResolveStyle(fmCsl, docPath).catch(() => null))?.xml || null
+        : await loadStyleXml(fmCsl ?? 'apa')
+    const csl = resolvedXml ?? (await loadStyleXml('apa')) ?? undefined
     const bibText =
       fmBibliography && path ? await DocumentService.ReadBibliography(fmBibliography, path).catch(() => '') : ''
     const bibliography = buildBibliography(markdown, bibText)
