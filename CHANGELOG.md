@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-29
+
 ### Added
 
 - An interactive Getting Started tutorial: Help → Getting Started, also on
@@ -23,8 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its shortcut, so it is also where to look a shortcut up. The letters typed
   match in order (`tab` finds Insert: Table…). With nothing typed, the
   commands last run from the palette come first, remembered between launches.
-  Esc closes it and keeps the cursor and selection. On the welcome pane it lists only the
-  commands that work there.
+  Esc closes it and keeps the cursor and selection. On the welcome pane it
+  lists only the commands that work there.
 - Insert → Table… has the shortcut ⇧⌘T, next to ⇧⌘C for Citation… and ⇧⌘R
   for Cross-reference….
 - Five more starters in File → New…: Assignment, Lab report, Essay,
@@ -52,11 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `bibliography-et-al-min: 11` change the document's citation style for
   citations and for the reference list. The change reaches the preview,
   PDF, HTML, Word and LaTeX. Authoring describes the keys.
-- Word and LaTeX exports have the page header and footer set by `header:`
-  and `footer:`, as Export PDF does: `{title}`, `{date}`, `{page}` and
-  `{pages}` are filled in, and the header is left off page 1 when the
-  document has a title block. An HTML export has no pages and leaves them
-  out.
 
 ### Changed
 
