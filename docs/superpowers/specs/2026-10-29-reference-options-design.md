@@ -151,7 +151,7 @@ style options:
   cites a two-author work as "(Doe et al., 2020)"; IEEE with
   `bibliography-et-al-min: 2` and `bibliography-et-al-use-first: 1` lists
   "J. Doe et al."; Vancouver with `bibliography-et-al-min: 3` lists three
-  authors as "Doe J, et al.".
+  authors as "Doe J et al.".
 - `App.test.ts`: the preview changes when a key is set; Word export sends
   the changed CSL; the invalid-value toast.
 - Checked by eye in the app.

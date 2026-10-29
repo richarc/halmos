@@ -1,5 +1,19 @@
 import { isMap, isScalar, parseDocument, Scalar } from 'yaml'
 
+// The reference formatting keys (lib/styleOptions.ts). Listed here as
+// literals, not imported, so this module stays free of DOM code; a test
+// checks the two lists agree.
+const STYLE_OPTION_KEYS_LIST = [
+  'citation-et-al-min',
+  'citation-et-al-use-first',
+  'citation-et-al-subsequent-min',
+  'citation-et-al-subsequent-use-first',
+  'citation-et-al-use-last',
+  'bibliography-et-al-min',
+  'bibliography-et-al-use-first',
+  'bibliography-et-al-use-last',
+] as const
+
 export interface Author {
   name: string
   affiliation?: string
@@ -15,6 +29,15 @@ export interface Frontmatter {
   /** Export PDF's running header and footer; lib/pageFurniture.ts. */
   header?: string
   footer?: string
+  /** Raw values; lib/styleOptions.ts owns their interpretation. */
+  'citation-et-al-min'?: string
+  'citation-et-al-use-first'?: string
+  'citation-et-al-subsequent-min'?: string
+  'citation-et-al-subsequent-use-first'?: string
+  'citation-et-al-use-last'?: string
+  'bibliography-et-al-min'?: string
+  'bibliography-et-al-use-first'?: string
+  'bibliography-et-al-use-last'?: string
   /** Title block, with Pandoc's meanings (`author` is read as `authors`). */
   title?: string
   /** Shown exactly as written. */
@@ -31,7 +54,15 @@ export interface Frontmatter {
   bodyStartLine: number
 }
 
-const KNOWN_KEYS = ['bibliography', 'csl', 'toc', 'toc-depth', 'header', 'footer'] as const
+const KNOWN_KEYS = [
+  'bibliography',
+  'csl',
+  'toc',
+  'toc-depth',
+  'header',
+  'footer',
+  ...STYLE_OPTION_KEYS_LIST,
+] as const
 
 // A leading block fenced by lines of exactly ---, accepting either line ending
 // so documents authored on Windows parse the same as ones authored on Unix.
