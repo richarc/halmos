@@ -12,9 +12,9 @@ import (
 // right; tests break one thing at a time.
 func goodTutorial() (*tutorialManifest, map[string][]byte) {
 	files := map[string][]byte{
-		"getting-started.md":   []byte("# Hello\n"),
-		"getting-started.bib":  []byte("@book{a, title={A}}\n"),
-		"images/palette.png":   []byte("\x89PNG fake"),
+		"getting-started.md":  []byte("# Hello\n"),
+		"getting-started.bib": []byte("@book{a, title={A}}\n"),
+		"images/palette.png":  []byte("\x89PNG fake"),
 	}
 	m := &tutorialManifest{Version: 1, Revision: "3f2a9c41d0be", Title: "Getting Started", Entry: "getting-started.md", MinEditor: "0.16.0"}
 	for _, name := range []string{"getting-started.md", "getting-started.bib", "images/palette.png"} {
@@ -41,18 +41,18 @@ func TestTutorialManifestRefusesBadNames(t *testing.T) {
 
 func TestTutorialManifestRules(t *testing.T) {
 	cases := map[string]func(m *tutorialManifest){
-		"version 2":       func(m *tutorialManifest) { m.Version = 2 },
-		"duplicate name":  func(m *tutorialManifest) { m.Files[1].Name = m.Files[0].Name },
-		"entry missing":   func(m *tutorialManifest) { m.Entry = "other.md" },
-		"entry is image":  func(m *tutorialManifest) { m.Entry = "images/palette.png" },
-		"text too big":    func(m *tutorialManifest) { m.Files[0].Size = 1<<20 + 1 },
-		"image too big":   func(m *tutorialManifest) { m.Files[2].Size = 2<<20 + 1 },
-		"negative size":   func(m *tutorialManifest) { m.Files[0].Size = -1 },
-		"bad hash":        func(m *tutorialManifest) { m.Files[0].SHA256 = "ABC" },
-		"upper hash":      func(m *tutorialManifest) { m.Files[0].SHA256 = strings.ToUpper(m.Files[0].SHA256) },
-		"foreign url":     func(m *tutorialManifest) { m.Files[0].URL = "https://example.invalid/tutorial/x.md" },
-		"no files":        func(m *tutorialManifest) { m.Files = nil },
-		"bad revision":    func(m *tutorialManifest) { m.Revision = "../x" },
+		"version 2":      func(m *tutorialManifest) { m.Version = 2 },
+		"duplicate name": func(m *tutorialManifest) { m.Files[1].Name = m.Files[0].Name },
+		"entry missing":  func(m *tutorialManifest) { m.Entry = "other.md" },
+		"entry is image": func(m *tutorialManifest) { m.Entry = "images/palette.png" },
+		"text too big":   func(m *tutorialManifest) { m.Files[0].Size = 1<<20 + 1 },
+		"image too big":  func(m *tutorialManifest) { m.Files[2].Size = 2<<20 + 1 },
+		"negative size":  func(m *tutorialManifest) { m.Files[0].Size = -1 },
+		"bad hash":       func(m *tutorialManifest) { m.Files[0].SHA256 = "ABC" },
+		"upper hash":     func(m *tutorialManifest) { m.Files[0].SHA256 = strings.ToUpper(m.Files[0].SHA256) },
+		"foreign url":    func(m *tutorialManifest) { m.Files[0].URL = "https://example.invalid/tutorial/x.md" },
+		"no files":       func(m *tutorialManifest) { m.Files = nil },
+		"bad revision":   func(m *tutorialManifest) { m.Revision = "../x" },
 		"total too big": func(m *tutorialManifest) {
 			for i := range 9 {
 				m.Files = append(m.Files, tutorialFile{Name: "images/p" + string(rune('a'+i)) + ".png", Size: 2 << 20, SHA256: m.Files[0].SHA256, URL: "/tutorial/x/p.png"})
