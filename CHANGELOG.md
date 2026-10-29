@@ -58,6 +58,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   document has a title block. An HTML export has no pages and leaves them
   out.
 
+### Changed
+
+- Updated to Wails 3.0.0, the stable release (from 3.0.0-beta.30), which
+  includes security fixes; Halmos now needs Go 1.26 to build.
+- Updated to KaTeX 0.19.1 (from 0.16), which fixes a low-severity advisory,
+  and Mermaid 12.2.0 (from 11). Diagrams keep Mermaid 11's layout, theme
+  and look; a diagram's own settings still override them.
+
 ### Fixed
 
 - The completion list for citations and cross-references, and the citation

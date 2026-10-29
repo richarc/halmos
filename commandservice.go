@@ -24,7 +24,7 @@ type CommandService struct {
 	reg  *commandRegistry
 	path string
 	// invoke runs a command's action. In the app it calls it directly, on
-	// the binding's goroutine: Wails (beta.30, menuitem.go) runs a menu
+	// the binding's goroutine: Wails (3.0.0, menuitem.go) runs a menu
 	// click's callback in a goroutine too, so this is how a click behaves,
 	// and InvokeSync could hang on an action that waits for the main thread.
 	// A field so tests can replace it.

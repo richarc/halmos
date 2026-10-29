@@ -61,7 +61,7 @@ jobs:
       # Pinned to the version in go.mod; the two (and @wailsio/runtime) are
       # bumped together. release_workflow_test.go checks this one.
       - name: Install wails3
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
       # Before anything is signed: the app derives its release page from the
       # tag name, so a tag that disagrees with build/config.yml must not ship.

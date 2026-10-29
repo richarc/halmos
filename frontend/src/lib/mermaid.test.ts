@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
-import { createMermaidHydrator, type RenderFn } from './mermaid'
+import { createMermaidHydrator, renderMermaid, type RenderFn } from './mermaid'
+
+const mermaidApi = vi.hoisted(() => ({
+  initialize: vi.fn(),
+  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>` })),
+}))
+vi.mock('mermaid', () => ({ default: mermaidApi }))
 
 /** A container holding one placeholder per source given. */
 function container(...sources: string[]): HTMLElement {
@@ -124,5 +130,16 @@ describe('createMermaidHydrator', () => {
 
     // The stale container was never written to: its placeholder is still empty.
     expect(stale.querySelector('svg')).toBeNull()
+  })
+})
+
+describe('renderMermaid', () => {
+  // Mermaid 12 changed every diagram's default layout (ELK), theme and look;
+  // these keep diagrams looking as they did in Mermaid 11.
+  it("keeps Mermaid 11's layout, theme and look", async () => {
+    await renderMermaid('d1', 'graph TD; A-->B')
+    expect(mermaidApi.initialize).toHaveBeenCalledWith(
+      expect.objectContaining({ layout: 'dagre', theme: 'default', look: 'classic', suppressErrorRendering: true }),
+    )
   })
 })
