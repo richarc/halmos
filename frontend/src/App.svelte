@@ -3,7 +3,7 @@
   import { Events, Browser } from '@wailsio/runtime'
   import { DocumentService, DemoService, PortalService, CommandService, StyleService } from '../bindings/hermes'
   import type {
-    Settings, Draft, UpdateResult, WelcomeInfo, AccountInfo, PortalError, ConvertRequest, ResolvedStyle,
+    Settings, Draft, UpdateResult, WelcomeInfo, AccountInfo, PortalError, ConvertRequest, ResolvedStyle, TutorialResult,
   } from '../bindings/hermes/models'
   import ConnectDialog, { type ConnectState } from './ConnectDialog.svelte'
   import AccountDialog from './AccountDialog.svelte'
@@ -40,6 +40,7 @@
   } from './lib/documentTemplate'
   import NewDocument, { type BibliographyChoice } from './NewDocument.svelte'
   import StyleFinder from './StyleFinder.svelte'
+  import GettingStarted from './GettingStarted.svelte'
   import { applyStyleOptions, hasStyleOptions, readStyleOptions, STYLE_OPTION_KEYS } from './lib/styleOptions'
   import { parseFrontmatter, frontmatterKeyChange } from './lib/frontmatter'
   import { pageFurniture } from './lib/pageFurniture'
@@ -536,7 +537,7 @@
     // Same reasoning as the chartOpen guards below: the chart builder modal
     // does not block the keyboard, so this must refuse to touch the document
     // while it's open rather than trust that focus alone kept it out.
-    if (chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     try {
       const picked = await DocumentService.PickCitations()
       if (picked) {
@@ -571,7 +572,7 @@
   // Insert → Cross-reference…: the editor's list at the cursor, every kind in
   // it. Refused while anything modal is up, as insertCitation is.
   function insertCrossref() {
-    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || pendingAction || equationAsk) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen || pendingAction || equationAsk) return
     if (!crossrefTargets.some(pickable)) {
       toast("There's nothing to refer to yet. Give a figure or table a caption, or add a display equation.")
       return
@@ -597,7 +598,7 @@
   // A target without a label was chosen: a figure or table is labelled from
   // its caption straight away; an equation needs a name first.
   function pickCrossref(target: CrossrefTarget, from: number, to: number) {
-    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || pendingAction || equationAsk) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen || pendingAction || equationAsk) return
     if (target.kind === 'eq') {
       equationError = null
       equationAsk = { target, from, to, typed: editor.textInRange(from, to) }
@@ -651,7 +652,7 @@
     // chartTarget WOULD update, turning a pending insert into a replace of
     // whatever block the cursor happens to be in.
     if (chartOpen) return
-    if (tableOpen || newOpen || styleFinderOpen) return
+    if (tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     // Same guard as applyFormat: menu items fire regardless of focus, so
     // without it this would act on the hidden document behind the welcome pane.
     if (showWelcome) return
@@ -766,7 +767,7 @@
 
   // Mirrors openChartBuilder guard for guard; see the comments there.
   function openTableBuilder() {
-    if (tableOpen || chartOpen || newOpen || styleFinderOpen) return
+    if (tableOpen || chartOpen || newOpen || styleFinderOpen || tutorialOpen) return
     if (showWelcome) return
     if (pendingAction) return
 
@@ -838,7 +839,7 @@
   // Edit → Find (#18). Same guard as applyFormat: the accelerators fire on
   // the welcome screen and over the builders too.
   function applyFind(cmd: string) {
-    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     if (cmd === 'open' || cmd === 'replace' || cmd === 'next' || cmd === 'previous') editor.find(cmd)
   }
 
@@ -863,7 +864,7 @@
     // focus, so without it this would write into the hidden document behind
     // the welcome pane — or into the one behind the chart builder, which
     // cannot intercept an event arriving through Go's bus.
-    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     editor.insertCodeBlockAtCursor(language)
   }
 
@@ -879,7 +880,7 @@
   }
 
   async function exportHTML() {
-    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     const docPath = path ?? ''
     try {
       const target = await DocumentService.ChooseHTMLExportPath(docPath)
@@ -887,7 +888,7 @@
       // The panel is not modal to the webview: the document may have
       // changed, and a page built from the new one would be saved under the
       // old one's name with its images resolved against the wrong folder.
-      const moved = () => (path ?? '') !== docPath || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen
+      const moved = () => (path ?? '') !== docPath || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen
       if (moved()) {
         toast('Export cancelled: the document changed')
         return
@@ -920,7 +921,7 @@
   // the document caused is charged to the person's seat. The first export on
   // a Mac that is not connected asks to connect, then carries on.
   async function exportPandoc(format: ExportFormat) {
-    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     const acct = await PortalService.Account()
     if (!acct.signedIn) {
       if (acct.error) {
@@ -937,7 +938,7 @@
   const formatName = (format: ExportFormat) => (format === 'docx' ? 'Word' : 'LaTeX')
 
   async function runExport(format: ExportFormat) {
-    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     const docPath = path ?? ''
     const source = content
     try {
@@ -947,7 +948,7 @@
       // Unlike the HTML page, the request is built from the text, matched
       // against what the preview drew, so an edit made meanwhile cancels too.
       const moved = () =>
-        (path ?? '') !== docPath || content !== source || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen
+        (path ?? '') !== docPath || content !== source || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen
       if (moved()) {
         toast('Export cancelled: the document changed')
         return
@@ -1111,7 +1112,7 @@
   async function applyCitationStyle(choice: string) {
     // Same guard as applyFormat: the menu fires over the welcome pane and
     // over the builders and the New dialog.
-    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     if (choice === 'find') {
       styleFinderOpen = true
       return
@@ -1119,7 +1120,7 @@
     if (!STYLE_IDS.includes(choice)) {
       const installed = (await StyleService.Installed().catch(() => null)) ?? []
       if (!installed.some((st) => st.id === choice)) return
-      if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+      if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     }
     writeCitationStyle(choice)
   }
@@ -1159,11 +1160,28 @@
     }
     if (!chosen) return
     // The panel is not modal to the webview: the document may have changed.
-    if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     writeCitationStyle(bibliographyReference(chosen, docPath))
   }
 
   let styleFinderOpen = $state(false)
+
+  // Help → Getting Started. GettingStarted.svelte gets the tutorial written;
+  // its entry then opens like a recent file, so an unsaved document is asked
+  // about first.
+  let tutorialOpen = $state(false)
+
+  function requestTutorial() {
+    if (chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
+    tutorialOpen = true
+  }
+
+  function tutorialStarted(result: TutorialResult) {
+    if (!tutorialOpen) return
+    tutorialOpen = false
+    requestOpenRecent(result.entry)
+    if (result.needsUpdate) toast('This is the tutorial that came with Halmos. An update brings the latest.')
+  }
 
   const PASTE_EXTENSIONS: Record<string, string> = {
     'image/png': 'png',
@@ -1186,7 +1204,7 @@
   // image file is written at once and is not part of undo; the link goes in
   // through the editor, so it dirties the document and undoes like any text.
   async function pasteImage(file: Blob, type: string) {
-    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     if (path === null) {
       toast('Save the document before pasting images')
       return
@@ -1201,7 +1219,7 @@
       if (file.size === 0) throw new Error('the pasted image is empty')
       const rel = await DocumentService.SavePastedImage(docPath, await blobToBase64(file), ext)
       // The write is async: do not drop a link into a different document.
-      if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+      if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
       editor.insertImageLink(rel)
     } catch (e) {
       toast(`Could not paste the image: ${e}`)
@@ -1463,7 +1481,7 @@
     // menu:new fires regardless of focus (and regardless of whether the
     // chart builder modal is covering the editor), so this must refuse
     // rather than swap the whole document out from under an open modal.
-    if (chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     if (dirty) {
       pendingAction = 'new'
       return
@@ -1564,7 +1582,7 @@
   function requestOpen() {
     // Same reasoning as requestNew: menu:open must not swap the document out
     // from under an open chart builder modal, or the New… dialog.
-    if (chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     if (dirty) {
       pendingAction = 'open'
       return
@@ -1586,7 +1604,7 @@
     // Same reasoning as requestNew: menu- and welcome-pane-triggered opens
     // must not swap the document out from under an open chart builder modal,
     // or the New… dialog.
-    if (chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     if (dirty) {
       pendingAction = 'open'
       pendingRecentPath = p
@@ -1762,6 +1780,7 @@
     closeTableBuilder()
     newOpen = false
     styleFinderOpen = false
+    tutorialOpen = false
     paletteOpen = false
     path = null
     void DocumentService.ForgetDocument().catch((err) => console.warn('ForgetDocument:', err))
@@ -1783,6 +1802,7 @@
       tableOpen ||
       newOpen ||
       styleFinderOpen ||
+      tutorialOpen ||
       pendingAction !== null ||
       builderClose !== null ||
       recovery !== null ||
@@ -1875,6 +1895,7 @@
       })
     onMenu('menu:new', requestNew)
     onMenu('menu:open', requestOpen)
+    onMenu('menu:tutorial', requestTutorial)
     onMenu('menu:open-recent', (ev: { data: unknown }) => {
       if (typeof ev.data === 'string') requestOpenRecent(ev.data)
     })
@@ -2000,7 +2021,11 @@
         // straight into a templated document rather than an empty one — the
         // user who has never seen Hermes is exactly the one the template is
         // for.
-        if (recents.length === 0) doNew()
+        if (recents.length === 0) {
+          doNew()
+          // A hint, so it never covers a message that got there first.
+          if (!toastMsg) toast('New to Halmos? Help → Getting Started walks you through it.')
+        }
       }
       if (updateCheck === 'unasked') askUpdates = true
       else if (updateCheck === 'on') void checkForUpdates(false)
@@ -2094,6 +2119,9 @@
           <button data-shortcut="⌘O" onclick={requestOpen}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>Open…</button
           >
+          <button onclick={requestTutorial}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M4 21V5M9 8h6M9 12h4" /></svg>Getting Started</button
+          >
         </div>
         <!-- Buttons, not <a href>: a real link would navigate the webview
              away and take the app state with it. Same route the preview's
@@ -2151,6 +2179,7 @@
   {/if}
 
   <NewDocument open={newOpen} onclose={() => (newOpen = false)} oncreate={(b, c, s) => void createDocument(b, c, s)} />
+  <GettingStarted open={tutorialOpen} onclose={() => (tutorialOpen = false)} onstarted={tutorialStarted} />
   <StyleFinder
     open={styleFinderOpen}
     onclose={() => (styleFinderOpen = false)}

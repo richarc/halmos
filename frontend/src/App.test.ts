@@ -104,6 +104,15 @@ const { CommandService } = vi.hoisted(() => {
   }
 })
 
+// Help → Getting Started. Create writes nothing here; it hands back an entry.
+const { TutorialService } = vi.hoisted(() => ({
+  TutorialService: {
+    State: vi.fn(async () => ({ existing: '', existingEntry: '', suggested: '/Users/ann/Documents/Halmos Tutorial' })),
+    ChooseLocation: vi.fn(async () => ''),
+    Create: vi.fn(async (folder: string) => ({ entry: `${folder}/getting-started.md`, bundled: false, needsUpdate: false })),
+  },
+}))
+
 // Signed in with a complimentary seat unless a test says otherwise.
 const { PortalService, SIGNED_IN } = vi.hoisted(() => {
   const SIGNED_IN = {
@@ -142,6 +151,7 @@ vi.mock('@wailsio/runtime', () => ({
 // because vi.mock is hoisted above any top-level constant.
 vi.mock('../bindings/hermes', () => ({
   DocumentService,
+  TutorialService,
   PortalService,
   CommandService,
   StyleService,
@@ -2113,6 +2123,8 @@ describe('update check', () => {
 
   it('checks automatically at launch when the setting is on, and shows nothing when up to date', async () => {
     settings.current = { ...DEFAULT_SETTINGS, updateCheck: 'on' }
+    // Not a first launch, whose Getting Started hint is a toast of its own.
+    recents.current = ['/tmp/paper.md']
     const { target } = mountApp()
     await vi.waitFor(() => expect(DocumentService.CheckForUpdates).toHaveBeenCalledWith(false))
     await new Promise((r) => setTimeout(r, 20))
@@ -2178,6 +2190,8 @@ describe('update check', () => {
 
   it('an automatic check that fails stays quiet', async () => {
     settings.current = { ...DEFAULT_SETTINGS, updateCheck: 'on' }
+    // Not a first launch, whose Getting Started hint is a toast of its own.
+    recents.current = ['/tmp/paper.md']
     DocumentService.CheckForUpdates.mockRejectedValueOnce(new Error('offline'))
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { target } = mountApp()
@@ -4106,5 +4120,102 @@ describe('command palette', () => {
     const texts = options(target).map((o) => o.querySelector('.palette-text')?.textContent)
     expect(texts).toEqual(['File: New…', 'View: Autosave'])
     expect(texts.some((t) => t?.startsWith('Insert:'))).toBe(false)
+  })
+})
+
+describe('Getting Started', () => {
+  const ENTRY = '/Users/ann/Documents/Halmos Tutorial/getting-started.md'
+  const tutorialDialog = (t: HTMLElement) => t.querySelector<HTMLDialogElement>('dialog[aria-label="Getting Started"]')
+  const isOpen = (d: HTMLDialogElement | null) => !!d && (d.open || d.hasAttribute('open'))
+
+  async function start(target: HTMLElement) {
+    listeners['menu:tutorial']({ data: null })
+    flushSync()
+    await vi.waitFor(() => expect(buttonByText(target, 'Start')?.disabled).toBe(false))
+    buttonByText(target, 'Start')!.click()
+  }
+
+  it('menu:tutorial opens the dialog', async () => {
+    recents.current = ['/tmp/paper.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    expect(isOpen(tutorialDialog(target))).toBe(false)
+    listeners['menu:tutorial']({ data: null })
+    flushSync()
+    expect(isOpen(tutorialDialog(target))).toBe(true)
+  })
+
+  it('the start screen has a Getting Started button', async () => {
+    recents.current = ['/tmp/paper.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    buttonByText(target.querySelector('.welcome')!, 'Getting Started')!.click()
+    flushSync()
+    expect(isOpen(tutorialDialog(target))).toBe(true)
+  })
+
+  it('opens the entry when Start finishes', async () => {
+    recents.current = ['/tmp/paper.md']
+    DocumentService.OpenPath.mockResolvedValueOnce({ path: ENTRY, content: '# Getting Started with Halmos\n' })
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    await start(target)
+    await vi.waitFor(() => expect(DocumentService.OpenPath).toHaveBeenCalledWith(ENTRY))
+    expect(isOpen(tutorialDialog(target))).toBe(false)
+  })
+
+  it('opens the entry through the dirty guard', async () => {
+    const target = await openDoc('# Results\n\nJust prose.\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    view.dispatch({ changes: { from: 0, to: 0, insert: 'x' } })
+    flushSync()
+    DocumentService.OpenPath.mockClear()
+    await start(target)
+    await vi.waitFor(() =>
+      expect(target.querySelector<HTMLDialogElement>('dialog[aria-label="Unsaved changes"]')!.open).toBe(true),
+    )
+    expect(DocumentService.OpenPath).not.toHaveBeenCalled()
+  })
+
+  it('says when the bundled copy was used because the app is old', async () => {
+    recents.current = ['/tmp/paper.md']
+    TutorialService.Create.mockResolvedValueOnce({ entry: ENTRY, bundled: true, needsUpdate: true })
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    await start(target)
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toContain(
+        'This is the tutorial that came with Halmos. An update brings the latest.',
+      ),
+    )
+  })
+
+  it('does not open over the New dialog', async () => {
+    recents.current = ['/tmp/paper.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    listeners['menu:new']({ data: null })
+    flushSync()
+    listeners['menu:tutorial']({ data: null })
+    flushSync()
+    expect(isOpen(tutorialDialog(target))).toBe(false)
+  })
+
+  it('a first launch points at Getting Started', async () => {
+    recents.current = []
+    const { target } = mountApp()
+    await vi.waitFor(() =>
+      expect(target.querySelector('.toast')?.textContent).toContain(
+        'New to Halmos? Help → Getting Started walks you through it.',
+      ),
+    )
+  })
+
+  it('a launch with recent files does not', async () => {
+    recents.current = ['/tmp/paper.md']
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(target.querySelector('.toast')?.textContent ?? '').not.toContain('New to Halmos?')
   })
 })
