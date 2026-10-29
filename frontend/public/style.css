@@ -493,6 +493,9 @@ textarea:focus-visible,
 .sheet ul.task-list-container { list-style: none; padding-left: 0.4em; }
 .sheet .task-list-item-checkbox { margin: 0 0.4em 0 0; vertical-align: middle; }
 .sheet li.task-list-item > ul.task-list-container { padding-left: 1.4em; }
+/* A Getting Started task Halmos has seen done (lib/tutorialTasks.ts). */
+.sheet li.tutorial-task-done > .task-list-item-label,
+.sheet li.tutorial-task-done > p > .task-list-item-label { color: var(--doc-muted); text-decoration: line-through; }
 .sheet pre {
   background: var(--doc-surface-code-block); padding: 12px 4.5em 12px 12px; border-radius: 6px;
   position: relative;

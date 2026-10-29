@@ -21,6 +21,7 @@ import { tableCaptionPlugin } from './tableCaptions'
 import { equationPlugin } from './equations'
 import { referenceText, type CrossrefTarget, type TargetMeta } from './crossrefs'
 import { crossrefPlugin, keyLabel, type CrossrefEnv, type CrossrefMeta, type DuplicateLabel, type MissingReference } from './crossrefTargets'
+import { tutorialTasksPlugin } from './tutorialTasks'
 
 /**
  * The per-render environment markdown-it threads through to the rules. Typed
@@ -80,6 +81,8 @@ md.use(tableCaptionPlugin)
 md.use(equationPlugin)
 // After the three rules above, whose stamps it collects.
 md.use(crossrefPlugin)
+// After crossrefPlugin: a ref-* task ticks only when its reference resolves.
+md.use(tutorialTasksPlugin)
 md.use(outlinePlugin)
 // After outlinePlugin, so a future consumer of both sees consistent data;
 // after source_line always, since it reads the stamps.
