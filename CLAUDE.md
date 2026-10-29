@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Halmos Editor (Hermes in the code: the Go module, bundle id and data dir) is a desktop app built with **Wails v3 (beta)** — `v3.0.0-beta.30`, pinned identically across `go.mod`, the `wails3` CLI and `@wailsio/runtime`, which must be bumped together: a Go backend with a Svelte 5 + TypeScript + Vite frontend rendered in a native webview. The Go module is named `hermes`, so generated bindings live under `frontend/bindings/hermes`.
+Halmos Editor (Hermes in the code: the Go module, bundle id and data dir) is a desktop app built with **Wails v3** — `v3.0.0`, pinned identically across `go.mod`, the `wails3` CLI (also in `.github/workflows/release.yml`) and `@wailsio/runtime`, which must be bumped together, taking only `3.0.x` hotfixes until 1.0: a Go backend with a Svelte 5 + TypeScript + Vite frontend rendered in a native webview. The Go module is named `hermes`, so generated bindings live under `frontend/bindings/hermes`.
 
 ## Voice - Claude Code Communication Rules
 - Speak to me like I am a product manager

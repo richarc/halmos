@@ -102,15 +102,15 @@ macOS; Windows and Linux versions are planned for v1.2.0.
 | Requirement | Notes |
 |---|---|
 | macOS | Apple silicon or Intel |
-| [Go](https://go.dev) 1.25 or newer | Backend |
+| [Go](https://go.dev) 1.26 or newer (1.26.10 or later for a release build) | Backend |
 | [Node.js](https://nodejs.org) 24 or newer | Frontend build and tests |
-| [Wails v3 CLI](https://v3.wails.io) | Beta (`v3.0.0-beta.30`) — match `go.mod` |
+| [Wails v3 CLI](https://v3.wails.io) | `v3.0.0` — match `go.mod` |
 | [Zotero](https://www.zotero.org) + Better BibTeX | Optional — only for citation picking |
 
 Install the Wails v3 CLI:
 
 ```bash
-go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 ```
 
 The CLI, the `github.com/wailsapp/wails/v3` module in `go.mod` and the
