@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Account… and Export Word… / Export LaTeX… are no longer in the menus or
+  the command palette. They need a Halmos account, and accounts are not
+  open yet; they return when they are. A Mac already connected keeps its
+  sign-in in the Keychain.
+
 ## [0.16.0] - 2026-10-29
 
 ### Added

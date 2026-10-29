@@ -189,6 +189,9 @@ tasks:
       # one would test against whatever dist was left by the last build.
       - '{{.PACKAGE_MANAGER}} --prefix frontend run build'
       - go test ./.
+      # The same tests as the release build compiles them: without the paid
+      # features (paidfeatures_off.go).
+      - go test -tags nopaid ./.
       - '{{.PACKAGE_MANAGER}} --prefix frontend test'
       - task: quicklook:test
       # create:app:bundle never cleans, so a Resources file deleted since the
@@ -197,7 +200,18 @@ tasks:
       # quicklook:build skips itself when its sources look unchanged; a
       # release must not trust that, so the extension is always rebuilt.
       - rm -rf "{{.BIN_DIR}}/HalmosQuickLook.appex"
-      - task: darwin:package:universal
+      # Hides Account… and Export Word…/LaTeX… until v1.1.0 (paidfeatures_on.go).
+      # Run as its own command because a variable handed to a nested task
+      # stops at the next one down, and build:universal calls build without
+      # passing EXTRA_TAGS on; one given on the command line reaches every
+      # task. The check after it refuses a binary built without the tag.
+      - wails3 task darwin:package:universal EXTRA_TAGS=nopaid
+      # No if: Task's shell exits 1 from an if with no else (see below).
+      - |
+        go version -m "{{.APP}}/Contents/MacOS/{{.APP_NAME}}" | grep -q -- '-tags=.*nopaid' || {
+          echo "The release binary was built without the nopaid tag: it would show Account… and Word and LaTeX export."
+          exit 1
+        }
       - task: bundle:licences:copy
       # The Quick Look extension is nested code, so it is signed first — with
       # its own sandbox entitlements, which --deep would not apply.

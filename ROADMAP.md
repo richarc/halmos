@@ -525,7 +525,7 @@ anyone choosing one is led to Connect, to an account on the portal, and to a
 subscription that cannot yet be bought. Decided 2026-10-29: release builds
 hide them until v1.1.0 turns them on; the portal is left as it is.
 
-- [ ] **Release builds hide Account… and Word and LaTeX export.** Added
+- [x] **Release builds hide Account… and Word and LaTeX export.** Added
       2026-10-29. One switch, set at build time, decides whether the paid
       features show: off in release builds (`wails3 task release`), on in
       development builds, so the work on `main` can still be built and
@@ -536,6 +536,15 @@ hide them until v1.1.0 turns them on; the portal is left as it is.
       stays in the build; only what reaches the user is hidden. A Mac
       already paired keeps its Keychain item, untouched. v1.1.0 turns the
       switch on by default. Test both settings of the switch.
+      *Done 2026-10-29, not yet released:* the switch is the `nopaid` build
+      tag (`paidfeatures_on.go` / `paidfeatures_off.go`, `paidFeatures`);
+      `menu.go` leaves out Account… and Export Word…/LaTeX… without it, and
+      the palette, which lists the menu, follows. Nothing else in the app
+      reaches the portal's account or export screens. `wails3 task release`
+      builds with `EXTRA_TAGS=nopaid` as its own command (a variable passed
+      to a nested task does not reach `build:universal`'s builds), refuses a
+      binary whose `go version -m` lacks the tag, and runs `go test` both
+      ways, as CI now does. v1.1.0: drop the tag from the release task.
 - [ ] **Release v0.16.1**, once the item above is done. Cut by hand with
       `wails3 task release`, as v0.16.0 was; the update feed announces it.
       The site then offers v0.16.1 rather than v0.16.0, so it never offers

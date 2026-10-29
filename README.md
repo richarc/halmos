@@ -419,6 +419,10 @@ Orientation** and is remembered between sessions.
 
 ## Exporting to Word and LaTeX
 
+Not in the released app yet: these come with Halmos accounts in v1.1.0.
+Until then the menus have no Account… and no Word or LaTeX export, and
+development builds still show them.
+
 **Export → Export Word…** and **Export → Export LaTeX…** send the document to
 halmoseditor.com, where Pandoc converts it with the document's citation style;
 nothing is installed on the Mac. They need a Halmos account: the first export

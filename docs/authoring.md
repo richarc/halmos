@@ -10,6 +10,10 @@ acts on, and the handful of things that silently do nothing.
 This file is written to be pasted whole into an AI assistant as instructions
 for producing a Halmos document.
 
+Where this guide mentions Word and LaTeX export: those come with Halmos
+accounts in v1.1.0 and are not in the released app yet. Everything said
+about them still describes the document; only the export is missing.
+
 ---
 
 ## Frontmatter: exactly ten keys

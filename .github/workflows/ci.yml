@@ -99,6 +99,11 @@ jobs:
       - name: Tests
         run: go test -race ./.
 
+      # As release builds compile it: without the paid features (nopaid tag,
+      # paidfeatures_off.go), so both settings of the switch are tested.
+      - name: Tests (release build tags)
+        run: go test -tags nopaid ./.
+
       - name: Vet
         run: go vet ./.
 

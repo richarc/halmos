@@ -44,7 +44,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	addAppMenu(menu, appName, func() {
 		showWindow(win)
 		app.Event.Emit("menu:account")
-	}, cmds)
+	}, cmds, paidFeatures)
 
 	// Menu events that act on the open document. Closing hides the window
 	// rather than quitting (#17), so these are dropped while it is hidden:
@@ -155,7 +155,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 		whenVisible(win.IsVisible(), docs.PrintDocument)
 	}, commandOpts{needsDocument: true})
 
-	addExportMenu(menu, docEmit, cmds)
+	addExportMenu(menu, docEmit, cmds, paidFeatures)
 	addEditMenu(menu, docEmit, cmds)
 	addInsertMenu(menu, docEmit, cmds)
 	var installed []StyleSummary
@@ -643,10 +643,14 @@ func showWindow(win *application.WebviewWindow) {
 // AppMenu role (roles.go, NewAppMenu), with Account… after About: the role
 // is a fixed block that takes no items of its own. Quit is still a role
 // item, which reclaimQuitItem then takes over and installMenu registers.
-func addAppMenu(menu *application.Menu, name string, onAccount func(), cmds *commandSet) {
+//
+// paid is paidFeatures: without it there is no Account….
+func addAppMenu(menu *application.Menu, name string, onAccount func(), cmds *commandSet, paid bool) {
 	appMenu := menu.AddSubmenu(name)
 	appMenu.AddRole(application.About)
-	cmds.item(appMenu.Add("Account…"), []string{name}, onAccount, commandOpts{})
+	if paid {
+		cmds.item(appMenu.Add("Account…"), []string{name}, onAccount, commandOpts{})
+	}
 	appMenu.AddSeparator()
 	appMenu.AddRole(application.ServicesMenu)
 	appMenu.AddSeparator()
@@ -662,8 +666,8 @@ func addAppMenu(menu *application.Menu, name string, onAccount func(), cmds *com
 // filename derived from the document's own path, which only the frontend
 // holds, and HTML, Word and LaTeX are built from the document or its rendered
 // preview, which only the frontend has. Word and LaTeX convert through the
-// portal (PortalService.Export).
-func addExportMenu(menu *application.Menu, emit func(name string, data ...any), cmds *commandSet) {
+// portal (PortalService.Export), so they are left out without paid.
+func addExportMenu(menu *application.Menu, emit func(name string, data ...any), cmds *commandSet, paid bool) {
 	exportP := []string{"Export"}
 	doc := commandOpts{needsDocument: true}
 	export := menu.AddSubmenu("Export")
@@ -673,6 +677,9 @@ func addExportMenu(menu *application.Menu, emit func(name string, data ...any), 
 	cmds.item(export.Add("Export HTML…"), exportP, func() {
 		emit("menu:export-html")
 	}, doc)
+	if !paid {
+		return
+	}
 	export.AddSeparator()
 	cmds.item(export.Add("Export Word…"), exportP, func() {
 		emit("menu:export-pandoc", "docx")
