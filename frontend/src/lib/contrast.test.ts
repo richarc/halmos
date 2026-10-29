@@ -47,12 +47,21 @@ const PAIRS: Array<[label: string, fg: string, bg: string, target: number]> = [
   ['side panel muted', '--muted', '--panel', 4.5],
   ['status bar error', '--cite-error-fg', '--bg', 4.5],
   // Citation suggestions: the title line, on the suggestion list's ground.
-  ['citation suggestion title', '--muted', '--editor-gutter-bg', 4.5],
+  ['citation suggestion title', '--muted', '--popover-bg', 4.5],
   // The chart builder's field error is the last error colour left in the
   // chrome — it sits in a dialog, so it is measured against the dialog's
   // ground. The markers that render on the sheet moved to the document
   // palette below, where they are checked against paper instead.
   ['dialog field error', '--cite-error-fg', '--overlay-bg', 4.5],
+  // Floating surfaces (the completion list, the citation hover, the command
+  // palette) sit on popover-bg; edge-strong is the edge that must be seen,
+  // 3:1 against every ground it is drawn on (design system, "Elevation in
+  // dark", 2026-10-29).
+  ['popover text', '--fg', '--popover-bg', 4.5],
+  ['popover muted', '--muted', '--popover-bg', 4.5],
+  ['strong edge on bg', '--edge-strong', '--bg', 3],
+  ['strong edge on overlay-bg', '--edge-strong', '--overlay-bg', 3],
+  ['strong edge on panel', '--edge-strong', '--panel', 3],
   ['editor text', '--editor-fg', '--editor-bg', 7],
   ['gutter numbers', '--editor-gutter-fg', '--editor-gutter-bg', 4.5],
   ['syntax heading', '--syn-heading', '--editor-bg', 4.5],

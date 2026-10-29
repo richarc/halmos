@@ -30,6 +30,13 @@
   --overlay-bg: #fcfcfc;
   /* The start screen's side panel: one step off the page it sits beside. */
   --panel: #f5f5f5;
+  /* Elevation (design system, "Elevation in dark"). Surfaces that float
+     over the content without a backdrop sit on --popover-bg, lighter than
+     the ground, which is how macOS shows elevation in dark. --edge-strong is
+     an edge that must be seen: 3:1 or better on bg, overlay-bg and panel. */
+  --popover-bg: #ffffff;
+  --edge-strong: #8a8a8a;
+  --popover-shadow: rgba(0, 0, 0, 0.18);
   --backdrop: rgba(0, 0, 0, 0.4);
   --toast-bg: #2a2a2a;
   --toast-fg: #fafafa;
@@ -94,6 +101,9 @@
   --on-accent: #12233d;
   --overlay-bg: #1f1f1f;
   --panel: #242424;
+  --popover-bg: #2c2c2c;
+  --edge-strong: #707070;
+  --popover-shadow: rgba(0, 0, 0, 0.6);
   --backdrop: rgba(0, 0, 0, 0.6);
 
   /* Inverted deliberately: a dark toast on a dark app does not read as an
@@ -146,6 +156,9 @@
   --on-accent: #fff8e8;
   --overlay-bg: #f1e7d0;
   --panel: #ebe0c6;
+  --popover-bg: #f6eedb;
+  --edge-strong: #8c7853;
+  --popover-shadow: rgba(60, 40, 10, 0.25);
   --backdrop: rgba(40, 28, 10, 0.4);
   --toast-bg: #3a2d1b;
   --toast-fg: #f6eedb;
@@ -660,7 +673,7 @@ textarea:focus-visible,
   width: 100%; height: 44px; padding: 0 12px; border-radius: 8px;
   font-size: 14px; text-align: left;
 }
-.welcome-actions button:not(.primary) { background: var(--bg); border-color: var(--border); }
+.welcome-actions button:not(.primary) { background: var(--surface); border-color: var(--edge-strong); }
 /* The shortcut is drawn from data-shortcut so the button's text stays its
    label. */
 .welcome-actions button::after {
@@ -731,7 +744,9 @@ dialog:not([open]) { display: none; }
 dialog {
   background: var(--overlay-bg);
   color: var(--fg);
-  border: none;
+  /* In dark the dialog is the window's own colour, so the backdrop alone
+     does not show where it ends. */
+  border: 1px solid var(--edge-strong);
   border-radius: 8px;
   margin: auto;
   padding: 0;
@@ -1010,11 +1025,11 @@ dialog::backdrop { background: var(--backdrop); }
 .palette {
   position: relative;
   width: min(36rem, calc(100vw - 32px));
-  background: var(--overlay-bg);
+  background: var(--popover-bg);
   color: var(--fg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--edge-strong);
   border-radius: 8px;
-  box-shadow: 0 8px 24px var(--sheet-shadow);
+  box-shadow: 0 8px 24px var(--popover-shadow);
   overflow: hidden;
   font-size: 13px;
 }
@@ -1026,7 +1041,7 @@ dialog::backdrop { background: var(--backdrop); }
   border: none;
   border-bottom: 1px solid var(--border);
   border-radius: 0;
-  background: var(--overlay-bg);
+  background: var(--popover-bg);
 }
 /* The field is the only focus stop and always has it; a ring would only
    frame the whole box. */
