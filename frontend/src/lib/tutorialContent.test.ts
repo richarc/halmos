@@ -44,6 +44,18 @@ describe('the Getting Started tutorial', () => {
     expect(cite.indexOf('`[@`')).toBeLessThan(cite.indexOf('Insert: Citation…'))
   })
 
+  it('work typed on the line under a your-turn prompt ticks, outside the prompt', () => {
+    const lines = MD.split('\n')
+    const rule = lines.findIndex((l, i) => i > lines.findIndex((x) => x.startsWith('# Equations')) && l === '***')
+    expect(rule).toBeGreaterThan(-1)
+    lines.splice(rule + 1, 1, 'The area is $x$.')
+    const typed = new DOMParser().parseFromString(renderDocument(lines.join('\n')).html, 'text/html')
+    const done = [...typed.querySelectorAll('li.tutorial-task-done')].map((li) => li.textContent)
+    expect(done.some((t) => t?.includes('inside a sentence'))).toBe(true)
+    const p = [...typed.querySelectorAll('p')].find((x) => x.textContent?.includes('The area is'))!
+    expect(p.closest('blockquote, .markdown-alert')).toBeNull()
+  })
+
   it('names a bibliography that has every key it cites', () => {
     expect(MD).toMatch(/^bibliography: getting-started\.bib$/m)
     const keys = new Set(parseBib(readFileSync(join(DIR, 'getting-started.bib'), 'utf8')).entries.map((e) => e.id))
