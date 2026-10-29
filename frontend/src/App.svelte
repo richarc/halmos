@@ -1028,6 +1028,9 @@
     if (bibliography) markdown = withReferencesHeading(markdown)
     const body: ConvertBody = { format, markdown, csl, bibliography }
     if (format === 'docx' && Object.keys(images).length) body.images = images
+    // The same running header and footer Export PDF draws.
+    const furniture = pageFurniture(fm, outline[0]?.text ?? '', filename)
+    if (furniture.header || furniture.footer) body.pageFurniture = furniture
     return body
   }
 

@@ -40,7 +40,7 @@ resolved relative to the document, so the `.bib` normally sits beside it;
 `toc` and `toc-depth` are described under
 [A table of contents](#a-table-of-contents) below. `header` and `footer` are
 one line of text drawn at the top and bottom of every page of an exported
-PDF, and may use `{title}` (the `title:` key, or the first heading if there is none),
+PDF, Word or LaTeX document, and may use `{title}` (the `title:` key, or the first heading if there is none),
 `{date}` (the export date, not the `date:` key), `{page}` and `{pages}`:
 `footer: Page {page} of {pages}`. When the document has a title block, the
 header is left off page 1, where the title already shows; the footer is not.

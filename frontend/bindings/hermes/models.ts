@@ -46,8 +46,10 @@ export interface CommandList {
 }
 
 /**
- * ConvertRequest is POST /services/convert's body. Optional fields are left
- * out when empty.
+ * ConvertRequest is what the frontend asks to convert: POST
+ * /services/convert's body, less the page furniture, which arrives as Export
+ * PDF's PageFurniture and is sent in the contract's shape (convertBody).
+ * Optional fields are left out when empty.
  */
 export interface ConvertRequest {
     "format": string;
@@ -55,6 +57,7 @@ export interface ConvertRequest {
     "bibliography"?: string;
     "csl"?: string;
     "images"?: { [_ in string]?: string } | null;
+    "pageFurniture"?: PageFurniture | null;
 }
 
 /**

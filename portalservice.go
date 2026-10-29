@@ -24,6 +24,9 @@ type PortalService struct {
 	auth    *portalAuth
 	emit    func(name string, data any)
 	openURL func(url string) error
+	// today is {date} in exported Word and LaTeX: the Mac's long date, as
+	// Export PDF writes it. Replaced in tests.
+	today func() string
 
 	// mu guards the pairing in progress. gen counts StartPairing and
 	// CancelPairing calls, so a start that was cancelled or overtaken while
@@ -50,7 +53,7 @@ func NewPortalService() *PortalService {
 }
 
 func newPortalServiceWith(auth *portalAuth, emit func(string, any), openURL func(string) error) *PortalService {
-	return &PortalService{auth: auth, emit: emit, openURL: openURL}
+	return &PortalService{auth: auth, emit: emit, openURL: openURL, today: localLongDate}
 }
 
 var errMisconfigured = &PortalError{Code: "misconfigured"}
@@ -299,14 +302,37 @@ func (s *PortalService) ReadExportImage(docPath, src string) ExportImage {
 	return ExportImage{Base64: base64.StdEncoding.EncodeToString(data), Mime: mime}
 }
 
-// ConvertRequest is POST /services/convert's body. Optional fields are left
-// out when empty.
+// ConvertRequest is what the frontend asks to convert: POST
+// /services/convert's body, less the page furniture, which arrives as Export
+// PDF's PageFurniture and is sent in the contract's shape (convertBody).
+// Optional fields are left out when empty.
 type ConvertRequest struct {
-	Format       string            `json:"format"`
-	Markdown     string            `json:"markdown"`
-	Bibliography string            `json:"bibliography,omitempty"`
-	CSL          string            `json:"csl,omitempty"`
-	Images       map[string]string `json:"images,omitempty"`
+	Format        string            `json:"format"`
+	Markdown      string            `json:"markdown"`
+	Bibliography  string            `json:"bibliography,omitempty"`
+	CSL           string            `json:"csl,omitempty"`
+	Images        map[string]string `json:"images,omitempty"`
+	PageFurniture *PageFurniture    `json:"pageFurniture,omitempty"`
+}
+
+// convertBody is the request as the portal reads it.
+type convertBody struct {
+	Format        string            `json:"format"`
+	Markdown      string            `json:"markdown"`
+	Bibliography  string            `json:"bibliography,omitempty"`
+	CSL           string            `json:"csl,omitempty"`
+	Images        map[string]string `json:"images,omitempty"`
+	PageFurniture *convertFurniture `json:"page_furniture,omitempty"`
+}
+
+// convertFurniture is the contract's page_furniture: Export PDF's header,
+// footer, title and first-page rule, with {date}'s value already written.
+type convertFurniture struct {
+	Header              string `json:"header"`
+	Footer              string `json:"footer"`
+	Title               string `json:"title"`
+	Date                string `json:"date"`
+	SkipFirstPageHeader bool   `json:"skip_first_page_header"`
 }
 
 // Export converts the document and writes the result to path, atomically,
@@ -318,7 +344,17 @@ func (s *PortalService) Export(path string, req ConvertRequest) *PortalError {
 	if req.Format == "latex" {
 		req.Images = nil // the portal refuses images with LaTeX
 	}
-	data, perr := s.auth.authedDo(context.Background(), "POST", "/services/convert", req, portalConvertTimeout)
+	body := convertBody{Format: req.Format, Markdown: req.Markdown, Bibliography: req.Bibliography, CSL: req.CSL, Images: req.Images}
+	// Nothing to draw is no furniture, as for Export PDF.
+	if req.PageFurniture != nil {
+		if f := req.PageFurniture.normalised(); !f.empty() {
+			body.PageFurniture = &convertFurniture{
+				Header: f.Header, Footer: f.Footer, Title: f.Title,
+				Date: s.today(), SkipFirstPageHeader: f.SkipFirstPageHeader,
+			}
+		}
+	}
+	data, perr := s.auth.authedDo(context.Background(), "POST", "/services/convert", body, portalConvertTimeout)
 	if perr != nil {
 		return perr
 	}

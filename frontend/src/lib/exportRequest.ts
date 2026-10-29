@@ -4,6 +4,7 @@
 // here first where it can be, because a refusal the document caused is
 // charged to the person's seat.
 
+import type { PageFurniture } from './pageFurniture'
 import { parseFrontmatter } from './frontmatter'
 import { createMarkdownParser } from './markdownParser'
 import { findCitationKeys } from './citationKeys'
@@ -35,6 +36,9 @@ export interface ConvertBody {
   bibliography?: string
   csl?: string
   images?: Record<string, string>
+  /** Export PDF's running header and footer; Go adds the date and sends
+      it to the portal as `page_furniture`. */
+  pageFurniture?: PageFurniture
 }
 
 const MiB = 1024 * 1024

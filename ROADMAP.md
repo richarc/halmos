@@ -266,7 +266,7 @@ Serves: M0.16
 
 The v0.15.0 items still open on 2026-10-24, moved here unchanged.
 
-- [ ] **Page numbers, headers and footers in exported output.** Set in the
+- [x] **Page numbers, headers and footers in exported output.** Set in the
       frontmatter, like `bibliography`, `csl` and `toc`, so a document
       carries its own page setup. The keys are `header` and `footer`, each
       one line of text with `{title}`, `{date}`, `{page}` and `{pages}`.
@@ -291,12 +291,11 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
         boxes was turned down: Chrome and Edge print them, Safari prints
         nothing. A page printed from a browser has no running header or
         page numbers; `docs/authoring.md` says so.
-      - Still to do (found 2026-10-29): the editor does not yet send
-        `page_furniture` in the Word/LaTeX export request, so the portal's
-        side is unused. Add it to `ConvertRequest` (`portalservice.go`)
-        and `buildConvertBody`, with the same header, footer, title and
-        first-page rule Export PDF uses, and `{date}` formatted in Go as
-        `pdfstamp_darwin.go` does.
+      *Done 2026-10-29 (not yet released):* the editor's half of Word and
+      LaTeX was missing (found 2026-10-29) and is now built: the export
+      request carries Export PDF's header, footer, title and first-page
+      rule as `page_furniture`, with `{date}` written in Go in the Mac's
+      long date format (`localdate_darwin.go`), as the PDF has it.
 - [x] **Control how references are formatted, beyond the chosen style.**
       LaTeX bibliography packages let an author set, for example, how many
       authors are listed before "et al." Offer the same, set in the
