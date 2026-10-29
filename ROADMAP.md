@@ -285,8 +285,18 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
         settings travel in the export request and the portal applies them
         (a reference `.docx` for Word, the LaTeX template or `fancyhdr`
         for LaTeX).
-      - HTML: page numbers only matter when it is printed; decide whether
-        it gets print CSS or nothing.
+      - HTML: nothing, decided 2026-10-29. An exported page is read in a
+        browser or published online, where there are no pages, and the
+        title block already shows the title. Print CSS with page-margin
+        boxes was turned down: Chrome and Edge print them, Safari prints
+        nothing. A page printed from a browser has no running header or
+        page numbers; `docs/authoring.md` says so.
+      - Still to do (found 2026-10-29): the editor does not yet send
+        `page_furniture` in the Word/LaTeX export request, so the portal's
+        side is unused. Add it to `ConvertRequest` (`portalservice.go`)
+        and `buildConvertBody`, with the same header, footer, title and
+        first-page rule Export PDF uses, and `{date}` formatted in Go as
+        `pdfstamp_darwin.go` does.
 - [x] **Control how references are formatted, beyond the chosen style.**
       LaTeX bibliography packages let an author set, for example, how many
       authors are listed before "et al." Offer the same, set in the

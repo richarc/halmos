@@ -44,6 +44,7 @@ PDF, and may use `{title}` (the `title:` key, or the first heading if there is n
 `{date}` (the export date, not the `date:` key), `{page}` and `{pages}`:
 `footer: Page {page} of {pages}`. When the document has a title block, the
 header is left off page 1, where the title already shows; the footer is not.
+An HTML export has no pages, so it leaves `header` and `footer` out.
 
 `title`, `author`, `date` and `abstract` are Pandoc's names, and make a title
 block at the top of the preview, the PDF and the HTML export. Word and LaTeX
