@@ -39,6 +39,7 @@
     bibliographyReference,
   } from './lib/documentTemplate'
   import NewDocument, { type BibliographyChoice } from './NewDocument.svelte'
+  import StyleFinder from './StyleFinder.svelte'
   import { parseFrontmatter, frontmatterKeyChange } from './lib/frontmatter'
   import { pageFurniture } from './lib/pageFurniture'
   import { type CSLEntry } from './lib/bibliography'
@@ -517,7 +518,7 @@
   // Insert → Cross-reference…: the editor's list at the cursor, every kind in
   // it. Refused while anything modal is up, as insertCitation is.
   function insertCrossref() {
-    if (showWelcome || chartOpen || tableOpen || newOpen || pendingAction || equationAsk) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || pendingAction || equationAsk) return
     if (!crossrefTargets.some(pickable)) {
       toast("There's nothing to refer to yet. Give a figure or table a caption, or add a display equation.")
       return
@@ -543,7 +544,7 @@
   // A target without a label was chosen: a figure or table is labelled from
   // its caption straight away; an equation needs a name first.
   function pickCrossref(target: CrossrefTarget, from: number, to: number) {
-    if (showWelcome || chartOpen || tableOpen || newOpen || pendingAction || equationAsk) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen || pendingAction || equationAsk) return
     if (target.kind === 'eq') {
       equationError = null
       equationAsk = { target, from, to, typed: editor.textInRange(from, to) }
@@ -712,7 +713,7 @@
 
   // Mirrors openChartBuilder guard for guard; see the comments there.
   function openTableBuilder() {
-    if (tableOpen || chartOpen || newOpen) return
+    if (tableOpen || chartOpen || newOpen || styleFinderOpen) return
     if (showWelcome) return
     if (pendingAction) return
 
@@ -775,7 +776,8 @@
     // without it, Cmd-B on the welcome screen would edit a hidden document —
     // and, for the same reason, Cmd-B while the chart builder modal is open
     // would edit the document behind it.
-    if (showWelcome || chartOpen || tableOpen) return
+    // Find a Style… too: its search field holds the focus, not the editor.
+    if (showWelcome || chartOpen || tableOpen || styleFinderOpen) return
     const cmd = FORMAT_COMMANDS[name]
     if (cmd) editor.runCommand(cmd)
   }
@@ -783,7 +785,7 @@
   // Edit → Find (#18). Same guard as applyFormat: the accelerators fire on
   // the welcome screen and over the builders too.
   function applyFind(cmd: string) {
-    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
     if (cmd === 'open' || cmd === 'replace' || cmd === 'next' || cmd === 'previous') editor.find(cmd)
   }
 
@@ -824,7 +826,7 @@
   }
 
   async function exportHTML() {
-    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
     const docPath = path ?? ''
     try {
       const target = await DocumentService.ChooseHTMLExportPath(docPath)
@@ -832,7 +834,7 @@
       // The panel is not modal to the webview: the document may have
       // changed, and a page built from the new one would be saved under the
       // old one's name with its images resolved against the wrong folder.
-      const moved = () => (path ?? '') !== docPath || showWelcome || chartOpen || tableOpen || newOpen
+      const moved = () => (path ?? '') !== docPath || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen
       if (moved()) {
         toast('Export cancelled: the document changed')
         return
@@ -865,7 +867,7 @@
   // the document caused is charged to the person's seat. The first export on
   // a Mac that is not connected asks to connect, then carries on.
   async function exportPandoc(format: ExportFormat) {
-    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
     const acct = await PortalService.Account()
     if (!acct.signedIn) {
       if (acct.error) {
@@ -882,7 +884,7 @@
   const formatName = (format: ExportFormat) => (format === 'docx' ? 'Word' : 'LaTeX')
 
   async function runExport(format: ExportFormat) {
-    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
     const docPath = path ?? ''
     const source = content
     try {
@@ -892,7 +894,7 @@
       // Unlike the HTML page, the request is built from the text, matched
       // against what the preview drew, so an edit made meanwhile cancels too.
       const moved = () =>
-        (path ?? '') !== docPath || content !== source || showWelcome || chartOpen || tableOpen || newOpen
+        (path ?? '') !== docPath || content !== source || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen
       if (moved()) {
         toast('Export cancelled: the document changed')
         return
@@ -1046,37 +1048,61 @@
   }
 
   // Format → Citation Style. Writes `csl:` through the editor so it is one
-  // undo step and marks the document dirty like any other edit.
+  // undo step and marks the document dirty like any other edit. `find`
+  // opens Find a Style…; anything else is a bundled or installed style's id.
   async function applyCitationStyle(choice: string) {
     // Same guard as applyFormat: the menu fires over the welcome pane and
     // over the builders and the New dialog.
-    if (showWelcome || chartOpen || tableOpen || newOpen) return
-    let value = choice
-    if (choice === 'other') {
-      if (path === null) {
-        toast('Save the document before choosing a style file')
-        return
-      }
-      const docPath = path
-      let chosen = ''
-      try {
-        chosen = await DocumentService.ChooseCitationStyle()
-      } catch (e) {
-        toast(String(e))
-        return
-      }
-      if (!chosen) return
-      // The panel is not modal to the webview: the document may have changed.
-      if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen) return
-      value = bibliographyReference(chosen, docPath)
-    } else if (!STYLE_IDS.includes(choice)) {
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    if (choice === 'find') {
+      styleFinderOpen = true
       return
     }
+    if (!STYLE_IDS.includes(choice)) {
+      const installed = (await StyleService.Installed().catch(() => null)) ?? []
+      if (!installed.some((st) => st.id === choice)) return
+      if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    }
+    writeCitationStyle(choice)
+  }
+
+  function writeCitationStyle(value: string) {
     const change = frontmatterKeyChange(content, 'csl', value)
     // Choosing the style already written would only dirty the document.
     if (content.slice(change.from, change.to) === change.insert) return
     editor.applyChange(change.from, change.to, change.insert)
   }
+
+  // Find a Style… installed the style; an id needs no saved document.
+  function useFoundStyle(id: string) {
+    styleFinderOpen = false
+    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    writeCitationStyle(id)
+  }
+
+  // Find a Style… → Choose a file…, for a style not in the repository.
+  async function chooseStyleFile() {
+    styleFinderOpen = false
+    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    if (path === null) {
+      toast('Save the document before choosing a style file')
+      return
+    }
+    const docPath = path
+    let chosen = ''
+    try {
+      chosen = await DocumentService.ChooseCitationStyle()
+    } catch (e) {
+      toast(String(e))
+      return
+    }
+    if (!chosen) return
+    // The panel is not modal to the webview: the document may have changed.
+    if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
+    writeCitationStyle(bibliographyReference(chosen, docPath))
+  }
+
+  let styleFinderOpen = $state(false)
 
   const PASTE_EXTENSIONS: Record<string, string> = {
     'image/png': 'png',
@@ -1099,7 +1125,7 @@
   // image file is written at once and is not part of undo; the link goes in
   // through the editor, so it dirties the document and undoes like any text.
   async function pasteImage(file: Blob, type: string) {
-    if (showWelcome || chartOpen || tableOpen || newOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
     if (path === null) {
       toast('Save the document before pasting images')
       return
@@ -1114,7 +1140,7 @@
       if (file.size === 0) throw new Error('the pasted image is empty')
       const rel = await DocumentService.SavePastedImage(docPath, await blobToBase64(file), ext)
       // The write is async: do not drop a link into a different document.
-      if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen) return
+      if (path !== docPath || showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
       editor.insertImageLink(rel)
     } catch (e) {
       toast(`Could not paste the image: ${e}`)
@@ -1376,7 +1402,7 @@
     // menu:new fires regardless of focus (and regardless of whether the
     // chart builder modal is covering the editor), so this must refuse
     // rather than swap the whole document out from under an open modal.
-    if (chartOpen || tableOpen || newOpen) return
+    if (chartOpen || tableOpen || newOpen || styleFinderOpen) return
     if (dirty) {
       pendingAction = 'new'
       return
@@ -1477,7 +1503,7 @@
   function requestOpen() {
     // Same reasoning as requestNew: menu:open must not swap the document out
     // from under an open chart builder modal, or the New… dialog.
-    if (chartOpen || tableOpen || newOpen) return
+    if (chartOpen || tableOpen || newOpen || styleFinderOpen) return
     if (dirty) {
       pendingAction = 'open'
       return
@@ -1499,7 +1525,7 @@
     // Same reasoning as requestNew: menu- and welcome-pane-triggered opens
     // must not swap the document out from under an open chart builder modal,
     // or the New… dialog.
-    if (chartOpen || tableOpen || newOpen) return
+    if (chartOpen || tableOpen || newOpen || styleFinderOpen) return
     if (dirty) {
       pendingAction = 'open'
       pendingRecentPath = p
@@ -1674,6 +1700,7 @@
     closeChartBuilder()
     closeTableBuilder()
     newOpen = false
+    styleFinderOpen = false
     paletteOpen = false
     path = null
     void DocumentService.ForgetDocument().catch((err) => console.warn('ForgetDocument:', err))
@@ -1694,6 +1721,7 @@
     chartOpen ||
       tableOpen ||
       newOpen ||
+      styleFinderOpen ||
       pendingAction !== null ||
       builderClose !== null ||
       recovery !== null ||
@@ -2061,6 +2089,12 @@
   {/if}
 
   <NewDocument open={newOpen} onclose={() => (newOpen = false)} oncreate={(b, c, s) => void createDocument(b, c, s)} />
+  <StyleFinder
+    open={styleFinderOpen}
+    onclose={() => (styleFinderOpen = false)}
+    onuse={useFoundStyle}
+    onchoosefile={() => void chooseStyleFile()}
+  />
 
   <Dialog
     open={pendingAction !== null}

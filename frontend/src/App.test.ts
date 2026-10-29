@@ -3163,7 +3163,37 @@ describe('Format → Citation Style', () => {
     await vi.waitFor(() => expect(DocumentService.SetDirty).toHaveBeenLastCalledWith(true))
   })
 
-  it('writes a relative path for a chosen style file', async () => {
+  const finder = (t: HTMLElement) => t.querySelector<HTMLElement>('dialog[aria-label="Find a style"][open]')
+
+  async function useFromFinder(target: HTMLElement) {
+    listeners['menu:citation-style']({ data: 'find' })
+    await vi.waitFor(() => expect(finder(target)).not.toBeNull())
+    await vi.waitFor(() => expect(finder(target)!.querySelectorAll('[role="option"]').length).toBe(1))
+    buttonByText(finder(target)!, 'Use Style')!.click()
+  }
+
+  it('Find a Style… opens the finder', async () => {
+    const target = await openDoc('# Results\n')
+    listeners['menu:citation-style']({ data: 'find' })
+    await vi.waitFor(() => expect(finder(target)).not.toBeNull())
+    expect(StyleService.LoadIndex).toHaveBeenCalled()
+  })
+
+  it('Use Style writes csl: into an untitled document', async () => {
+    StyleService.Search.mockResolvedValue({
+      styles: [{ id: 'nature-communications', title: 'Nature Communications', titleShort: '', format: 'numeric', fields: [], parent: 'nature', parentTitle: 'Nature', installed: false, update: false }],
+      total: 1,
+    })
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.cm-editor')).not.toBeNull())
+    await useFromFinder(target)
+    await vi.waitFor(() => expect(editorText(target)).toContain('csl: nature-communications'))
+    expect(StyleService.InstallStyle).toHaveBeenCalledWith('nature-communications')
+    await vi.waitFor(() => expect(finder(target)).toBeNull())
+    StyleService.Search.mockResolvedValue({ styles: [], total: 0 })
+  })
+
+  it('Choose a file… writes a relative path for a chosen style file', async () => {
     recents.current = ['/doc/dir/p.md']
     DocumentService.OpenPath.mockResolvedValueOnce({ path: '/doc/dir/p.md', content: '# Results\n' })
     const { target } = mountApp()
@@ -3171,13 +3201,18 @@ describe('Format → Citation Style', () => {
     listeners['menu:open-recent']({ data: '/doc/dir/p.md' })
     await vi.waitFor(() => expect(target.textContent).toContain('Results'))
     DocumentService.ChooseCitationStyle.mockResolvedValueOnce('/doc/dir/styles/x.csl')
-    listeners['menu:citation-style']({ data: 'other' })
+    listeners['menu:citation-style']({ data: 'find' })
+    await vi.waitFor(() => expect(finder(target)).not.toBeNull())
+    buttonByText(finder(target)!, 'Choose a file…')!.click()
     await vi.waitFor(() => expect(editorText(target)).toContain('csl: styles/x.csl'))
+    expect(finder(target)).toBeNull()
   })
 
   it('does nothing when the style file panel is cancelled', async () => {
     const target = await openDoc('# Results\n')
-    listeners['menu:citation-style']({ data: 'other' })
+    listeners['menu:citation-style']({ data: 'find' })
+    await vi.waitFor(() => expect(finder(target)).not.toBeNull())
+    buttonByText(finder(target)!, 'Choose a file…')!.click()
     await vi.waitFor(() => expect(DocumentService.ChooseCitationStyle).toHaveBeenCalled())
     await Promise.resolve()
     expect(editorText(target)).not.toContain('csl:')
@@ -3187,11 +3222,39 @@ describe('Format → Citation Style', () => {
     const { target } = mountApp()
     await vi.waitFor(() => expect(target.querySelector('.cm-editor')).not.toBeNull())
     DocumentService.ChooseCitationStyle.mockClear()
-    listeners['menu:citation-style']({ data: 'other' })
+    listeners['menu:citation-style']({ data: 'find' })
+    await vi.waitFor(() => expect(finder(target)).not.toBeNull())
+    buttonByText(finder(target)!, 'Choose a file…')!.click()
     await vi.waitFor(() =>
       expect(target.querySelector('.toast')?.textContent).toBe('Save the document before choosing a style file'),
     )
     expect(DocumentService.ChooseCitationStyle).not.toHaveBeenCalled()
+  })
+
+  it('an installed style from the menu writes its id', async () => {
+    StyleService.Installed.mockResolvedValueOnce([{ id: 'the-lancet', title: 'The Lancet' }])
+    const target = await openDoc('# Results\n')
+    listeners['menu:citation-style']({ data: 'the-lancet' })
+    await vi.waitFor(() => expect(editorText(target)).toContain('csl: the-lancet'))
+  })
+
+  it('ignores an id from the menu that is not installed', async () => {
+    const target = await openDoc('# Results\n')
+    listeners['menu:citation-style']({ data: 'not-installed' })
+    await vi.waitFor(() => expect(StyleService.Installed).toHaveBeenCalled())
+    await Promise.resolve()
+    expect(editorText(target)).not.toContain('csl:')
+  })
+
+  it('ignores the format menu while the finder is open', async () => {
+    const target = await openDoc('# Results\n\nword\n')
+    listeners['menu:citation-style']({ data: 'find' })
+    await vi.waitFor(() => expect(finder(target)).not.toBeNull())
+    const before = editorText(target)
+    listeners['menu:format']({ data: 'bold' })
+    await Promise.resolve()
+    flushSync()
+    expect(editorText(target)).toBe(before)
   })
 
   it('keeps the caret in the body text after a style choice', async () => {
