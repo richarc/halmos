@@ -503,10 +503,17 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       checks each surface's rule and `contrast.test.ts` the new pairs
       (`fg`/`muted` on `popover-bg`, `edge-strong` on `bg`, `overlay-bg`
       and `panel`) in every theme.
-- [ ] **Release v0.16.0**, once the items above are done. Cut by hand with
+- [x] **Release v0.16.0**, once the items above are done. Cut by hand with
       `wails3 task release`, as v0.15.0 was. The portal's parts (Word and
       LaTeX headers and footers, the tutorial bundle) are deployed before
       it, and the site then offers this build.
+      *Released 2026-10-29:* signed, notarized and stapled universal build
+      (Go 1.26.10), published as
+      [v0.16.0](https://github.com/richarc/halmos/releases/tag/v0.16.0);
+      the update feed announces it. The tutorial was served by the portal
+      (revision `8a7fe6f6e175`) before release and checked in the 0.16.0
+      build. The Word and LaTeX header and footer entry was left out of
+      the release notes, since accounts are not open yet.
 
 ## v1.0.0 — Production
 
