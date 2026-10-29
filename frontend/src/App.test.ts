@@ -3623,6 +3623,25 @@ describe('Word and LaTeX export', () => {
     await vi.waitFor(() => expect(PortalService.ChooseExportPath).toHaveBeenCalledWith('docx', '/tmp/paper.md'))
   })
 
+  it('sends the page header and footer', async () => {
+    await openPaper('---\ntitle: Tides\nheader: "{title}"\nfooter: Page {page} of {pages}\n---\n# Results\n')
+    PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.tex')
+    listeners['menu:export-pandoc']({ data: 'latex' })
+    await vi.waitFor(() => expect(PortalService.Export).toHaveBeenCalled())
+    const [, req] = PortalService.Export.mock.calls[0]
+    expect(req.pageFurniture).toEqual({
+      header: '{title}', footer: 'Page {page} of {pages}', title: 'Tides', skipFirstPageHeader: true,
+    })
+  })
+
+  it('sends no page furniture without a header or footer', async () => {
+    await openPaper('# Results\n')
+    PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.docx')
+    listeners['menu:export-pandoc']({ data: 'docx' })
+    await vi.waitFor(() => expect(PortalService.Export).toHaveBeenCalled())
+    expect(PortalService.Export.mock.calls[0][1].pageFurniture).toBeUndefined()
+  })
+
   it('sends the CSL with the reference formatting options', async () => {
     await openPaper('---\ncitation-et-al-min: 2\n---\n# Results\n')
     PortalService.ChooseExportPath.mockResolvedValueOnce('/tmp/out/paper.docx')

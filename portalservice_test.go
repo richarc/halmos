@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -296,5 +298,56 @@ func TestReadExportImageReadsOnlyImages(t *testing.T) {
 	got := (&PortalService{}).ReadExportImage(doc, "notes.txt")
 	if got.Error != "not_found" || got.Base64 != "" {
 		t.Errorf("ReadExportImage(notes.txt) = %+v, want not_found and no bytes", got)
+	}
+}
+
+func TestServiceExportSendsPageFurniture(t *testing.T) {
+	f := newFakePortal(t, map[string][]fakeResp{
+		"/token":            {{200, tokenBody("a1", "r2"), nil}},
+		"/services/convert": {{200, convertReply("PK"), nil}},
+	})
+	s, _ := newTestPortalService(t, f, signedIn(t, f, "r1"))
+	s.today = func() string { return "29 October 2026" }
+	out := filepath.Join(t.TempDir(), "paper.docx")
+	req := ConvertRequest{Format: "docx", Markdown: "x", PageFurniture: &PageFurniture{
+		Header: "{title}", Footer: "Page {page}\nof {pages}", Title: "Tides", SkipFirstPageHeader: true,
+	}}
+	if perr := s.Export(out, req); perr != nil {
+		t.Fatal(perr)
+	}
+	sent := f.bodies["/services/convert"][0]
+	got, _ := sent["page_furniture"].(map[string]any)
+	want := map[string]any{
+		"header": "{title}", "footer": "Page {page} of {pages}", "title": "Tides",
+		"date": "29 October 2026", "skip_first_page_header": true,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("page_furniture %v, want %v", got, want)
+	}
+	if _, has := sent["pageFurniture"]; has {
+		t.Error("the binding's own field name reached the portal")
+	}
+}
+
+func TestServiceExportLeavesOutEmptyFurniture(t *testing.T) {
+	for _, pf := range []*PageFurniture{nil, {Title: "Tides"}, {Header: " \n "}} {
+		f := newFakePortal(t, map[string][]fakeResp{
+			"/token":            {{200, tokenBody("a1", "r2"), nil}},
+			"/services/convert": {{200, convertReply("PK"), nil}},
+		})
+		s, _ := newTestPortalService(t, f, signedIn(t, f, "r1"))
+		out := filepath.Join(t.TempDir(), "paper.docx")
+		if perr := s.Export(out, ConvertRequest{Format: "docx", Markdown: "x", PageFurniture: pf}); perr != nil {
+			t.Fatal(perr)
+		}
+		if _, has := f.bodies["/services/convert"][0]["page_furniture"]; has {
+			t.Errorf("%+v: furniture sent with nothing to draw", pf)
+		}
+	}
+}
+
+func TestLocalLongDateIsToday(t *testing.T) {
+	if got := localLongDate(); got == "" || !strings.Contains(got, strconv.Itoa(time.Now().Year())) {
+		t.Fatalf("got %q", got)
 	}
 }
