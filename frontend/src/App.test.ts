@@ -3196,9 +3196,23 @@ describe('reference formatting options', () => {
 
   it('says when a value is ignored', async () => {
     const target = await openDoc('---\ncitation-et-al-min: lots\n---\n# Results\n')
-    await vi.waitFor(() =>
-      expect(toastText(target)).toBe('citation-et-al-min must be a whole number from 1 to 100 — ignored'),
+    await vi.waitFor(
+      () => expect(toastText(target)).toBe('citation-et-al-min must be a whole number from 1 to 100 — ignored'),
+      { timeout: 3000 },
     )
+  })
+
+  it('says nothing while a value is being typed', async () => {
+    const target = await openDoc('---\ncitation-et-al-use-last: t\n---\n# Results\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    for (const ch of ['r', 'u', 'e']) {
+      await new Promise((r) => setTimeout(r, 150))
+      const at = view.state.doc.toString().indexOf('\n---\n# Results')
+      view.dispatch({ changes: { from: at, insert: ch } })
+      flushSync()
+    }
+    await new Promise((r) => setTimeout(r, 1500))
+    expect(toastText(target)).not.toContain('ignored')
   })
 })
 

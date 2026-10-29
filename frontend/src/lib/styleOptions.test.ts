@@ -29,6 +29,11 @@ const MINI = `<?xml version="1.0" encoding="utf-8"?>
   </bibliography>
 </style>`
 
+const threeAuthors: CSLEntry = {
+  id: 't', type: 'article-journal', title: 'T', 'container-title': 'J', issued: { 'date-parts': [[2020]] },
+  author: [{ family: 'Doe', given: 'J' }, { family: 'Roe', given: 'K' }, { family: 'Poe', given: 'L' }],
+}
+
 function nameIn(d: Document, macro: string): Element {
   return [...d.getElementsByTagName('macro')].find((m) => m.getAttribute('name') === macro)!.getElementsByTagName('name')[0]
 }
@@ -90,6 +95,24 @@ describe('applyStyleOptions', () => {
     const bib = d.getElementsByTagName('bibliography')[0]
     expect(bib.getAttribute('et-al-min')).toBe('4')
     expect(bib.getAttribute('et-al-use-first')).toBe('1')
+  })
+
+  it('min alone cuts the list in a style that sets no et-al at all', async () => {
+    const bare = MINI.replace(/ et-al-[a-z-]+="\d+"/g, '')
+    const d = doc(applyStyleOptions(bare, opts({ 'citation-et-al-min': '2', 'bibliography-et-al-min': '3' })))
+    expect(d.getElementsByTagName('citation')[0].getAttribute('et-al-use-first')).toBe('1')
+    expect(d.getElementsByTagName('bibliography')[0].getAttribute('et-al-use-first')).toBe('1')
+    // Harvard without its et-al settings now cuts at two authors.
+    const harvard = (await loadStyleXml('harvard'))!.replace(/ et-al-[a-z-]+="\d+"/g, '')
+    const f = await createCitationFormatter([threeAuthors], 'harvard', applyStyleOptions(harvard, opts({ 'citation-et-al-min': '2' })))
+    expect(f.format([{ items: [{ key: 't' }] }]).texts[0]).toContain('et al.')
+  })
+
+  it('accepts True and FALSE', () => {
+    const { options, invalid } = readStyleOptions({ 'citation-et-al-use-last': 'True', 'bibliography-et-al-use-last': 'FALSE' })
+    expect(options.citation['et-al-use-last']).toBe('true')
+    expect(options.bibliography['et-al-use-last']).toBe('false')
+    expect(invalid).toEqual([])
   })
 
   it("keeps the style's use-first when it is smaller", () => {

@@ -56,7 +56,8 @@ export function readStyleOptions(fm: Partial<Record<StyleOptionKey, string>>): {
     const raw = fm[key]?.trim()
     if (!raw) continue
     if (attr === 'et-al-use-last') {
-      if (raw === 'true' || raw === 'false') options[place][attr] = raw
+      const flag = raw.toLowerCase()
+      if (flag === 'true' || flag === 'false') options[place][attr] = flag
       else invalid.push(`${key} must be true or false — ignored`)
     } else if (/^\d+$/.test(raw) && Number(raw) >= 1 && Number(raw) <= 100) {
       options[place][attr] = String(Number(raw))
@@ -100,14 +101,22 @@ function reachableMacros(root: Element, macros: Map<string, Element>): Set<Eleme
 
 // Sets the options on one element (a <citation>, <bibliography> or
 // <name>). `inherited` supplies a use-first the element does not set
-// itself, for the lowering rule.
-function setOn(el: Element, set: Partial<Record<CslAttr, string>>, inherited: (a: CslAttr) => string | null): void {
+// itself, for the lowering rule; `null` there means none at all, which on
+// <citation> or <bibliography> (`noneCuts`) also gets 1, since CSL cuts a
+// list only when both a min and a use-first are set. A <name> without its
+// own inherits the one just set above it.
+function setOn(
+  el: Element,
+  set: Partial<Record<CslAttr, string>>,
+  inherited: (a: CslAttr) => string | null,
+  noneCuts: boolean,
+): void {
   for (const [attr, value] of Object.entries(set) as [CslAttr, string][]) {
     el.setAttribute(attr, value)
     const pair = USE_FIRST_FOR[attr]
     if (pair && set[pair] === undefined) {
       const current = el.getAttribute(pair) ?? inherited(pair)
-      if (current !== null && Number(current) >= Number(value)) el.setAttribute(pair, '1')
+      if (current === null ? noneCuts : Number(current) >= Number(value)) el.setAttribute(pair, '1')
     }
   }
 }
@@ -135,7 +144,7 @@ export function applyStyleOptions(xml: string, o: StyleOptions): string {
 
   for (const place of ['citation', 'bibliography'] as const) {
     const p = places[place]
-    if (p) setOn(p.el, o[place], (a) => style.getAttribute(a))
+    if (p) setOn(p.el, o[place], (a) => style.getAttribute(a), true)
   }
 
   for (const name of descendants(style, 'name')) {
@@ -163,7 +172,7 @@ export function applyStyleOptions(xml: string, o: StyleOptions): string {
     // Only the attributes the <name> sets itself: the rest it already
     // inherits from the element set above.
     const own = Object.fromEntries(Object.entries(set).filter(([a]) => name.hasAttribute(a) || name.hasAttribute(USE_FIRST_FOR[a as CslAttr] ?? '')))
-    setOn(name, own, () => null)
+    setOn(name, own, () => null, false)
   }
 
   return new XMLSerializer().serializeToString(d)

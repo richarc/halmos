@@ -258,19 +258,30 @@
   const fmCsl = $derived(fm.csl)
   // The reference formatting keys' raw text as one string, so the reload
   // below reruns when one of them changes and not on every keystroke.
+  const OPTION_WARNING_DELAY_MS = 1000
   const fmStyleOptions = $derived(JSON.stringify(STYLE_OPTION_KEYS.map((k) => fm[k] ?? '')))
   const styleOptions = $derived.by(() => {
     const raw: string[] = JSON.parse(fmStyleOptions)
     return readStyleOptions(Object.fromEntries(STYLE_OPTION_KEYS.map((k, i) => [k, raw[i]])))
   })
 
-  // A value that was ignored says so once, until the set of them changes.
+  // A value that was ignored says so once per document, until the set of
+  // them changes, and only after it has stood for a second: `t` on the way
+  // to `true` is not a mistake yet.
   let warnedOptions = ''
   $effect(() => {
     const invalid = styleOptions.invalid.join('; ')
-    if (invalid === warnedOptions) return
-    warnedOptions = invalid
-    if (invalid) toast(invalid)
+    const key = `${path ?? ''}\n${invalid}`
+    if (!invalid) {
+      warnedOptions = key
+      return
+    }
+    if (key === warnedOptions) return
+    const timer = setTimeout(() => {
+      warnedOptions = key
+      toast(invalid)
+    }, OPTION_WARNING_DELAY_MS)
+    return () => clearTimeout(timer)
   })
 
   // Format → Citation Style ticks the current style; tell Go whenever it
