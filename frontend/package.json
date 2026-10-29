@@ -31,10 +31,10 @@
     "citeproc": "^2.4.63",
     "codemirror": "^6.0.2",
     "d3-dsv": "^3.0.1",
-    "katex": "^0.16.47",
+    "katex": "0.19.1",
     "markdown-it": "^14.3.3",
     "markdown-it-footnote": "^4.0.0",
-    "mermaid": "^11.16.1",
+    "mermaid": "12.2.0",
     "vega": "^6.3.1",
     "vega-embed": "^7.1.0",
     "vega-interpreter": "^2.3.2",
@@ -45,7 +45,6 @@
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@tsconfig/svelte": "^5.0.8",
     "@types/d3-dsv": "^3.0.7",
-    "@types/katex": "^0.16.8",
     "@types/markdown-it": "^14.1.2",
     "@types/markdown-it-footnote": "^3.0.4",
     "@types/node": "^26.1.2",
@@ -56,5 +55,10 @@
     "typescript": "^5.2.2",
     "vite": "^7.3.6",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "@vscode/markdown-it-katex": {
+      "katex": "$katex"
+    }
   }
 }

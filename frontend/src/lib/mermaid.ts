@@ -99,6 +99,13 @@ export async function renderMermaid(id: string, source: string): Promise<string>
       // Mermaid render its OWN error diagram into the page rather than
       // throwing — and renderDiagramError below becomes unreachable.
       suppressErrorRendering: true,
+      // Mermaid 12 made ELK layout, the redux-color/neo themes and a new
+      // look the defaults, which redraws every existing diagram. These keep
+      // what documents were written against; a diagram's own front matter
+      // still overrides them.
+      layout: 'dagre',
+      theme: 'default',
+      look: 'classic',
     })
     initialised = true
   }

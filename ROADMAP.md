@@ -316,7 +316,7 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       is inside a `<choose>` (APA's treaty parties). A `-min` set alone
       lowers the style's use-first to 1 when it would list everyone. The
       other options are a Backlog item.
-- [ ] **Wails, KaTeX and Mermaid, then hold dependencies for 1.0.** Wails
+- [x] **Wails, KaTeX and Mermaid, then hold dependencies for 1.0.** Wails
       v3.0.0, the stable release, came out on 2026-10-26 (the pin is
       beta.30); take it, not beta.34, from 2026-11-02, when it is 7 days
       old as `.npmrc` asks. Its notes ask everyone on beta.30 or earlier to
@@ -337,6 +337,13 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       asks for KaTeX 0.16. KaTeX 0.18 also prefixes its CSS classes, so
       check `style.css` and the HTML export. Then hold dependencies still
       for 1.0.
+      *Done 2026-10-29, not yet released:* Wails 3.0.0 taken 3 days after
+      release rather than 7, by choice; Go 1.26 (`go.mod` `go 1.26.0`).
+      KaTeX 0.19.1 rather than 0.18 (0.19 only changes how missing-glyph
+      warnings are reported), with `overrides` for the plugin; Mermaid
+      12.2.0, which keeps its own KaTeX 0.18 in its lazy chunk. The KaTeX
+      classes Halmos styles kept their names. Release builds still need Go
+      1.26.10 or later (this Mac has 1.26.7; CI takes the latest 1.26.x).
 - [x] **A command palette, and ⇧⌘T for Table.** Remembering shortcuts is
       the problem, and adding more makes it worse. ⇧⌘P opens a palette
       listing every menu command as `Menu: Item`, with its shortcut on the
