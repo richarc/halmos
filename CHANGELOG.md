@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `bibliography-et-al-min: 11` change the document's citation style for
   citations and for the reference list. The change reaches the preview,
   PDF, HTML, Word and LaTeX. Authoring describes the keys.
+- Word and LaTeX exports have the page header and footer set by `header:`
+  and `footer:`, as Export PDF does: `{title}`, `{date}`, `{page}` and
+  `{pages}` are filled in, and the header is left off page 1 when the
+  document has a title block. An HTML export has no pages and leaves them
+  out.
 
 ### Fixed
 
