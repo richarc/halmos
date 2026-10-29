@@ -456,6 +456,8 @@ theme on a white page, in the body font you chose. The save panel opens in the
 document's folder, and export waits for charts to finish drawing. Large
 images make a large file.
 
+Word and LaTeX export come with Halmos accounts, which are not open yet: the
+released app does not have them. When they arrive,
 **Export → Export Word…** and **Export → Export LaTeX…** convert the document
 with Pandoc on halmoseditor.com, with citations and the reference list in the
 document's citation style. They need a Halmos account with a subscription: the

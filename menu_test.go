@@ -302,7 +302,7 @@ func TestBodyFontMenuValuesMatchFrontend(t *testing.T) {
 func TestAppMenuHasAccountAfterAbout(t *testing.T) {
 	testApp()
 	menu := application.NewMenu()
-	addAppMenu(menu, "Halmos Editor", func() {}, newCommandSet())
+	addAppMenu(menu, "Halmos Editor", func() {}, newCommandSet(), true)
 	app := menu.ItemAt(0).GetSubmenu()
 	if app == nil {
 		t.Fatal("no app submenu")
@@ -325,7 +325,7 @@ func TestExportMenu(t *testing.T) {
 	testApp()
 	menu := application.NewMenu()
 	menu.AddSubmenu("File")
-	addExportMenu(menu, func(string, ...any) {}, newCommandSet())
+	addExportMenu(menu, func(string, ...any) {}, newCommandSet(), true)
 	item := menu.ItemAt(1)
 	if item == nil || !item.IsSubmenu() || item.Label() != "Export" {
 		t.Fatalf("second top-level item is not the Export menu")
@@ -471,7 +471,7 @@ func TestExportMenuItemsAreCommands(t *testing.T) {
 	testApp()
 	menu := application.NewMenu()
 	cmds := newCommandSet()
-	addExportMenu(menu, func(string, ...any) {}, cmds)
+	addExportMenu(menu, func(string, ...any) {}, cmds, true)
 	got := commandsOf(cmds)
 	want := []string{"Export PDF…", "Export HTML…", "Export Word…", "Export LaTeX…"}
 	if len(got) != len(want) {
@@ -668,5 +668,49 @@ func TestHelpMenuStartsWithGettingStarted(t *testing.T) {
 	}
 	if !shown || !reflect.DeepEqual(emitted, []string{"menu:tutorial"}) {
 		t.Errorf("shown %v, emitted %v", shown, emitted)
+	}
+}
+
+// Release builds hide the paid features until v1.1.0 (paidfeatures_*.go):
+// no Account… in the app menu and no Word or LaTeX in Export, so neither is
+// in the command palette, which lists the menu's commands.
+func TestAppMenuWithoutPaidFeaturesHasNoAccount(t *testing.T) {
+	testApp()
+	menu := application.NewMenu()
+	cmds := newCommandSet()
+	addAppMenu(menu, "Halmos Editor", func() {}, cmds, false)
+	app := menu.ItemAt(0).GetSubmenu()
+	for i := 0; app.ItemAt(i) != nil; i++ {
+		if app.ItemAt(i).Label() == "Account…" {
+			t.Fatal("Account… is in the app menu")
+		}
+	}
+	if !app.ItemAt(1).IsSeparator() {
+		t.Errorf("second item %q, want the separator after About", app.ItemAt(1).Label())
+	}
+	for _, c := range commandsOf(cmds) {
+		if c.Label == "Account…" {
+			t.Fatal("Account… is a palette command")
+		}
+	}
+}
+
+func TestExportMenuWithoutPaidFeatures(t *testing.T) {
+	testApp()
+	menu := application.NewMenu()
+	cmds := newCommandSet()
+	addExportMenu(menu, func(string, ...any) {}, cmds, false)
+	export := menu.ItemAt(0).GetSubmenu()
+	var labels []string
+	for i := 0; export.ItemAt(i) != nil; i++ {
+		labels = append(labels, export.ItemAt(i).Label())
+	}
+	if !reflect.DeepEqual(labels, []string{"Export PDF…", "Export HTML…"}) {
+		t.Fatalf("Export holds %q", labels)
+	}
+	for _, c := range commandsOf(cmds) {
+		if strings.Contains(c.Label, "Word") || strings.Contains(c.Label, "LaTeX") {
+			t.Fatalf("%q is a palette command", c.ID)
+		}
 	}
 }
