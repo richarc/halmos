@@ -545,10 +545,14 @@ hide them until v1.1.0 turns them on; the portal is left as it is.
       to a nested task does not reach `build:universal`'s builds), refuses a
       binary whose `go version -m` lacks the tag, and runs `go test` both
       ways, as CI now does. v1.1.0: drop the tag from the release task.
-- [ ] **Release v0.16.1**, once the item above is done. Cut by hand with
+- [x] **Release v0.16.1**, once the item above is done. Cut by hand with
       `wails3 task release`, as v0.16.0 was; the update feed announces it.
       The site then offers v0.16.1 rather than v0.16.0, so it never offers
       a build that shows the paid features.
+      *Released 2026-10-29:* signed, notarized and stapled universal build
+      (Go 1.26.10, `-tags=production,nopaid`), published as
+      [v0.16.1](https://github.com/richarc/halmos/releases/tag/v0.16.1);
+      the update feed announces it.
 
 ## v1.0.0 — Production
 
