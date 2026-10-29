@@ -515,6 +515,32 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       build. The Word and LaTeX header and footer entry was left out of
       the release notes, since accounts are not open yet.
 
+## v0.16.1 — Paid features hidden until v1.1.0
+
+Serves: M0.16
+
+v0.15.0 and v0.16.0 shipped with Account… and Export Word… / Export LaTeX…
+in the menus, done on `main` for v1.1.0. Billing is not switched on, so
+anyone choosing one is led to Connect, to an account on the portal, and to a
+subscription that cannot yet be bought. Decided 2026-10-29: release builds
+hide them until v1.1.0 turns them on; the portal is left as it is.
+
+- [ ] **Release builds hide Account… and Word and LaTeX export.** Added
+      2026-10-29. One switch, set at build time, decides whether the paid
+      features show: off in release builds (`wails3 task release`), on in
+      development builds, so the work on `main` can still be built and
+      tested. Off means: no Account… in the app menu, no Export Word… or
+      Export LaTeX… in the Export menu, none of them in the command palette,
+      and nothing else that offers Connect or a subscription (dialogs,
+      toasts, the start screen, the guides' links in the app). The code
+      stays in the build; only what reaches the user is hidden. A Mac
+      already paired keeps its Keychain item, untouched. v1.1.0 turns the
+      switch on by default. Test both settings of the switch.
+- [ ] **Release v0.16.1**, once the item above is done. Cut by hand with
+      `wails3 task release`, as v0.16.0 was; the update feed announces it.
+      The site then offers v0.16.1 rather than v0.16.0, so it never offers
+      a build that shows the paid features.
+
 ## v1.0.0 — Production
 
 Serves: M1.0
