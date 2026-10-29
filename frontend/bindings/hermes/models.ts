@@ -146,7 +146,8 @@ export interface PortalError {
 
 /**
  * ResolvedStyle is what formats a document's `csl:` value. Installed is true
- * when resolving it installed the style from the repository.
+ * when resolving it installed a style from the repository, and Title is
+ * then that style's.
  */
 export interface ResolvedStyle {
     "xml": string;

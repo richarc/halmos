@@ -143,6 +143,51 @@ describe('StyleFinder', () => {
     await vi.waitFor(() => expect(onuse).toHaveBeenCalledWith('nature'))
   })
 
+  it('focuses the search field once the styles are loaded', async () => {
+    const { target } = mountFinder()
+    await ready(target)
+    await vi.waitFor(() => expect(document.activeElement).toBe(search(target)))
+  })
+
+  it('uses an installed style without downloading it again', async () => {
+    StyleService.LoadIndex.mockImplementation(async () => ({ ready: false, error: 'offline', fields: [], updates: 0 }))
+    StyleService.Installed.mockImplementation(async () => [style('bmj', 'BMJ', { installed: true })])
+    const { target, onuse } = mountFinder()
+    await vi.waitFor(() => expect(rowTitles(target)).toEqual(['BMJ']))
+    button(target, 'Use Style')!.click()
+    await vi.waitFor(() => expect(onuse).toHaveBeenCalledWith('bmj'))
+    expect(StyleService.InstallStyle).not.toHaveBeenCalled()
+  })
+
+  it('does not use a style whose install finished after Cancel', async () => {
+    let finish: (v: unknown) => void = () => {}
+    StyleService.InstallStyle.mockImplementation(() => new Promise((r) => (finish = r)) as never)
+    const target = document.createElement('div')
+    document.body.appendChild(target)
+    const onuse = vi.fn()
+    const props = $state({ open: true })
+    const cmp = mount(StyleFinder, {
+      target,
+      props: {
+        get open() {
+          return props.open
+        },
+        onclose: () => {},
+        onuse,
+        onchoosefile: () => {},
+      },
+    })
+    cleanup = () => unmount(cmp)
+    await ready(target)
+    button(target, 'Use Style')!.click()
+    await vi.waitFor(() => expect(StyleService.InstallStyle).toHaveBeenCalled())
+    props.open = false
+    flushSync()
+    finish({ id: 'nature', title: 'Nature', error: '' })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(onuse).not.toHaveBeenCalled()
+  })
+
   it('shows the install error and does not call onuse', async () => {
     StyleService.InstallStyle.mockImplementation(async (id: string) => ({ id, title: 'Nature', error: 'busy' }))
     const { target, onuse } = mountFinder()

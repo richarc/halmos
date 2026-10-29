@@ -29,15 +29,18 @@ export function InstallStyle(id: string): $CancellablePromise<$models.StyleInsta
 
 /**
  * Installed lists the styles the author chose, by title; parents installed
- * only for a dependent style are left out. It needs no index.
+ * only for a dependent style are left out. It reads library.json alone,
+ * never the index: the menu calls it on the main thread at every rebuild.
  */
 export function Installed(): $CancellablePromise<$models.StyleSummary[] | null> {
     return $Call.ByID(124010438);
 }
 
 /**
- * LoadIndex makes the index ready for Search, fetching or revalidating it
- * when it is missing or an hour old.
+ * LoadIndex makes the index ready for Search. With no index it waits for
+ * the fetch; with a cached one an hour old it answers from the cache and
+ * revalidates in the background, so a slow network never holds the window
+ * on "Loading styles…".
  */
 export function LoadIndex(): $CancellablePromise<$models.StyleIndexStatus> {
     return $Call.ByID(2577205916);
@@ -55,11 +58,13 @@ export function PreviewStyle(id: string): $CancellablePromise<$models.StyleText>
  * ResolveStyle turns a `csl:` value that is not a bundled style into the
  * XML that formats it: a .csl path (resolved against the document, and
  * through its parent when it is a dependent style), an installed style, or
- * one in the repository, which is installed. Error is unreadable,
+ * one in the repository. Only with fetch is anything downloaded and
+ * installed; without it a style that is not installed is "not_installed",
+ * so a value still being typed installs nothing. Error is also unreadable,
  * parent_missing, not_found, offline, busy, invalid or unwritable.
  */
-export function ResolveStyle(csl: string, docPath: string): $CancellablePromise<$models.ResolvedStyle> {
-    return $Call.ByID(2602276045, csl, docPath);
+export function ResolveStyle(csl: string, docPath: string, fetch: boolean): $CancellablePromise<$models.ResolvedStyle> {
+    return $Call.ByID(2602276045, csl, docPath, fetch);
 }
 
 /**

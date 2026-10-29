@@ -139,7 +139,9 @@ func TestLoadIndexFetchesThenUsesCache(t *testing.T) {
 		t.Fatalf("from disk: %+v, %d requests", st, srv.count())
 	}
 	clock.t = clock.t.Add(61 * time.Minute)
-	if st := svc.LoadIndex(); !st.Ready || srv.count() != 2 {
+	st = svc.LoadIndex()
+	svc.bg.Wait()
+	if !st.Ready || srv.count() != 2 {
 		t.Fatalf("after an hour: %+v, %d requests", st, srv.count())
 	}
 	_, _, at, _ := (&styleLibrary{dir: dir}).cachedIndex()
@@ -158,6 +160,7 @@ func TestLoadIndexOfflineWithAndWithoutCache(t *testing.T) {
 	if st := svc.LoadIndex(); !st.Ready || st.Error != "" {
 		t.Fatalf("with cache: %+v", st)
 	}
+	svc.bg.Wait()
 	empty := newStyleServiceWith(&styleLibrary{dir: filepath.Join(dir, "none")}, svc.client, clock.now)
 	if st := empty.LoadIndex(); st.Ready || st.Error != "offline" {
 		t.Fatalf("without cache: %+v", st)
@@ -238,7 +241,7 @@ func TestResolveInstalledMakesNoRequest(t *testing.T) {
 	svc, _, _ := testStyleService(t, srv)
 	svc.InstallStyle("nature-communications")
 	srv.reset()
-	got := svc.ResolveStyle("nature-communications", "")
+	got := svc.ResolveStyle("nature-communications", "", true)
 	if got.XML != natureXML || got.Title != "Nature Communications" || got.Installed || got.Error != "" {
 		t.Fatalf("got %+v", got)
 	}
@@ -250,7 +253,7 @@ func TestResolveInstalledMakesNoRequest(t *testing.T) {
 func TestResolveFetchesUnknownID(t *testing.T) {
 	srv := newStyleServer(t)
 	svc, _, dir := testStyleService(t, srv)
-	got := svc.ResolveStyle("nature-communications", "")
+	got := svc.ResolveStyle("nature-communications", "", true)
 	if got.XML != natureXML || !got.Installed || got.Title != "Nature Communications" {
 		t.Fatalf("got %+v", got)
 	}
@@ -262,11 +265,11 @@ func TestResolveFetchesUnknownID(t *testing.T) {
 func TestResolveRenamed(t *testing.T) {
 	srv := newStyleServer(t)
 	svc, _, _ := testStyleService(t, srv)
-	if got := svc.ResolveStyle("aaa", ""); got.XML != natureXML || got.Error != "" {
+	if got := svc.ResolveStyle("aaa", "", true); got.XML != natureXML || got.Error != "" {
 		t.Fatalf("fetch: %+v", got)
 	}
 	srv.reset()
-	if got := svc.ResolveStyle("aaa", ""); got.XML != natureXML || got.Installed {
+	if got := svc.ResolveStyle("aaa", "", true); got.XML != natureXML || got.Installed {
 		t.Fatalf("installed: %+v", got)
 	}
 }
@@ -274,12 +277,12 @@ func TestResolveRenamed(t *testing.T) {
 func TestResolveUnknownAndOffline(t *testing.T) {
 	srv := newStyleServer(t)
 	svc, _, _ := testStyleService(t, srv)
-	if got := svc.ResolveStyle("no-such-style", ""); got.Error != "not_found" || got.XML != "" {
+	if got := svc.ResolveStyle("no-such-style", "", true); got.Error != "not_found" || got.XML != "" {
 		t.Fatalf("unknown: %+v", got)
 	}
 	srv.srv.Close()
 	off, _, _ := testStyleService(t, srv)
-	if got := off.ResolveStyle("nature", ""); got.Error != "offline" {
+	if got := off.ResolveStyle("nature", "", true); got.Error != "offline" {
 		t.Fatalf("offline: %+v", got)
 	}
 }
@@ -294,11 +297,11 @@ func TestResolveFileResolvesAgainstDocument(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range []string{"my.csl", stylePath} {
-		if got := svc.ResolveStyle(p, docPath); got.XML != natureXML || got.Error != "" || got.Title != "Nature" {
+		if got := svc.ResolveStyle(p, docPath, true); got.XML != natureXML || got.Error != "" || got.Title != "Nature" {
 			t.Errorf("%s: %+v", p, got)
 		}
 	}
-	if got := svc.ResolveStyle("missing.csl", docPath); got.Error != "unreadable" {
+	if got := svc.ResolveStyle("missing.csl", docPath, true); got.Error != "unreadable" {
 		t.Errorf("missing: %+v", got)
 	}
 	if srv.count() != 0 {
@@ -314,12 +317,12 @@ func TestResolveDependentFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "nc.csl"), []byte(natureCommsXML), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := svc.ResolveStyle("nc.csl", docPath); got.XML != natureXML || got.Error != "" {
+	if got := svc.ResolveStyle("nc.csl", docPath, true); got.XML != natureXML || got.Error != "" {
 		t.Fatalf("got %+v", got)
 	}
 	srv.srv.Close()
 	off, _, _ := testStyleService(t, srv)
-	if got := off.ResolveStyle("nc.csl", docPath); got.Error != "parent_missing" {
+	if got := off.ResolveStyle("nc.csl", docPath, true); got.Error != "parent_missing" {
 		t.Fatalf("offline: %+v", got)
 	}
 }
@@ -353,6 +356,8 @@ func TestUpdateAll(t *testing.T) {
 	srv.etag = `"v2"`
 	srv.mu.Unlock()
 	clock.t = clock.t.Add(2 * time.Hour)
+	svc.LoadIndex() // answers from the cache, revalidates behind
+	svc.bg.Wait()
 	if st := svc.LoadIndex(); st.Updates != 1 {
 		t.Fatalf("updates after a change: %d", st.Updates)
 	}
@@ -382,5 +387,90 @@ func TestSearchNeedsIndex(t *testing.T) {
 	got := svc.Search("nature", "", "")
 	if got.Total != 2 || got.Styles[0].ID != "nature" {
 		t.Fatalf("got %+v", got)
+	}
+}
+
+// Final review fixes.
+
+func TestResolveWithoutFetchMakesNoRequest(t *testing.T) {
+	srv := newStyleServer(t)
+	svc, _, dir := testStyleService(t, srv)
+	if got := svc.ResolveStyle("nature", "", false); got.Error != "not_installed" || got.XML != "" {
+		t.Fatalf("got %+v", got)
+	}
+	if srv.count() != 0 || len(cslFiles(t, dir)) != 0 {
+		t.Fatalf("%d requests, files %v", srv.count(), cslFiles(t, dir))
+	}
+	svc.InstallStyle("nature")
+	if got := svc.ResolveStyle("nature", "", false); got.XML != natureXML {
+		t.Fatalf("installed without fetch: %+v", got)
+	}
+}
+
+func TestLibraryWritesAreSerialised(t *testing.T) {
+	lib := &styleLibrary{dir: t.TempDir()}
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			id := "s" + string(rune('a'+i))
+			_ = lib.writeStyles(map[string][]byte{id: []byte("x")}, []installedStyle{{ID: id, SHA256: "1"}})
+		}(i)
+	}
+	wg.Wait()
+	got, err := lib.installed()
+	if err != nil || len(got) != 20 {
+		t.Fatalf("%d entries, %v", len(got), err)
+	}
+}
+
+func TestInstalledDoesNotReadTheIndex(t *testing.T) {
+	srv := newStyleServer(t)
+	svc, clock, dir := testStyleService(t, srv)
+	svc.InstallStyle("nature-communications")
+	fresh := newStyleServiceWith(&styleLibrary{dir: dir}, svc.client, clock.now)
+	if got := fresh.Installed(); len(got) != 1 || got[0].Title != "Nature Communications" {
+		t.Fatalf("got %+v", got)
+	}
+	if fresh.index != nil {
+		t.Fatal("Installed parsed the index")
+	}
+}
+
+func TestLoadIndexStaleCacheDoesNotWait(t *testing.T) {
+	srv := newStyleServer(t)
+	svc, clock, _ := testStyleService(t, srv)
+	svc.LoadIndex()
+	release := make(chan struct{})
+	slow := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-release }))
+	t.Cleanup(func() { close(release); slow.Close() })
+	svc.client = newStyleClient(slow.URL, "", slow.Client())
+	clock.t = clock.t.Add(2 * time.Hour)
+	start := time.Now()
+	if st := svc.LoadIndex(); !st.Ready {
+		t.Fatalf("got %+v", st)
+	}
+	if d := time.Since(start); d > time.Second {
+		t.Fatalf("LoadIndex waited %v for a refresh", d)
+	}
+	// Let the background refresh end before the server and temp dir go.
+	release <- struct{}{}
+	svc.bg.Wait()
+}
+
+func TestDependentFileParentIsNotChosen(t *testing.T) {
+	srv := newStyleServer(t)
+	svc, _, _ := testStyleService(t, srv)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "nc.csl"), []byte(natureCommsXML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := svc.ResolveStyle("nc.csl", filepath.Join(dir, "paper.md"), true)
+	if got.XML != natureXML || !got.Installed || got.Title != "Nature" {
+		t.Fatalf("got %+v", got)
+	}
+	if inst := svc.Installed(); len(inst) != 0 {
+		t.Fatalf("parent listed as chosen: %+v", inst)
 	}
 }

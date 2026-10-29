@@ -32,6 +32,8 @@ type StyleService struct {
 	// below and is never held across a request.
 	fetchMu sync.Mutex
 	mu      sync.Mutex
+	// Background revalidations started by LoadIndex; tests wait on it.
+	bg      sync.WaitGroup
 	index   *styleIndexDoc
 	indexAt time.Time
 	etag    string
@@ -137,6 +139,13 @@ func (s *StyleService) refreshIndex() string {
 	return ""
 }
 
+// stale is true when the index in memory is an hour old.
+func (s *StyleService) stale() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.now().Sub(s.indexAt) >= styleIndexMaxAge
+}
+
 // missing reports a failed fetch: no problem while a cached index serves.
 func (s *StyleService) missing(idx *styleIndexDoc, word string) string {
 	if idx != nil {
@@ -148,10 +157,21 @@ func (s *StyleService) missing(idx *styleIndexDoc, word string) string {
 	return word
 }
 
-// LoadIndex makes the index ready for Search, fetching or revalidating it
-// when it is missing or an hour old.
+// LoadIndex makes the index ready for Search. With no index it waits for
+// the fetch; with a cached one an hour old it answers from the cache and
+// revalidates in the background, so a slow network never holds the window
+// on "Loading styles…".
 func (s *StyleService) LoadIndex() StyleIndexStatus {
-	word := s.refreshIndex()
+	word := ""
+	if s.currentIndex() == nil {
+		word = s.refreshIndex()
+	} else if s.stale() {
+		s.bg.Add(1)
+		go func() {
+			defer s.bg.Done()
+			s.refreshIndex()
+		}()
+	}
 	idx := s.currentIndex()
 	if idx == nil {
 		return StyleIndexStatus{Error: word, Fields: []string{}}
@@ -188,32 +208,23 @@ func (s *StyleService) Search(query, field, format string) StyleSearchResult {
 }
 
 // Installed lists the styles the author chose, by title; parents installed
-// only for a dependent style are left out. It needs no index.
+// only for a dependent style are left out. It reads library.json alone,
+// never the index: the menu calls it on the main thread at every rebuild.
 func (s *StyleService) Installed() []StyleSummary {
 	lib, err := s.lib.installed()
 	if err != nil {
 		return []StyleSummary{}
 	}
-	idx := s.currentIndex()
 	out := []StyleSummary{}
 	for _, st := range lib {
 		if st.AsParent {
 			continue
 		}
-		sum := StyleSummary{ID: st.ID, Title: st.Title, Parent: st.Parent, Fields: []string{}, Installed: true}
-		if idx != nil {
-			if e := indexEntry(idx, st.ID); e != nil {
-				sum.TitleShort, sum.Format = deref(e.TitleShort), deref(e.Format)
-				if e.Fields != nil {
-					sum.Fields = e.Fields
-				}
-				sum.Update = e.SHA256 != st.SHA256
-			}
-			if p := indexEntry(idx, st.Parent); p != nil {
-				sum.ParentTitle = p.Title
-			}
+		parentTitle := ""
+		if p, ok := lib[st.Parent]; ok {
+			parentTitle = p.Title
 		}
-		out = append(out, sum)
+		out = append(out, StyleSummary{ID: st.ID, Title: st.Title, Parent: st.Parent, ParentTitle: parentTitle, Fields: []string{}, Installed: true})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		a, b := strings.ToLower(out[i].Title), strings.ToLower(out[j].Title)
@@ -269,6 +280,12 @@ type StyleInstallResult struct {
 // are downloaded and checked before anything is written. Installing a style
 // that is already installed is how an update is applied.
 func (s *StyleService) InstallStyle(id string) StyleInstallResult {
+	return s.install(id, false)
+}
+
+// install does InstallStyle's work. asParent installs the style only as
+// what another style formats with, so it stays out of the menu.
+func (s *StyleService) install(id string, asParent bool) StyleInstallResult {
 	e, word := s.indexFor(id)
 	if e == nil {
 		return StyleInstallResult{ID: id, Error: word}
@@ -280,7 +297,7 @@ func (s *StyleService) InstallStyle(id string) StyleInstallResult {
 		return StyleInstallResult{ID: e.ID, Title: e.Title, Error: word}
 	}
 	files[e.ID] = data
-	entries := []installedStyle{{ID: e.ID, Title: e.Title, Parent: deref(e.Parent), SHA256: e.SHA256, InstalledAt: now}}
+	entries := []installedStyle{{ID: e.ID, Title: e.Title, Parent: deref(e.Parent), SHA256: e.SHA256, InstalledAt: now, AsParent: asParent}}
 	if e.Parent != nil {
 		p, word := s.indexFor(*e.Parent)
 		if p == nil {
@@ -410,7 +427,8 @@ func (s *StyleService) installedXML(id string) (xmlText, title string, ok bool) 
 }
 
 // ResolvedStyle is what formats a document's `csl:` value. Installed is true
-// when resolving it installed the style from the repository.
+// when resolving it installed a style from the repository, and Title is
+// then that style's.
 type ResolvedStyle struct {
 	XML       string `json:"xml"`
 	Title     string `json:"title"`
@@ -421,9 +439,11 @@ type ResolvedStyle struct {
 // ResolveStyle turns a `csl:` value that is not a bundled style into the
 // XML that formats it: a .csl path (resolved against the document, and
 // through its parent when it is a dependent style), an installed style, or
-// one in the repository, which is installed. Error is unreadable,
+// one in the repository. Only with fetch is anything downloaded and
+// installed; without it a style that is not installed is "not_installed",
+// so a value still being typed installs nothing. Error is also unreadable,
 // parent_missing, not_found, offline, busy, invalid or unwritable.
-func (s *StyleService) ResolveStyle(csl, docPath string) ResolvedStyle {
+func (s *StyleService) ResolveStyle(csl, docPath string, fetch bool) ResolvedStyle {
 	if strings.HasSuffix(strings.ToLower(csl), ".csl") {
 		data, err := os.ReadFile(resolveAgainstDoc(csl, docPath))
 		if err != nil {
@@ -433,23 +453,34 @@ func (s *StyleService) ResolveStyle(csl, docPath string) ResolvedStyle {
 		if parent == "" {
 			return ResolvedStyle{XML: string(data), Title: title}
 		}
-		got := s.resolveID(parent)
+		// The parent is installed only as the file's parent: the author
+		// chose the file, not it.
+		got := s.resolveID(parent, fetch, true)
+		if got.Error == "not_installed" {
+			return ResolvedStyle{Title: title, Error: "not_installed"}
+		}
 		if got.XML == "" {
 			return ResolvedStyle{Title: title, Error: "parent_missing"}
 		}
-		return ResolvedStyle{XML: got.XML, Title: title, Installed: got.Installed}
+		if got.Installed {
+			return got
+		}
+		return ResolvedStyle{XML: got.XML, Title: title}
 	}
-	return s.resolveID(csl)
+	return s.resolveID(csl, fetch, false)
 }
 
-func (s *StyleService) resolveID(id string) ResolvedStyle {
+func (s *StyleService) resolveID(id string, fetch, asParent bool) ResolvedStyle {
 	if xmlText, title, ok := s.installedXML(id); ok {
 		return ResolvedStyle{XML: xmlText, Title: title}
 	}
 	if !styleIDPattern.MatchString(id) {
 		return ResolvedStyle{Error: "not_found"}
 	}
-	res := s.InstallStyle(id)
+	if !fetch {
+		return ResolvedStyle{Error: "not_installed"}
+	}
+	res := s.install(id, asParent)
 	if res.Error != "" {
 		return ResolvedStyle{Title: res.Title, Error: res.Error}
 	}

@@ -365,6 +365,10 @@
     )
   }
 
+  // How long a `csl:` value naming a style that is not installed must stay
+  // unchanged before Halmos fetches it.
+  const STYLE_FETCH_DELAY_MS = 1000
+
   // Why a document's style could not be used, for ResolveStyle's error word.
   function styleProblem(csl: string, error: string): string {
     switch (error) {
@@ -410,10 +414,22 @@
       let xml: string | null = null
       let resolved: ResolvedStyle | null = null
       if (!isBundledStyle(csl)) {
-        resolved = await StyleService.ResolveStyle(csl, path).catch(
-          () => ({ xml: '', title: '', installed: false, error: 'unreadable' }) as ResolvedStyle,
-        )
+        const docPath = path
+        const resolve = (fetch: boolean) =>
+          StyleService.ResolveStyle(csl, docPath, fetch).catch(
+            () => ({ xml: '', title: '', installed: false, error: 'unreadable' }) as ResolvedStyle,
+          )
+        resolved = await resolve(false)
         if (gen !== reloadGeneration) return // superseded while the style was resolved
+        // Not installed: fetch it only once the value has stopped changing,
+        // so typing `csl: nature-communications` does not install Nature on
+        // the way. Every keystroke starts a new generation.
+        if (resolved.error === 'not_installed') {
+          await new Promise((r) => setTimeout(r, STYLE_FETCH_DELAY_MS))
+          if (gen !== reloadGeneration) return
+          resolved = await resolve(true)
+          if (gen !== reloadGeneration) return
+        }
         xml = resolved.xml || null
       }
       // Building a formatter costs its first formatting pass (up to 0.9 s on
@@ -483,7 +499,7 @@
     // Same reasoning as the chartOpen guards below: the chart builder modal
     // does not block the keyboard, so this must refuse to touch the document
     // while it's open rather than trust that focus alone kept it out.
-    if (chartOpen || tableOpen) return
+    if (chartOpen || tableOpen || newOpen || styleFinderOpen) return
     try {
       const picked = await DocumentService.PickCitations()
       if (picked) {
@@ -598,7 +614,7 @@
     // chartTarget WOULD update, turning a pending insert into a replace of
     // whatever block the cursor happens to be in.
     if (chartOpen) return
-    if (tableOpen) return
+    if (tableOpen || newOpen || styleFinderOpen) return
     // Same guard as applyFormat: menu items fire regardless of focus, so
     // without it this would act on the hidden document behind the welcome pane.
     if (showWelcome) return
@@ -810,7 +826,7 @@
     // focus, so without it this would write into the hidden document behind
     // the welcome pane — or into the one behind the chart builder, which
     // cannot intercept an event arriving through Go's bus.
-    if (showWelcome || chartOpen || tableOpen) return
+    if (showWelcome || chartOpen || tableOpen || newOpen || styleFinderOpen) return
     editor.insertCodeBlockAtCursor(language)
   }
 
@@ -964,7 +980,7 @@
     // The style that formats: a dependent style's parent, as in the preview.
     const resolvedXml =
       fmCsl && !isBundledStyle(fmCsl)
-        ? (await StyleService.ResolveStyle(fmCsl, docPath).catch(() => null))?.xml || null
+        ? (await StyleService.ResolveStyle(fmCsl, docPath, true).catch(() => null))?.xml || null
         : await loadStyleXml(fmCsl ?? 'apa')
     const csl = resolvedXml ?? (await loadStyleXml('apa')) ?? undefined
     const bibText =
@@ -1075,6 +1091,9 @@
 
   // Find a Style… installed the style; an id needs no saved document.
   function useFoundStyle(id: string) {
+    // Closed meanwhile (the document was closed): this is no longer the
+    // document the style was chosen for.
+    if (!styleFinderOpen) return
     styleFinderOpen = false
     if (showWelcome || chartOpen || tableOpen || newOpen) return
     writeCitationStyle(id)

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,6 +16,10 @@ import (
 // describing them, and the cached index (index.json, index-meta.json).
 type styleLibrary struct {
 	dir string
+	// mu is held across writeStyles' read-merge-write of library.json, since
+	// bound calls (an install, an update, a document resolving its style)
+	// run at the same time and the later write would drop the earlier entry.
+	mu sync.Mutex
 }
 
 // installedStyle is one library.json entry. AsParent is true while the
@@ -70,6 +75,8 @@ func (l *styleLibrary) readStyle(id string) ([]byte, error) {
 // A style the author chose stays chosen when it is installed again as a
 // parent.
 func (l *styleLibrary) writeStyles(files map[string][]byte, entries []installedStyle) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if err := l.ensureDir(); err != nil {
 		return err
 	}

@@ -78,6 +78,10 @@
     updates = st.updates
     if (st.ready) {
       status = 'ready'
+      // The field was disabled while loading, so the focus on open missed.
+      void tick().then(() => {
+        if (gen === openGen) input?.focus()
+      })
       await search()
       return
     }
@@ -148,10 +152,19 @@
   async function use() {
     const st = selected
     if (!st || working) return
+    // Installed and current: nothing to download, which also keeps it
+    // usable offline.
+    if (st.installed && !st.update) {
+      onuse(st.id)
+      return
+    }
+    const gen = openGen
     working = true
     problem = ''
     const res = await StyleService.InstallStyle(st.id).catch(() => null)
     working = false
+    // Cancelled or closed while it downloaded: the document is not touched.
+    if (gen !== openGen || !open) return
     if (!res || res.error) {
       problem = `Couldn't install ${res?.title || st.title}.`
       return

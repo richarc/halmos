@@ -75,7 +75,7 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
 // ResolveStyle; by default nothing resolves.
 const { StyleService } = vi.hoisted(() => ({
   StyleService: {
-    ResolveStyle: vi.fn(async (_csl: string, _docPath: string) => ({ xml: '', title: '', installed: false, error: 'not_found' })),
+    ResolveStyle: vi.fn(async (_csl: string, _docPath: string, _fetch: boolean) => ({ xml: '', title: '', installed: false, error: 'not_found' })),
     LoadIndex: vi.fn(async () => ({ ready: true, error: '', fields: [] as string[], updates: 0 })),
     Search: vi.fn(async (_q: string, _f: string, _fmt: string) => ({ styles: [] as Record<string, unknown>[], total: 0 })),
     Installed: vi.fn(async () => [] as Record<string, unknown>[]),
@@ -3088,7 +3088,7 @@ describe('repository styles', () => {
     StyleService.ResolveStyle.mockResolvedValue({ xml: await ieee(), title: 'Nature Communications', installed: false, error: '' })
     const target = await openDoc('---\nbibliography: refs.bib\ncsl: nature-communications\n---\n# Results\n\nSee [@a].\n')
     await vi.waitFor(() => expect(previewText(target)).toContain('See [1]'))
-    expect(StyleService.ResolveStyle).toHaveBeenCalledWith('nature-communications', '/tmp/paper.md')
+    expect(StyleService.ResolveStyle).toHaveBeenCalledWith('nature-communications', '/tmp/paper.md', false)
     expect(toastText(target)).toBe('')
   })
 
@@ -3115,12 +3115,31 @@ describe('repository styles', () => {
     await vi.waitFor(() =>
       expect(toastText(target)).toBe(`Citation style styles/x.csl depends on a style Halmos can't find — using APA`),
     )
-    expect(StyleService.ResolveStyle).toHaveBeenCalledWith('styles/x.csl', '/tmp/paper.md')
+    expect(StyleService.ResolveStyle).toHaveBeenCalledWith('styles/x.csl', '/tmp/paper.md', false)
   })
 
   it('keeps the unknown-style message for an id nobody has', async () => {
     const target = await openDoc('---\nbibliography: refs.bib\ncsl: no-such-style\n---\n# Results\n\nSee [@a].\n')
     await vi.waitFor(() => expect(toastText(target)).toBe('Unknown citation style "no-such-style" — using APA'))
+  })
+
+  it('fetches a style only once the csl: value has settled', async () => {
+    const xml = await ieee()
+    StyleService.ResolveStyle.mockImplementation(async (csl: string, _doc: string, fetch: boolean) =>
+      fetch ? { xml, title: csl, installed: true, error: '' } : { xml: '', title: '', installed: false, error: 'not_installed' },
+    )
+    const target = await openDoc('---\nbibliography: refs.bib\ncsl: nat\n---\n# Results\n\nSee [@a].\n')
+    const view = EditorView.findFromDOM(target.querySelector('.cm-editor')!)!
+    for (const part of ['u', 'r', 'e']) {
+      const at = view.state.doc.toString().indexOf('\n---\n# Results')
+      view.dispatch({ changes: { from: at, insert: part } })
+      flushSync()
+      await new Promise((r) => setTimeout(r, 50))
+    }
+    await vi.waitFor(() => expect(previewText(target)).toContain('See [1]'), { timeout: 4000 })
+    const fetched = StyleService.ResolveStyle.mock.calls.filter((c) => c[2]).map((c) => c[0])
+    expect(fetched).toEqual(['nature'])
+    expect(toastText(target)).toBe('Installed citation style nature')
   })
 
   it('never asks Go about a bundled style', async () => {
@@ -3244,6 +3263,19 @@ describe('Format → Citation Style', () => {
     await vi.waitFor(() => expect(StyleService.Installed).toHaveBeenCalled())
     await Promise.resolve()
     expect(editorText(target)).not.toContain('csl:')
+  })
+
+  it('ignores Insert while the finder is open', async () => {
+    const target = await openDoc('# Results\n\nword\n')
+    listeners['menu:citation-style']({ data: 'find' })
+    await vi.waitFor(() => expect(finder(target)).not.toBeNull())
+    const before = editorText(target)
+    listeners['menu:insert-code']({ data: 'python' })
+    listeners['menu:insert-chart']({ data: null })
+    await Promise.resolve()
+    flushSync()
+    expect(editorText(target)).toBe(before)
+    expect(target.querySelector('.chart-builder')).toBeNull()
   })
 
   it('ignores the format menu while the finder is open', async () => {
