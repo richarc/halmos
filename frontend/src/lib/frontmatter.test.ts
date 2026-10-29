@@ -10,6 +10,22 @@ describe('parseFrontmatter', () => {
     expect(fm.body).toBe('# Title\n')
   })
 
+  it('extracts the reference formatting keys as raw text', () => {
+    const fm = parseFrontmatter(
+      '---\ncitation-et-al-min: 3\ncitation-et-al-use-first: 1\ncitation-et-al-subsequent-min: 2\n' +
+        'citation-et-al-subsequent-use-first: 1\ncitation-et-al-use-last: false\nbibliography-et-al-min: 7\n' +
+        'bibliography-et-al-use-first: 6\nbibliography-et-al-use-last: true\n---\nBody\n',
+    )
+    expect(fm['citation-et-al-min']).toBe('3')
+    expect(fm['citation-et-al-use-first']).toBe('1')
+    expect(fm['citation-et-al-subsequent-min']).toBe('2')
+    expect(fm['citation-et-al-subsequent-use-first']).toBe('1')
+    expect(fm['citation-et-al-use-last']).toBe('false')
+    expect(fm['bibliography-et-al-min']).toBe('7')
+    expect(fm['bibliography-et-al-use-first']).toBe('6')
+    expect(fm['bibliography-et-al-use-last']).toBe('true')
+  })
+
   it('extracts toc and toc-depth', () => {
     const fm = parseFrontmatter('---\ntoc: true\ntoc-depth: 2\n---\nBody\n')
     expect(fm.toc).toBe('true')

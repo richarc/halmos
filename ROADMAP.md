@@ -287,7 +287,7 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
         for LaTeX).
       - HTML: page numbers only matter when it is printed; decide whether
         it gets print CSS or nothing.
-- [ ] **Control how references are formatted, beyond the chosen style.**
+- [x] **Control how references are formatted, beyond the chosen style.**
       LaTeX bibliography packages let an author set, for example, how many
       authors are listed before "et al." Offer the same, set in the
       frontmatter, without the user editing a `.csl` file. The CSL style
@@ -299,6 +299,14 @@ The v0.15.0 items still open on 2026-10-24, moved here unchanged.
       PDF, HTML, Word and LaTeX. Start with the author-list options and
       list which other options are worth exposing. Name-format options
       (initials, "and" versus "&") are candidates.
+      *Done 2026-10-29 (not yet released):* eight frontmatter keys,
+      `citation-et-al-min` to `bibliography-et-al-use-last` (CSL's names
+      after `citation-` or `bibliography-`), applied by
+      `lib/styleOptions.ts` to a copy of the style's XML. An author
+      `<name>` that overrides the setting is changed too (IEEE), unless it
+      is inside a `<choose>` (APA's treaty parties). A `-min` set alone
+      lowers the style's use-first to 1 when it would list everyone. The
+      other options are a Backlog item.
 - [ ] **Wails, KaTeX and Mermaid, then hold dependencies for 1.0.** Wails
       v3.0.0, the stable release, came out on 2026-10-26 (the pin is
       beta.30); take it, not beta.34, from 2026-11-02, when it is 7 days
@@ -661,6 +669,13 @@ library, so it cannot invent a reference.
 
 Ideas noted along the way, not yet committed to a release:
 
+- **More reference formatting options.** Follows the v0.16.0 author-list
+  keys (2026-10-29), same mechanism. Candidates from the CSL
+  specification: `and` ("and" versus "&"), `initialize-with` and
+  `initialize` (initials and their punctuation), `name-as-sort-order`
+  ("Smith, J." order), `delimiter-precedes-last` (the serial comma),
+  `page-range-format`, and the `disambiguate-…` options (how two "Smith
+  2020" citations are told apart). Ask users which they need first.
 - **Numbered headings and section references.** Split from the v0.15.0
   cross-references (2026-10-25). Decide whether headings are numbered
   (per document, in frontmatter), the format ("3", "3.2", "3.2.1") and

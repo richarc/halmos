@@ -174,6 +174,40 @@ file: after editing it, reopen the document or choose the style again.
 The styles come from the [CSL project](https://citationstyles.org/) and are
 shared under the Creative Commons Attribution-ShareAlike 3.0 licence.
 
+### Listing authors
+
+A style decides how many authors are listed before "et al.". APA, for
+example, cites a work with three or more authors as "Doe et al." and lists
+up to 20 in the reference list. To set your own, add these keys to the
+frontmatter. They change the document's style wherever it is used: the
+preview, the hover, PDF, HTML, Word and LaTeX. The style file itself is
+not changed.
+
+| Key | What it sets |
+|---|---|
+| `citation-et-al-min` | In citations, cut the list when it has this many authors or more |
+| `citation-et-al-use-first` | How many authors to keep before "et al." |
+| `citation-et-al-subsequent-min` | As `citation-et-al-min`, for the second and later citations of a work |
+| `citation-et-al-subsequent-use-first` | As `citation-et-al-use-first`, for the second and later citations |
+| `citation-et-al-use-last` | `true` to end a cut list with the last author ("Doe, Roe, … Low") |
+| `bibliography-et-al-min` | In the reference list, cut the list at this many authors or more |
+| `bibliography-et-al-use-first` | How many authors to keep there |
+| `bibliography-et-al-use-last` | `true` to end a cut list with the last author |
+
+The numbers are whole numbers from 1 to 100. Setting only a `-min` key
+keeps one author before "et al." when the style would otherwise list them
+all. For example, to cite any work with two or more authors as
+"Doe et al." and list up to ten authors in the references:
+
+```yaml
+citation-et-al-min: 2
+bibliography-et-al-min: 11
+bibliography-et-al-use-first: 10
+```
+
+The names are the CSL specification's, after `citation-` or
+`bibliography-`. A value Halmos cannot use is ignored, and it says so.
+
 ## Footnotes
 
 ```markdown

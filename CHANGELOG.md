@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   offline, and the window offers updates when the repository's copy
   changes. Choose a file… in the same window opens a `.csl` file from disk,
   as Other Style File… did.
+- Set how many authors are listed before "et al." without editing the
+  style: frontmatter keys such as `citation-et-al-min: 2` and
+  `bibliography-et-al-min: 11` change the document's citation style for
+  citations and for the reference list. The change reaches the preview,
+  PDF, HTML, Word and LaTeX. Authoring describes the keys.
 
 ### Fixed
 
