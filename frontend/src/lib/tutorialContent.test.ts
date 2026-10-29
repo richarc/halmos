@@ -1,0 +1,71 @@
+// @vitest-environment jsdom
+import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { renderDocument } from './renderer'
+import { CHECKS } from './tutorialTasks'
+import { parseBib } from './bibliography'
+import { parseDelimited } from './dataTable'
+
+// The tutorial in docs/tutorial/ as a user first opens it: the portal
+// serves it and the app bundles it, so a mistake here reaches every new user.
+const DIR = join(__dirname, '../../../docs/tutorial')
+const MD = readFileSync(join(DIR, 'getting-started.md'), 'utf8')
+
+describe('the Getting Started tutorial', () => {
+  const { html, crossrefs } = renderDocument(MD)
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const markers = [...MD.matchAll(/<!--\s*check:\s*([a-z-]*)\s*-->/g)].map((m) => m[1])
+
+  it('uses every check, and only known ones', () => {
+    for (const m of markers) expect(CHECKS).toContain(m)
+    expect(new Set(markers)).toEqual(new Set(CHECKS))
+  })
+
+  it('has no task done before the user starts', () => {
+    expect(doc.querySelectorAll('li.task-list-item').length).toBe(markers.length)
+    expect(doc.querySelectorAll('li.tutorial-task-done').length).toBe(0)
+  })
+
+  it("resolves every example's cross-reference", () => {
+    expect(crossrefs.missing).toEqual([])
+    expect(crossrefs.duplicates).toEqual([])
+  })
+
+  it('says where to do every task', () => {
+    for (const section of MD.split(/^# /m).filter((x) => x.includes('<!-- check:'))) {
+      expect(section, section.slice(0, 40)).toMatch(/below the tasks/i)
+    }
+  })
+
+  it('leads the citation task with typing [@, which lists the bibliography', () => {
+    const cite = MD.split(/^# /m).find((x) => x.startsWith('Citations'))!
+    expect(cite.indexOf('`[@`')).toBeGreaterThan(-1)
+    expect(cite.indexOf('`[@`')).toBeLessThan(cite.indexOf('Insert: Citation…'))
+  })
+
+  it('work typed on the line under a your-turn prompt ticks, outside the prompt', () => {
+    const lines = MD.split('\n')
+    const rule = lines.findIndex((l, i) => i > lines.findIndex((x) => x.startsWith('# Equations')) && l === '***')
+    expect(rule).toBeGreaterThan(-1)
+    lines.splice(rule + 1, 1, 'The area is $x$.')
+    const typed = new DOMParser().parseFromString(renderDocument(lines.join('\n')).html, 'text/html')
+    const done = [...typed.querySelectorAll('li.tutorial-task-done')].map((li) => li.textContent)
+    expect(done.some((t) => t?.includes('inside a sentence'))).toBe(true)
+    const p = [...typed.querySelectorAll('p')].find((x) => x.textContent?.includes('The area is'))!
+    expect(p.closest('blockquote, .markdown-alert')).toBeNull()
+  })
+
+  it('names a bibliography that has every key it cites', () => {
+    expect(MD).toMatch(/^bibliography: getting-started\.bib$/m)
+    const keys = new Set(parseBib(readFileSync(join(DIR, 'getting-started.bib'), 'utf8')).entries.map((e) => e.id))
+    const cited = [...MD.matchAll(/@([a-z]+\d{4}[a-z]+)/g)].map((m) => m[1])
+    expect(cited.length).toBeGreaterThan(0)
+    for (const k of cited) expect(keys).toContain(k)
+  })
+
+  it('has a data set the chart builder can read', () => {
+    const result = parseDelimited(readFileSync(join(DIR, 'rainfall.csv'), 'utf8'))
+    expect(result.ok).toBe(true)
+  })
+})

@@ -175,6 +175,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	// something the reader only wants to read.
 	helpP := []string{"Help"}
 	help := menu.AddSubmenu("Help")
+	addGettingStarted(help, func() { showWindow(win) }, func(name string, data ...any) { app.Event.Emit(name, data...) }, cmds)
 	cmds.item(help.Add("Halmos Documentation"), helpP, func() {
 		if err := app.Browser.OpenURL(docsURL); err != nil {
 			log.Printf("could not open the documentation: %v", err)
@@ -748,4 +749,15 @@ func addInsertMenu(menu *application.Menu, emit func(name string, data ...any), 
 	cmds.item(codeBlock.Add("Plain text"), codeP, func() {
 		emit("menu:insert-code", "")
 	}, doc)
+}
+
+// addGettingStarted puts Help → Getting Started first in the Help menu. It
+// shows the window, as New and Open do, since the tutorial opens a document;
+// the frontend owns the dialog that follows (GettingStarted.svelte).
+func addGettingStarted(help *application.Menu, show func(), emit func(name string, data ...any), cmds *commandSet) {
+	cmds.item(help.Add("Getting Started"), []string{"Help"}, func() {
+		show()
+		emit("menu:tutorial")
+	}, commandOpts{})
+	help.AddSeparator()
 }

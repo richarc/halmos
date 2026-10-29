@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- An interactive Getting Started tutorial: Help → Getting Started, also on
+  the welcome pane and in the command palette. It puts a short document, a
+  bibliography and a data set in a folder of their own (`~/Documents/Halmos
+  Tutorial` by default) and opens it. Each section shows an example, then
+  sets tasks (an equation, a chart from the data set, a citation, a captioned
+  table, cross-references) that the preview ticks as you do them. It is
+  downloaded from halmoseditor.com, with the copy bundled with the app used
+  offline. A first launch points to it.
+- The chart builder's Choose File… opens in the document's folder.
 - A command palette. ⇧⌘P opens it; type part of a command's name and press
   Return. Every Halmos command in the menus is listed as "Menu: Item" with
   its shortcut, so it is also where to look a shortcut up. The letters typed

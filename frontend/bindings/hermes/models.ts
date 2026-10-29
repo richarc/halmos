@@ -256,6 +256,27 @@ export interface StyleText {
 }
 
 /**
+ * TutorialResult is the written tutorial's entry. Bundled says the copy that
+ * came with the app was used; NeedsUpdate says the reason was that the portal's
+ * needs a newer editor, which is the one reason worth telling the user.
+ */
+export interface TutorialResult {
+    "entry": string;
+    "bundled": boolean;
+    "needsUpdate": boolean;
+}
+
+/**
+ * TutorialState is what the dialog shows: an earlier tutorial that is still
+ * there (Existing, with its entry), and the folder a fresh one would use.
+ */
+export interface TutorialState {
+    "existing": string;
+    "existingEntry": string;
+    "suggested": string;
+}
+
+/**
  * UpdateResult is what CheckForUpdates hands the frontend. Checked false
  * means the throttle applied and nothing was fetched; Current is filled
  * either way so a manual "up to date" message can name the version.

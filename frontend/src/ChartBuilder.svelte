@@ -20,11 +20,13 @@
 
   interface Props {
     initial: BuilderState | null
+    /** The open document's path, '' when untitled: Import starts in its folder. */
+    docPath?: string
     oncommit: (spec: string) => void
     oncancel: () => void
   }
 
-  const { initial, oncommit, oncancel }: Props = $props()
+  const { initial, docPath = '', oncommit, oncancel }: Props = $props()
 
   // Above this many rows the document gets unwieldy, but aggregation makes a
   // large raw table a legitimate input — so this warns and does not block.
@@ -153,7 +155,7 @@
   async function chooseFile() {
     importError = ''
     try {
-      const text = await DocumentService.ImportData()
+      const text = await DocumentService.ImportData(docPath)
       if (text) {
         pasted = text
         load(text)

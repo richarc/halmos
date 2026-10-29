@@ -641,3 +641,32 @@ func TestCitationStyleMenuWithNothingInstalled(t *testing.T) {
 		t.Fatalf("labels %q", labels)
 	}
 }
+
+func TestHelpMenuStartsWithGettingStarted(t *testing.T) {
+	testApp()
+	help := application.NewMenu()
+	var emitted []string
+	shown := false
+	cmds := newCommandSet()
+	addGettingStarted(help, func() { shown = true }, func(name string, _ ...any) { emitted = append(emitted, name) }, cmds)
+	var found *Command
+	for _, c := range commandsOf(cmds) {
+		if c.ID == "Help › Getting Started" {
+			found = &c
+		}
+	}
+	if found == nil {
+		t.Fatal("no Help › Getting Started command")
+	}
+	if found.NeedsDocument {
+		t.Error("Getting Started needs a document")
+	}
+	r := &commandRegistry{}
+	r.replace(cmds)
+	if !r.run("Help › Getting Started") {
+		t.Fatal("did not run")
+	}
+	if !shown || !reflect.DeepEqual(emitted, []string{"menu:tutorial"}) {
+		t.Errorf("shown %v, emitted %v", shown, emitted)
+	}
+}

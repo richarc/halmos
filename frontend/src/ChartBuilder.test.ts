@@ -25,12 +25,12 @@ const { embedChart } = vi.hoisted(() => ({
 }))
 vi.mock('./lib/charts', () => ({ embedChart }))
 
-function mountBuilder() {
+function mountBuilder(docPath = '') {
   const target = document.createElement('div')
   document.body.appendChild(target)
   const cmp = mount(ChartBuilder, {
     target,
-    props: { initial: null, oncommit: vi.fn(), oncancel: vi.fn() },
+    props: { initial: null, docPath, oncommit: vi.fn(), oncancel: vi.fn() },
   })
   flushSync()
   return {
@@ -91,6 +91,17 @@ describe('ChartBuilder data step', () => {
     )!
     button.click()
     await vi.waitFor(() => expect(target.textContent).toContain('2 rows'))
+    cleanup()
+  })
+
+  it("imports from the document's folder", async () => {
+    ImportData.mockResolvedValueOnce('')
+    const { target, cleanup } = mountBuilder('/Users/a/Halmos Tutorial/getting-started.md')
+    const button = [...target.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Choose File'),
+    )!
+    button.click()
+    await vi.waitFor(() => expect(ImportData).toHaveBeenCalledWith('/Users/a/Halmos Tutorial/getting-started.md'))
     cleanup()
   })
 

@@ -1,0 +1,10 @@
+{
+  "title": "Getting Started with Halmos",
+  "entry": "getting-started.md",
+  "min_editor": "0.16.0",
+  "files": [
+    "getting-started.md",
+    "getting-started.bib",
+    "rainfall.csv"
+  ]
+}

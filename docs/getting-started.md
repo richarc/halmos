@@ -24,7 +24,20 @@ is on disk until you save, so press **⌘S** early; the save panel asks where
 to put the file.
 
 On later launches Halmos shows the welcome pane instead: your recent files,
-a **New Document** button, and **Open…**.
+a **New Document** button, **Open…** and **Getting Started**.
+
+### Help → Getting Started
+
+The interactive tutorial. Halmos puts a short document, its bibliography
+and a small data set in a folder of their own (`~/Documents/Halmos
+Tutorial` unless you choose another place) and opens the document. Each
+section shows a finished example of an equation, a chart, a citation, a
+table or a cross-reference, then gives you tasks to do in the same
+document; the preview ticks each one when it sees it done. It is also on
+the welcome pane and in the command palette. The tutorial comes from
+halmoseditor.com, so it can improve between releases; offline, Halmos uses
+the copy it came with. Running it again offers to open the one you have or
+start fresh in a new folder; your edits are never overwritten.
 
 ### File → New… (⌘N)
 
