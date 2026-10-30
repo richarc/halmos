@@ -14,11 +14,13 @@ Markdown document in a folder of its own, beside its bibliography
 (`getting-started.bib`) and a small data set (`rainfall.csv`). Change
 anything you like: nothing here can break.
 
-Each section shows a finished example, then gives you a few tasks to do in
-this document, just below them, after a blank line. When Halmos sees a
-task done, it ticks it in the preview on the right.
+The first section, Formatting, you try in place: each instruction is
+followed by a line to change. Each section after it shows a finished
+example, then gives you a few tasks to do in this document, just below
+them, after a blank line. When Halmos sees a task done, it ticks it in the
+preview on the right.
 
-Each section ends with a box and a dividing line marking where your turn
+Those sections end with a box and a dividing line marking where your turn
 starts: click on the empty line under the line and begin.
 
 Every command has a name. Press **⇧⌘P** to open the command palette and
@@ -27,6 +29,35 @@ choose the command from the list: click it, or move to it with the arrow
 keys and press Return. Many commands also have a shortcut of their own,
 shown beside them in the palette and the menus; where a task has one, it
 gives it, and you can press it straight away instead.
+
+# Formatting
+
+Headings, bold, italics and lists each have a shortcut. Try each one on the
+line it describes, and watch the preview on the right change.
+
+Put the cursor anywhere on the next line and press **⌘2** to make it a
+heading. **⌘1** to **⌘6** give the six sizes, largest first, and **⌘0**
+makes it an ordinary line again.
+
+Make this line a heading
+
+Double-click the word "bold" in the next line and press **⌘B** to make it
+bold. Then double-click "italic" and press **⌘I** to make it italic.
+
+This word is bold and this one is italic.
+
+Select the three lines below, from "Apples" to "Plums", and press **⇧⌘8**
+to make them a bulleted list. With them still selected, press **⇧⌘7** to
+number them instead.
+
+Apples
+Pears
+Plums
+
+Each shortcut writes ordinary Markdown, which you can see on the left: `##`
+before a heading, `**` around bold, `*` around italics, `-` or `1.` before
+each item of a list. Typing those yourself does the same. The **Format**
+menu lists every shortcut.
 
 # Equations
 

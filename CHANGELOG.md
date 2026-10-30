@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The Getting Started tutorial opens with a Formatting section: headings,
+  bold, italics and lists, each tried with its shortcut on a line in the
+  tutorial itself.
+
 ## [0.16.1] - 2026-10-29
 
 ### Changed
