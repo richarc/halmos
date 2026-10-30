@@ -619,6 +619,17 @@ separate, much larger project and is deliberately not part of this.
       link). Done 2026-10-18: the last items, one spacing scale for the
       chrome (checked by a test), toast text at dialog size above the status
       bar, and two named button sizes.
+- [ ] **Bookmarks and document properties in the exported PDF.** Export
+      PDF… writes a PDF with no outline and no title or author, because
+      WebKit's printing adds neither. Add a bookmark for each heading (the
+      sidebar outline in Preview and Acrobat, which a long thesis needs)
+      and set the title and author from the frontmatter. Bookmarks need the
+      page each heading landed on, which only the finished PDF knows: on
+      macOS, find each heading's text in it with PDFKit. Write the outline
+      and properties in Go with pdfcpu (Apache-2.0, pure Go) rather than
+      PDFKit, so the Windows version (v1.2.0) can reuse that step; check
+      first that pdfcpu writes nested bookmarks and keeps the links and
+      searchable text WebKit produced. Added 2026-10-30.
 
 ## v1.1.0 — Back end, payment and first paid services
 
@@ -752,6 +763,20 @@ accepting it.
       backlog and v1.0.0. Many academics use Windows, and a Mac-only product
       limits who can pay. The paths, menus and print behaviour are currently
       macOS-focused.
+      PDF export, from a review on 2026-10-30: on Windows the app runs in
+      WebView2, which is Chromium, so Export PDF needs its own route there
+      (WebView2's print to PDF, or Chromium's own PDF printing through it).
+      Chromium is the better printer: confirm in a spike whether it gives
+      running headers and footers with page numbers, bookmarks from the
+      headings, tagged PDF and CSS page-margin boxes. `pdfstamp_darwin.go`
+      is PDFKit and does not port, so move the header and footer drawing
+      into shared Go (pdfcpu, as the v1.0.0 bookmarks step does), leaving
+      each platform only to render the preview to a PDF at the paper size.
+      The same document will break pages differently on Mac and Windows
+      (different fonts and line breaking; New York is macOS-only), while
+      each PDF still matches its own preview; say so in the docs. Only a
+      separate typesetter such as Typst would make the two identical, at the
+      cost of the PDF no longer matching the preview.
 
 ## v1.3.0 — AI limited to the user's own sources
 
