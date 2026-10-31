@@ -145,8 +145,12 @@ const { PortalService, SIGNED_IN } = vi.hoisted(() => {
 
 vi.mock('@wailsio/runtime', () => ({
   Events: {
+    // Returns its unsubscribe, as the runtime's does; App calls it on unmount.
     On: (name: string, cb: (ev: { data: unknown }) => void) => {
       listeners[name] = cb
+      return () => {
+        if (listeners[name] === cb) delete listeners[name]
+      }
     },
   },
   Browser: { OpenURL: vi.fn() },
