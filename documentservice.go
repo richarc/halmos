@@ -367,7 +367,7 @@ func (s *DocumentService) currentCitationStyle() string {
 // has already confirmed any replacement.
 //
 // Split from the dialog so it is testable without one, the same reason
-// feedbackURL and quitRequest are separate from what calls them.
+// feedbackURL and closeRequest are separate from what calls them.
 func (s *DocumentService) CreateDocument(path, content, bibName, bibContent string) (Document, error) {
 	if bibName != "" {
 		bibPath := resolveAgainstDoc(bibName, path)

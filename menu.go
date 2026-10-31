@@ -54,27 +54,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 		whenVisible(win.IsVisible(), func() { app.Event.Emit(name, data...) })
 	}
 
-	// ⌘Q used to discard unsaved work: main.go's guard is registered on
-	// events.Common.WindowClosing, a *window* event, and quitting never raises
-	// one. Route the shortcut through the same confirm the red button uses.
-	//
-	// Replacing the handler is not enough on its own — see reclaimQuitItem.
-	//
-	// DocumentService.Quit() deliberately still quits outright: it is what runs
-	// *after* the user chooses Save or Don't Save, and sending it back through
-	// this confirm would loop.
-	if quit := reclaimQuitItem(menu); quit != nil {
-		cmds.item(quit, []string{appName}, func() {
-			quitRequest(docs.mustAsk(),
-				// Shown first: with the window hidden (#17) the dialog
-				// would otherwise render where nobody can see it.
-				func() {
-					showWindow(win)
-					app.Event.Emit("close:confirm", "quit")
-				},
-				app.Quit)
-		}, commandOpts{})
-	}
+	registerQuit(menu, cmds, appName, app.Quit)
 
 	fileP := []string{"File"}
 	file := menu.AddSubmenu("File")
@@ -559,39 +539,21 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	}, commandOpts{needsDocument: true})
 }
 
-// reclaimQuitItem takes the App menu's Quit item back from AppKit so a Go
-// handler can run on it, and returns it — or nil if there is no Quit item.
-//
-// Attaching OnClick alone does nothing, which is how the first attempt at this
-// fix shipped without working. Wails builds a role-based item with the role's
-// native selector and target=nil (menuitem_selectors_darwin.go maps Quit to
-// "terminate:"), so AppKit sends the action up the responder chain to NSApp
-// and the callback is never invoked. Clearing the role drops the selector,
-// which puts the item back on the ordinary handleClick path. The label and the
-// ⌘Q accelerator are properties of the item, not the role, so both survive.
-func reclaimQuitItem(menu *application.Menu) *application.MenuItem {
-	quit := menu.FindByRole(application.Quit)
-	if quit == nil {
-		return nil
+// registerQuit lists the App menu's Quit in the palette, running quit. The
+// item keeps its role: ⌘Q and the menu send AppKit's terminate:, which asks
+// Options.ShouldQuit (shouldQuit), the same as the Dock's Quit, logout,
+// restart and app.Quit. So every quit raises the unsaved-changes confirm the
+// same way, and DocumentService.Quit, run after the user answers it,
+// approves first so the second ask lets it through.
+func registerQuit(menu *application.Menu, cmds *commandSet, appName string, quit func()) {
+	if item := menu.FindByRole(application.Quit); item != nil {
+		cmds.item(item, []string{appName}, quit, commandOpts{})
 	}
-	return quit.SetRole(application.NoRole)
-}
-
-// quitRequest decides what ⌘Q does: raise the confirm (unsaved changes, or
-// a builder open; see mustAsk), or quit. Split out from the menu closure so the branch is reachable by a test —
-// getting it the wrong way round silently discards the user's document, and
-// AppKit menu construction cannot be exercised headlessly.
-func quitRequest(ask bool, confirm func(), quit func()) {
-	if ask {
-		confirm()
-		return
-	}
-	quit()
 }
 
 // shouldQuit is Options.ShouldQuit's decision, run from AppKit's
-// applicationShouldTerminate. ⌘Q is caught earlier by quitRequest, but the
-// Dock's Quit, logout and restart arrive only here. A dirty document (or an
+// applicationShouldTerminate, which every quit reaches: ⌘Q, the menu, the
+// palette, the Dock's Quit, logout and restart. A dirty document (or an
 // open builder) raises the same confirm and refuses the quit; the user's Save or Don't Save then
 // calls DocumentService.Quit, which approves first so this lets it through.
 func shouldQuit(ask, approved bool, confirm func()) bool {
@@ -612,8 +574,9 @@ var findItems = []struct{ label, key, command string }{
 }
 
 // closeRequest decides what the window's close button does: raise the
-// confirm (unsaved changes, or a builder open), or close. Split out for the same reason as
-// quitRequest. Closing hides the window rather than quitting, so Hermes stays
+// confirm (unsaved changes, or a builder open), or close. Split out from the
+// close hook so the branch is reachable by a test: AppKit menu and window
+// wiring cannot be exercised headlessly. Closing hides the window rather than quitting, so Hermes stays
 // in the Dock and a click on its icon brings the window back (#17).
 func closeRequest(ask bool, confirm func(), close func()) {
 	if ask {
@@ -642,7 +605,7 @@ func showWindow(win *application.WebviewWindow) {
 // addAppMenu builds the application menu by hand, in the order of Wails' own
 // AppMenu role (roles.go, NewAppMenu), with Account… after About: the role
 // is a fixed block that takes no items of its own. Quit is still a role
-// item, which reclaimQuitItem then takes over and installMenu registers.
+// item, which installMenu lists in the palette (registerQuit).
 //
 // paid is paidFeatures: without it there is no Account….
 func addAppMenu(menu *application.Menu, name string, onAccount func(), cmds *commandSet, paid bool) {

@@ -39,7 +39,7 @@ var (
 
 // windowBackground is the colour the window wears until the webview's first
 // frame arrives. Split out of main so it is testable — AppKit window creation
-// is not exercisable headlessly, the same reason feedbackURL and quitRequest
+// is not exercisable headlessly, the same reason feedbackURL and closeRequest
 // are separate from what calls them.
 //
 // "system" keeps the light value: resolving it would mean reading the OS

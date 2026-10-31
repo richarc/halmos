@@ -43,7 +43,7 @@ const (
 // bare issues/new opens the chooser once blank issues are turned off.
 //
 // Split from the menu closure so it is reachable by a test, the same reason
-// quitRequest and localImagePath are separate from what calls them — AppKit
+// closeRequest and localImagePath are separate from what calls them — AppKit
 // menu construction cannot be exercised headlessly.
 func feedbackURL(appVersion, osName, osVersion string) string {
 	if appVersion == "" {
