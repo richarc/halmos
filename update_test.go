@@ -321,7 +321,7 @@ func TestCheckForUpdatesWithoutAVersion(t *testing.T) {
 // refuses.
 func TestForcedCheckSurvivesAnUnwritableStateFile(t *testing.T) {
 	s, hits, _ := newUpdateTestService(t, `{"version": "0.10.0"}`, http.StatusOK)
-	// The parent directory does not exist, so writeFileAtomic's CreateTemp
+	// The parent directory does not exist, so fileio.WriteFileAtomic's CreateTemp
 	// fails.
 	s.updateStatePath = filepath.Join(t.TempDir(), "missing-dir", "update-check.json")
 

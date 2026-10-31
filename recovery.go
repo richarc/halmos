@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"hermes/internal/fileio"
 )
 
 // Draft is what RecoverDraft hands the frontend. Found false means there is
@@ -87,7 +89,7 @@ func (d *draftStore) write(docPath, content, base string) error {
 	}
 	// 0600: the draft is the user's unsaved text, and unlike the document it
 	// lives in a folder they did not choose.
-	return writeFileAtomic(d.file(docPath), data, 0o600)
+	return fileio.WriteFileAtomic(d.file(docPath), data, 0o600)
 }
 
 // read loads the draft file; ok is false when it is missing or unreadable.
@@ -119,7 +121,7 @@ func (d *draftStore) markSaved(docPath, version string) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(d.file(docPath), data, 0o600)
+	return fileio.WriteFileAtomic(d.file(docPath), data, 0o600)
 }
 
 // move re-files the draft under another document path, after the document
@@ -136,7 +138,7 @@ func (d *draftStore) move(from, to string) error {
 	if err != nil {
 		return err
 	}
-	if err := writeFileAtomic(d.file(to), data, 0o600); err != nil {
+	if err := fileio.WriteFileAtomic(d.file(to), data, 0o600); err != nil {
 		return err
 	}
 	if d.file(from) == d.file(to) {

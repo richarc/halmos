@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"hermes/internal/fileio"
 )
 
 const maxRecents = 10
@@ -131,7 +133,7 @@ func (s *DocumentService) Save(path, content string, overwrite bool) (SaveResult
 			return SaveResult{}, fileError(err, path)
 		}
 	}
-	if err := writeFileAtomic(path, []byte(content), 0o644); err != nil {
+	if err := fileio.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
 		return SaveResult{}, fileError(err, path)
 	}
 	s.trackDocument(path, []byte(content))
@@ -364,7 +366,7 @@ func (s *DocumentService) CreateDocument(path, content, bibName, bibContent stri
 	if bibName != "" {
 		bibPath := resolveAgainstDoc(bibName, path)
 		if _, err := os.Stat(bibPath); os.IsNotExist(err) {
-			if err := writeFileAtomic(bibPath, []byte(bibContent), 0o644); err != nil {
+			if err := fileio.WriteFileAtomic(bibPath, []byte(bibContent), 0o644); err != nil {
 				return Document{}, fileError(fmt.Errorf("creating bibliography: %w", err), bibPath)
 			}
 		} else if err != nil {
@@ -536,7 +538,7 @@ func (s *DocumentService) writeRecentsLocked(recents []string) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(s.recentsPath, data, 0o644)
+	return fileio.WriteFileAtomic(s.recentsPath, data, 0o644)
 }
 
 func (s *DocumentService) notifyRecentsChanged() {

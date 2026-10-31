@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+
+	"hermes/internal/fileio"
 )
 
 // Settings holds every persisted user preference in one value. Adding a
@@ -196,5 +198,5 @@ func (st *settingsStore) persist(s Settings) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(st.path, data, 0o644)
+	return fileio.WriteFileAtomic(st.path, data, 0o644)
 }

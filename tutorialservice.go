@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"hermes/internal/fileio"
 )
 
 // TutorialService is the editor's side of Help → Getting Started: it gets
@@ -141,7 +143,7 @@ func (s *TutorialService) remember(folder string) {
 		log.Printf("tutorial: %v", err)
 		return
 	}
-	if err := writeFileAtomic(s.memory, b, 0o644); err != nil {
+	if err := fileio.WriteFileAtomic(s.memory, b, 0o644); err != nil {
 		log.Printf("tutorial: %v", err)
 	}
 }

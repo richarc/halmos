@@ -1,6 +1,6 @@
 //go:build darwin
 
-package main
+package fileio
 
 import (
 	"os"
@@ -22,7 +22,7 @@ func TestSaveKeepsFinderTags(t *testing.T) {
 	if err := unix.Setxattr(path, tags, value, 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeFileAtomic(path, []byte("new"), 0o644); err != nil {
+	if err := WriteFileAtomic(path, []byte("new"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	buf := make([]byte, 256)

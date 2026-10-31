@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"hermes/internal/fileio"
 )
 
 // maxPaletteRecents is how many recently run commands the palette offers.
@@ -72,7 +74,7 @@ func (c *CommandService) RunCommand(id string) bool {
 	if data, err := json.Marshal(next); err == nil {
 		if err := os.MkdirAll(filepath.Dir(c.path), 0o755); err != nil {
 			log.Printf("could not save palette recents: %v", err)
-		} else if err := writeFileAtomic(c.path, data, 0o644); err != nil {
+		} else if err := fileio.WriteFileAtomic(c.path, data, 0o644); err != nil {
 			log.Printf("could not save palette recents: %v", err)
 		}
 	}

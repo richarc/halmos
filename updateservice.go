@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"hermes/internal/fileio"
 )
 
 // UpdateService is Help → Check for Updates… and the once-a-day check. The
@@ -149,5 +151,5 @@ func (s *UpdateService) writeUpdateState(state updateState) error {
 	// creates <data>/hermes before the service exists (adrg/xdg's
 	// pathutil.Create does os.MkdirAll on the parent); the tests' temp
 	// dir exists too.
-	return writeFileAtomic(s.updateStatePath, data, 0o644)
+	return fileio.WriteFileAtomic(s.updateStatePath, data, 0o644)
 }

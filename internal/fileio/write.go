@@ -1,11 +1,11 @@
-package main
+package fileio
 
 import (
 	"os"
 	"path/filepath"
 )
 
-// writeFileAtomic writes data to path by way of a temp file in the same
+// WriteFileAtomic writes data to path by way of a temp file in the same
 // directory, which is fsynced and then renamed over the destination. Because
 // rename is atomic, a reader either sees the previous file or the complete new
 // one — never a half-written one — so an interrupted save cannot destroy the
@@ -18,7 +18,7 @@ import (
 //
 // The temp file lives beside the destination rather than in the system temp
 // dir so that both are on the same filesystem — rename cannot cross one.
-func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	// A symlinked document stays a symlink: write the file it leads to. A
 	// link that leads nowhere is replaced, as a missing file is created.
 	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {

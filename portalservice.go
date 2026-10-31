@@ -14,6 +14,8 @@ import (
 	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"hermes/internal/fileio"
 )
 
 // PortalService is the frontend's way to the Halmos portal: connecting this
@@ -373,7 +375,7 @@ func (s *PortalService) Export(path string, req ConvertRequest) *PortalError {
 	if err != nil || len(content) == 0 {
 		return &PortalError{Status: 200, Code: "server_error"}
 	}
-	if err := writeFileAtomic(path, content, 0o644); err != nil {
+	if err := fileio.WriteFileAtomic(path, content, 0o644); err != nil {
 		return &PortalError{Code: "write_failed"}
 	}
 	return nil
