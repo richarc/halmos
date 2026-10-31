@@ -106,9 +106,8 @@ func (s Settings) normalise() Settings {
 }
 
 // settingsStore owns the settings file. It reads it once and then serves from
-// memory, writing only when a value actually changes — the previous code
-// re-read and re-parsed the file on every access, including once per menu
-// rebuild.
+// memory, writing only when a value actually changes, so a menu rebuild reads
+// no file.
 type settingsStore struct {
 	path string
 

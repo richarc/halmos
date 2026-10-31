@@ -447,7 +447,7 @@ func (s *DocumentService) ExportPDF(docPath string, furniture PageFurniture) err
 
 // PrintDocument opens the system print panel. Picking a printer and a tray is
 // a job the panel is genuinely good at; picking paper is not, which is why
-// export no longer goes through here.
+// Export PDF does not go through here.
 func (s *DocumentService) PrintDocument() {
 	if s.window == nil {
 		return

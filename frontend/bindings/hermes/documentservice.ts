@@ -152,7 +152,7 @@ export function PickCitations(): $CancellablePromise<string> {
 /**
  * PrintDocument opens the system print panel. Picking a printer and a tray is
  * a job the panel is genuinely good at; picking paper is not, which is why
- * export no longer goes through here.
+ * Export PDF does not go through here.
  */
 export function PrintDocument(): $CancellablePromise<void> {
     return $Call.ByID(2407220630);
