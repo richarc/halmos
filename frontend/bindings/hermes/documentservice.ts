@@ -20,6 +20,15 @@ export function AcceptDiskVersion(version: string): $CancellablePromise<void> {
 }
 
 /**
+ * ChangeSettings writes only the fields where next differs from base, onto
+ * the stored value. base is what the caller read, next what it wants, so a
+ * setting changed in between (from the menu, say) is kept.
+ */
+export function ChangeSettings(base: $models.Settings, next: $models.Settings): $CancellablePromise<void> {
+    return $Call.ByID(371647913, base, next);
+}
+
+/**
  * CheckForUpdates compares the running version with the feed's. force skips
  * the once-a-day throttle and the setting gate; the Help menu's manual item
  * passes true, the automatic check at launch passes false.

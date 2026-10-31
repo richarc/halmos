@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"sync"
 	"path/filepath"
 	"testing"
 )
@@ -522,5 +523,61 @@ func TestSettingsFileWithoutSpellCheckKeyReadsAsOn(t *testing.T) {
 	got := NewDocumentService(filepath.Join(dir, "recents.json")).Settings()
 	if !got.SpellCheck || got.AutoSave {
 		t.Errorf("want spellCheck on with autoSave still off, got %+v", got)
+	}
+}
+
+// Each change is applied to what is stored when it runs, so two changes to
+// different fields both survive, however they interleave.
+func TestSettingsUpdateIsAtomic(t *testing.T) {
+	s := newTestService(t)
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			change := func(x *Settings) { x.PaperSize = "letter" }
+			if i%2 == 1 {
+				change = func(x *Settings) { x.Theme = "dark" }
+			}
+			if err := s.settings.update(change); err != nil {
+				t.Error(err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	if got := s.Settings(); got.PaperSize != "letter" || got.Theme != "dark" {
+		t.Fatalf("lost a change: %+v", got)
+	}
+}
+
+// The frontend sends what it read and what it wants; only the fields it
+// changed are written, so a change made in between survives.
+func TestChangeSettingsKeepsConcurrentField(t *testing.T) {
+	s := newTestService(t)
+	base := s.Settings()
+	if err := s.updateSettings(func(x *Settings) { x.PaperSize = "letter" }); err != nil {
+		t.Fatal(err)
+	}
+	next := base
+	next.ShowOutline = !base.ShowOutline
+	if err := s.ChangeSettings(base, next); err != nil {
+		t.Fatal(err)
+	}
+	got := s.Settings()
+	if got.ShowOutline != next.ShowOutline || got.PaperSize != "letter" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestChangeSettingsNoChangeWritesNothing(t *testing.T) {
+	s := newTestService(t)
+	fired := 0
+	s.settings.onChanged = func() { fired++ }
+	x := s.Settings()
+	if err := s.ChangeSettings(x, x); err != nil {
+		t.Fatal(err)
+	}
+	if fired != 0 {
+		t.Fatalf("fired %d", fired)
 	}
 }

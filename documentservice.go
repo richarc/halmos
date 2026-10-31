@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -396,6 +397,26 @@ func (s *DocumentService) Settings() Settings {
 // stick. Out-of-range values are normalised rather than rejected.
 func (s *DocumentService) UpdateSettings(next Settings) error {
 	return s.settings.set(next)
+}
+
+// ChangeSettings writes only the fields where next differs from base, onto
+// the stored value. base is what the caller read, next what it wants, so a
+// setting changed in between (from the menu, say) is kept.
+func (s *DocumentService) ChangeSettings(base, next Settings) error {
+	return s.settings.update(func(cur *Settings) {
+		b, n, c := reflect.ValueOf(base), reflect.ValueOf(next), reflect.ValueOf(cur).Elem()
+		for i := 0; i < n.NumField(); i++ {
+			if n.Field(i).Interface() != b.Field(i).Interface() {
+				c.Field(i).Set(n.Field(i))
+			}
+		}
+	})
+}
+
+// updateSettings is the menu's change of one setting, applied to the stored
+// value under the store's lock.
+func (s *DocumentService) updateSettings(change func(*Settings)) error {
+	return s.settings.update(change)
 }
 
 // paperPoints returns a paper's width and height in PostScript points, which

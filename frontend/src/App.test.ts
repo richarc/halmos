@@ -53,6 +53,7 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       ReadImageDataURI: vi.fn(async (_docPath: string, _src: string) => 'data:image/png;base64,AA=='),
       Settings: vi.fn(async () => settings.current),
       UpdateSettings: vi.fn(async (_next: typeof DEFAULT_SETTINGS) => {}),
+      ChangeSettings: vi.fn(async (_base: typeof DEFAULT_SETTINGS, _next: typeof DEFAULT_SETTINGS) => {}),
       ImportData: vi.fn(async () => ''),
       ChooseNewDocumentPath: vi.fn(async () => ''),
       ChooseBibliography: vi.fn(async () => ''),
@@ -722,8 +723,8 @@ describe('toolbar', () => {
     expect(toggle.getAttribute('aria-pressed')).toBe('false')
     expect(toggle.title).toBe('Show outline (⌘⌥O)')
     toggle.click()
-    await vi.waitFor(() => expect(DocumentService.UpdateSettings).toHaveBeenCalled())
-    expect(DocumentService.UpdateSettings.mock.calls[0][0].showOutline).toBe(true)
+    await vi.waitFor(() => expect(DocumentService.ChangeSettings).toHaveBeenCalled())
+    expect(DocumentService.ChangeSettings.mock.calls[0][1].showOutline).toBe(true)
   })
 
   it('the Outline button reads as pressed while the outline is shown', async () => {
@@ -805,8 +806,8 @@ describe('outline panel', () => {
     await vi.waitFor(() => expect(target.querySelector('.outline')).not.toBeNull())
 
     ;(target.querySelector('.outline-toggle') as HTMLButtonElement).click()
-    await vi.waitFor(() => expect(DocumentService.UpdateSettings).toHaveBeenCalled())
-    expect(DocumentService.UpdateSettings.mock.calls[0][0].showOutline).toBe(false)
+    await vi.waitFor(() => expect(DocumentService.ChangeSettings).toHaveBeenCalled())
+    expect(DocumentService.ChangeSettings.mock.calls[0][1].showOutline).toBe(false)
   })
 })
 
@@ -2078,8 +2079,8 @@ describe('update check', () => {
     flushSync()
 
     expect(askDialog(target).open).toBe(false)
-    await vi.waitFor(() => expect(DocumentService.UpdateSettings).toHaveBeenCalled())
-    expect(DocumentService.UpdateSettings.mock.calls[0][0].updateCheck).toBe('on')
+    await vi.waitFor(() => expect(DocumentService.ChangeSettings).toHaveBeenCalled())
+    expect(DocumentService.ChangeSettings.mock.calls[0][1].updateCheck).toBe('on')
     await vi.waitFor(() => expect(DocumentService.CheckForUpdates).toHaveBeenCalledWith(false))
   })
 
@@ -2091,8 +2092,8 @@ describe('update check', () => {
     buttonByText(askDialog(target), "Don't Check")!.click()
     flushSync()
 
-    await vi.waitFor(() => expect(DocumentService.UpdateSettings).toHaveBeenCalled())
-    expect(DocumentService.UpdateSettings.mock.calls[0][0].updateCheck).toBe('off')
+    await vi.waitFor(() => expect(DocumentService.ChangeSettings).toHaveBeenCalled())
+    expect(DocumentService.ChangeSettings.mock.calls[0][1].updateCheck).toBe('off')
     expect(DocumentService.CheckForUpdates).not.toHaveBeenCalled()
   })
 
@@ -2105,8 +2106,8 @@ describe('update check', () => {
     flushSync()
 
     expect(askDialog(target).open).toBe(false)
-    await vi.waitFor(() => expect(DocumentService.UpdateSettings).toHaveBeenCalled())
-    expect(DocumentService.UpdateSettings.mock.calls[0][0].updateCheck).toBe('off')
+    await vi.waitFor(() => expect(DocumentService.ChangeSettings).toHaveBeenCalled())
+    expect(DocumentService.ChangeSettings.mock.calls[0][1].updateCheck).toBe('off')
   })
 
   it('does not ask while a recovery draft is being offered', async () => {

@@ -206,13 +206,12 @@
     jumpToLine(line)
   }
 
-  // The panel's own arrows. The View menu owns the same setting, so this is a
-  // read-modify-write of the whole value — the menu only ever changes the
-  // field it owns, and so does this.
+  // The panel's own arrows. The View menu owns the same setting; Go writes
+  // only the field changed here, so nothing set in between is lost.
   async function setOutlineShown(shown: boolean) {
     try {
       const current: Settings = await DocumentService.Settings()
-      await DocumentService.UpdateSettings({ ...current, showOutline: shown })
+      await DocumentService.ChangeSettings(current, { ...current, showOutline: shown })
     } catch (err) {
       toast(`Could not save outline visibility: ${err}`)
     }
@@ -1399,7 +1398,7 @@
     askUpdates = false
     try {
       const current: Settings = await DocumentService.Settings()
-      await DocumentService.UpdateSettings({ ...current, updateCheck: answer })
+      await DocumentService.ChangeSettings(current, { ...current, updateCheck: answer })
     } catch (err) {
       toast(`Could not save the update-check setting: ${err}`)
       return

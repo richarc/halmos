@@ -134,9 +134,17 @@ func (st *settingsStore) get() Settings {
 // so re-picking the menu item that is already selected does not rebuild the
 // menu underneath the user.
 func (st *settingsStore) set(next Settings) error {
-	next = next.normalise()
+	return st.update(func(s *Settings) { *s = next })
+}
 
+// update applies change to the stored value and persists the result, with
+// the read, the change and the write under one lock, so two changes to
+// different fields cannot overwrite each other.
+func (st *settingsStore) update(change func(*Settings)) error {
 	st.mu.Lock()
+	next := st.loadLocked()
+	change(&next)
+	next = next.normalise()
 	if next == st.loadLocked() {
 		st.mu.Unlock()
 		return nil

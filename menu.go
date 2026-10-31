@@ -122,11 +122,11 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, p := range papers {
 		value := p.value
 		cmds.item(paper.AddRadio(p.label, current.PaperSize == value), []string{"File", "Paper Size"}, func() {
-			// Read-modify-write the whole settings value, so this menu only
-			// ever changes the one field it owns.
-			next := docs.Settings()
-			next.PaperSize = value
-			if err := docs.UpdateSettings(next); err != nil {
+			// Changes only the one field this menu owns, applied to the
+			// stored value.
+			if err := docs.updateSettings(func(next *Settings) {
+				next.PaperSize = value
+			}); err != nil {
 				log.Printf("could not save paper size: %v", err)
 			}
 		}, commandOpts{})
@@ -142,11 +142,11 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, o := range orientations {
 		value := o.value
 		cmds.item(orientation.AddRadio(o.label, current.PrintOrientation == value), []string{"File", "PDF Orientation"}, func() {
-			// Read-modify-write the whole settings value, so this menu only
-			// ever changes the one field it owns.
-			next := docs.Settings()
-			next.PrintOrientation = value
-			if err := docs.UpdateSettings(next); err != nil {
+			// Changes only the one field this menu owns, applied to the
+			// stored value.
+			if err := docs.updateSettings(func(next *Settings) {
+				next.PrintOrientation = value
+			}); err != nil {
 				log.Printf("could not save PDF orientation: %v", err)
 			}
 		}, commandOpts{})
@@ -225,13 +225,13 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	// answers the first-launch question the same way the dialog would.
 	helpCurrent := docs.Settings()
 	cmds.item(help.AddCheckbox("Check for Updates Automatically", helpCurrent.UpdateCheck == "on"), helpP, func() {
-		next := docs.Settings()
-		if next.UpdateCheck == "on" {
-			next.UpdateCheck = "off"
-		} else {
-			next.UpdateCheck = "on"
-		}
-		if err := docs.UpdateSettings(next); err != nil {
+		if err := docs.updateSettings(func(next *Settings) {
+			if next.UpdateCheck == "on" {
+				next.UpdateCheck = "off"
+			} else {
+				next.UpdateCheck = "on"
+			}
+		}); err != nil {
 			log.Printf("could not save the update-check setting: %v", err)
 		}
 	}, commandOpts{})
@@ -390,8 +390,8 @@ func addFormatMenu(menu *application.Menu, docs *DocumentService, installed []St
 	}, doc)
 }
 
-// addViewMenu adds the View menu. The settings items read the current value
-// from docs.Settings() when they run, never the item's checked state: run
+// addViewMenu adds the View menu. The settings items change the stored value
+// when they run (docs.updateSettings), never from the item's checked state: run
 // from the palette there is no native toggle, so the setting is the only
 // truth both routes share.
 func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name string, data ...any), cmds *commandSet) {
@@ -409,9 +409,9 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	// No accelerator: the obvious chords are taken, and this is not a frequent
 	// action — the same reasoning as Blockquote in the Format menu.
 	cmds.item(view.AddCheckbox("Sync Scrolling", viewCurrent.SyncScrolling), viewP, func() {
-		next := docs.Settings()
-		next.SyncScrolling = !next.SyncScrolling
-		if err := docs.UpdateSettings(next); err != nil {
+		if err := docs.updateSettings(func(next *Settings) {
+			next.SyncScrolling = !next.SyncScrolling
+		}); err != nil {
 			log.Printf("could not save sync scrolling: %v", err)
 		}
 	}, commandOpts{})
@@ -420,20 +420,20 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	// foldKeymap), and the fold chords already establish ⌘⌥ as the View
 	// menu's modifier. The panel's own arrow is the mouse route.
 	cmds.item(view.AddCheckbox("Outline", viewCurrent.ShowOutline).SetAccelerator("cmdorctrl+alt+o"), viewP, func() {
-		next := docs.Settings()
-		next.ShowOutline = !next.ShowOutline
-		if err := docs.UpdateSettings(next); err != nil {
+		if err := docs.updateSettings(func(next *Settings) {
+			next.ShowOutline = !next.ShowOutline
+		}); err != nil {
 			log.Printf("could not save outline visibility: %v", err)
 		}
 	}, commandOpts{})
 
 	// Below Outline: a persisted on/off like Sync Scrolling, and the View
 	// menu is where those live. No accelerator; this is set once, not
-	// toggled mid-sentence. Same read-modify-write as the two above.
+	// toggled mid-sentence.
 	cmds.item(view.AddCheckbox("Autosave", viewCurrent.AutoSave), viewP, func() {
-		next := docs.Settings()
-		next.AutoSave = !next.AutoSave
-		if err := docs.UpdateSettings(next); err != nil {
+		if err := docs.updateSettings(func(next *Settings) {
+			next.AutoSave = !next.AutoSave
+		}); err != nil {
 			log.Printf("could not save autosave: %v", err)
 		}
 	}, commandOpts{})
@@ -441,9 +441,9 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	// Below Autosave: a persisted on/off applied by the editor as its
 	// spellcheck attribute (lib/spellcheck.ts). No accelerator.
 	cmds.item(view.AddCheckbox("Check Spelling", viewCurrent.SpellCheck), viewP, func() {
-		next := docs.Settings()
-		next.SpellCheck = !next.SpellCheck
-		if err := docs.UpdateSettings(next); err != nil {
+		if err := docs.updateSettings(func(next *Settings) {
+			next.SpellCheck = !next.SpellCheck
+		}); err != nil {
 			log.Printf("could not save spell checking: %v", err)
 		}
 	}, commandOpts{})
@@ -462,19 +462,19 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	for _, t := range themes {
 		value := t.value
 		cmds.item(appearance.AddRadio(t.label, viewCurrent.Theme == value), []string{"View", "Appearance"}, func() {
-			// Read-modify-write the whole settings value, so this menu only
-			// ever changes the field it owns.
-			next := docs.Settings()
-			next.Theme = value
-			if err := docs.UpdateSettings(next); err != nil {
+			// Changes only the one field this menu owns, applied to the
+			// stored value.
+			if err := docs.updateSettings(func(next *Settings) {
+				next.Theme = value
+			}); err != nil {
 				log.Printf("could not save theme: %v", err)
 			}
 		}, commandOpts{})
 	}
 
 	// Both read viewCurrent, the settings snapshot taken at the top of this
-	// View block. Each action re-reads and read-modify-writes the whole
-	// value, so a submenu only ever changes the one field it owns.
+	// View block, for their ticks. Each action changes only the one field its
+	// submenu owns.
 	alignmentMenu := view.AddSubmenu("Figure Alignment")
 	alignments := []struct {
 		label string
@@ -487,9 +487,9 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	for _, a := range alignments {
 		value := a.value
 		cmds.item(alignmentMenu.AddRadio(a.label, viewCurrent.FigureAlignment == value), []string{"View", "Figure Alignment"}, func() {
-			next := docs.Settings()
-			next.FigureAlignment = value
-			if err := docs.UpdateSettings(next); err != nil {
+			if err := docs.updateSettings(func(next *Settings) {
+				next.FigureAlignment = value
+			}); err != nil {
 				log.Printf("could not save figure alignment: %v", err)
 			}
 		}, commandOpts{})
@@ -499,9 +499,9 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	for _, f := range bodyFonts {
 		value := f.value
 		cmds.item(fontMenu.AddRadio(f.label, viewCurrent.BodyFont == value), []string{"View", "Body Font"}, func() {
-			next := docs.Settings()
-			next.BodyFont = value
-			if err := docs.UpdateSettings(next); err != nil {
+			if err := docs.updateSettings(func(next *Settings) {
+				next.BodyFont = value
+			}); err != nil {
 				log.Printf("could not save body font: %v", err)
 			}
 		}, commandOpts{})
@@ -519,9 +519,9 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	for _, w := range widths {
 		value := w.value
 		cmds.item(widthMenu.AddRadio(w.label, viewCurrent.ChartWidth == value), []string{"View", "Chart Width"}, func() {
-			next := docs.Settings()
-			next.ChartWidth = value
-			if err := docs.UpdateSettings(next); err != nil {
+			if err := docs.updateSettings(func(next *Settings) {
+				next.ChartWidth = value
+			}); err != nil {
 				log.Printf("could not save chart width: %v", err)
 			}
 		}, commandOpts{})
