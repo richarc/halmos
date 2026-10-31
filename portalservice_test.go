@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -349,5 +350,23 @@ func TestServiceExportLeavesOutEmptyFurniture(t *testing.T) {
 func TestLocalLongDateIsToday(t *testing.T) {
 	if got := localLongDate(); got == "" || !strings.Contains(got, strconv.Itoa(time.Now().Year())) {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestRevealExportRunsOpenAndReportsItsError(t *testing.T) {
+	s := newPortalServiceWith(nil, func(string, any) {}, func(string) error { return nil })
+	var gotName string
+	var gotArgs []string
+	boom := errors.New("boom")
+	s.run = func(name string, args ...string) error {
+		gotName, gotArgs = name, args
+		return boom
+	}
+	err := s.RevealExport("/tmp/a.docx")
+	if gotName != "open" || strings.Join(gotArgs, " ") != "-R /tmp/a.docx" {
+		t.Fatalf("ran %q %q", gotName, gotArgs)
+	}
+	if err != boom {
+		t.Fatalf("err = %v", err)
 	}
 }

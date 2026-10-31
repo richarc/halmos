@@ -24,6 +24,9 @@ type PortalService struct {
 	auth    *portalAuth
 	emit    func(name string, data any)
 	openURL func(url string) error
+	// run runs a command and waits for it, so none is left behind as a
+	// finished process. Replaced in tests.
+	run func(name string, args ...string) error
 	// today is {date} in exported Word and LaTeX: the Mac's long date, as
 	// Export PDF writes it. Replaced in tests.
 	today func() string
@@ -53,7 +56,7 @@ func NewPortalService() *PortalService {
 }
 
 func newPortalServiceWith(auth *portalAuth, emit func(string, any), openURL func(string) error) *PortalService {
-	return &PortalService{auth: auth, emit: emit, openURL: openURL, today: localLongDate}
+	return &PortalService{auth: auth, emit: emit, openURL: openURL, today: localLongDate, run: runCommand}
 }
 
 var errMisconfigured = &PortalError{Code: "misconfigured"}
@@ -382,5 +385,7 @@ func revealCommand(path string) []string { return []string{"open", "-R", path} }
 // one inside its folder.
 func (s *PortalService) RevealExport(path string) error {
 	c := revealCommand(path)
-	return exec.Command(c[0], c[1:]...).Start()
+	return s.run(c[0], c[1:]...)
 }
+
+func runCommand(name string, args ...string) error { return exec.Command(name, args...).Run() }
