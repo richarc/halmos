@@ -51,12 +51,14 @@ dev_mode:
       - "*.js" # Watch for changes to JS/TS files included using the //wails:include directive.
       - "*.ts" # The frontend directory will be excluded entirely by the setting above.
     git_ignore: true
+  # run's deps: [build] (build/darwin/Taskfile.yml) builds before it runs, so
+  # there is no separate build step; DEV=true on the command line reaches
+  # that nested build, which then omits -tags production and keeps the Vite
+  # dev server.
   executes:
-    - cmd: wails3 build DEV=true
-      type: blocking
     - cmd: wails3 task common:dev:frontend
       type: background
-    - cmd: wails3 task run
+    - cmd: wails3 task run DEV=true
       type: primary
 
 # File Associations
