@@ -155,7 +155,7 @@ tasks:
       VERSION:
         sh: awk '/^  version:/ {gsub(/"/, "", $2); print $2}' build/config.yml
       APP: '{{.BIN_DIR}}/{{.APP_NAME}}.app'
-      ZIP: '{{.BIN_DIR}}/Halmos-Editor-{{.VERSION}}-macos-universal.zip'
+      ZIP: '{{.BIN_DIR}}/Halmos-Editor-{{.VERSION}}{{if eq .ALLOW_DIRTY "true"}}-dirty{{end}}-macos-universal.zip'
     preconditions:
       - sh: 'security find-identity -v -p codesigning | grep -q "{{.IDENTITY}}"'
         msg: |
@@ -181,6 +181,9 @@ tasks:
           build/config.yml before cutting a release — see README, Cutting a
           release.
     cmds:
+      - task: release:check-tree
+        vars:
+          ALLOW_DIRTY: '{{.ALLOW_DIRTY}}'
       # A release must not ship what the tests reject. CI gates main, but a
       # tag is cut from a working tree, and the working tree is what is about
       # to be built.
@@ -281,6 +284,49 @@ tasks:
       #   xcrun notarytool log <submission-id> --key <p8> --key-id <id> --issuer <uuid>
       - xcrun notarytool submit "{{.ZIP}}" {{.AUTH}} --wait
 
+  release:check-tree:
+    summary: Fails unless the working tree is exactly what is being released
+    platforms: [darwin]
+    desc: |
+      release builds the working tree, not a commit, so an uncommitted edit
+      or a stray file the build embeds would ship in the zip while the
+      public source said otherwise. This refuses changes to tracked files,
+      untracked files where the build reads (untracked files elsewhere,
+      such as a scratch folder under docs/, are allowed), and, once the
+      release tag exists, a HEAD that is not that tag.
+
+      ALLOW_DIRTY=true skips the first two checks for a dry run; the zip's
+      name then ends in -dirty so it cannot pass for a release.
+    vars:
+      VERSION:
+        sh: awk '/^  version:/ {gsub(/"/, "", $2); print $2}' build/config.yml
+      READ_BY_BUILD: frontend/src frontend/public frontend/index.html frontend/quicklook.html frontend/package.json frontend/package-lock.json docs/tutorial quicklook build licenses go.mod go.sum '*.go'
+    cmds:
+      - |
+        if [ "{{.ALLOW_DIRTY}}" = "true" ]; then
+          echo "ALLOW_DIRTY=true: not checking for changes. This zip is not a release."
+        else
+          changed=$(git status --porcelain --untracked-files=no)
+          if [ -n "$changed" ]; then
+            echo "Uncommitted changes would ship in the release. Commit or stash them first:"
+            echo "$changed"
+            exit 1
+          fi
+          stray=$(git status --porcelain --untracked-files=all -- {{.READ_BY_BUILD}})
+          if [ -n "$stray" ]; then
+            echo "Untracked files where the build reads would ship in the release. Remove or commit them first:"
+            echo "$stray"
+            exit 1
+          fi
+        fi
+        tag="v{{.VERSION}}"
+        if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+          if [ "$(git rev-parse "$tag^{commit}")" != "$(git rev-parse HEAD)" ]; then
+            echo "Tag $tag exists but is not HEAD: the release would not be the tagged source."
+            exit 1
+          fi
+        fi
+        echo "Working tree checked for v{{.VERSION}}."
   release:check-tag:
     summary: Fails unless TAG is v followed by the version in build/config.yml
     platforms: [darwin]
