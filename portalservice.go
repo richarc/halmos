@@ -59,7 +59,9 @@ func newPortalServiceWith(auth *portalAuth, emit func(string, any), openURL func
 	return &PortalService{auth: auth, emit: emit, openURL: openURL, today: localLongDate, run: runCommand}
 }
 
-var errMisconfigured = &PortalError{Code: "misconfigured"}
+// errMisconfigured is a new value each time, so a caller that sets a field
+// on the one it got changes no other.
+func errMisconfigured() *PortalError { return &PortalError{Code: "misconfigured"} }
 
 // AccountInfo is what Account… shows. Error is set when the account could
 // not be read (offline, rate limited); SignedIn still says whether this Mac
@@ -96,7 +98,7 @@ type meResponse struct {
 // read each time rather than cached.
 func (s *PortalService) Account() AccountInfo {
 	if s.auth == nil {
-		return AccountInfo{Error: errMisconfigured}
+		return AccountInfo{Error: errMisconfigured()}
 	}
 	cred, ok, perr := s.auth.credential()
 	if perr != nil {
@@ -152,7 +154,7 @@ type PairingEvent struct {
 // portal:pairing event. A pairing already running is cancelled first.
 func (s *PortalService) StartPairing() PairingInfo {
 	if s.auth == nil {
-		return PairingInfo{Error: errMisconfigured}
+		return PairingInfo{Error: errMisconfigured()}
 	}
 	gen := s.cancelPairing()
 	p, perr := s.auth.startPairing(context.Background(), deviceName(computerName(), rand.Reader))
@@ -160,7 +162,7 @@ func (s *PortalService) StartPairing() PairingInfo {
 		return PairingInfo{Error: perr}
 	}
 	if !sameOrigin(p.VerificationURIComplete, s.auth.client.origin) {
-		return PairingInfo{Error: errMisconfigured}
+		return PairingInfo{Error: errMisconfigured()}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s.mu.Lock()
@@ -217,7 +219,7 @@ func (s *PortalService) cancelPairing() int {
 // portal until the person removes it there.
 func (s *PortalService) SignOut() error {
 	if s.auth == nil {
-		return errMisconfigured
+		return errMisconfigured()
 	}
 	s.CancelPairing()
 	return s.auth.signOut()
@@ -227,7 +229,7 @@ func (s *PortalService) SignOut() error {
 // page) only if it is on the origin being talked to.
 func (s *PortalService) OpenPortalURL(url string) *PortalError {
 	if s.auth == nil || !sameOrigin(url, s.auth.client.origin) {
-		return errMisconfigured
+		return errMisconfigured()
 	}
 	if err := s.openURL(url); err != nil {
 		return &PortalError{Code: "network"}
@@ -342,7 +344,7 @@ type convertFurniture struct {
 // like a save. It returns nil on success.
 func (s *PortalService) Export(path string, req ConvertRequest) *PortalError {
 	if s.auth == nil {
-		return errMisconfigured
+		return errMisconfigured()
 	}
 	if req.Format == "latex" {
 		req.Images = nil // the portal refuses images with LaTeX

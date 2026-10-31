@@ -370,3 +370,12 @@ func TestRevealExportRunsOpenAndReportsItsError(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestMisconfiguredErrorIsNotShared(t *testing.T) {
+	a := errMisconfigured()
+	a.Reason = "changed"
+	b := errMisconfigured()
+	if a == b || b.Reason != "" || b.Code != "misconfigured" {
+		t.Fatalf("a=%p b=%p %+v", a, b, b)
+	}
+}
