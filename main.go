@@ -97,9 +97,6 @@ func main() {
 		Name:         "Halmos Editor",
 		Description:  "Academic markdown editor",
 		Services:     []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal), application.NewService(palette), application.NewService(styles), application.NewService(tutorial)},
-		// A recording the script left running is stopped so the file on disk
-		// is closed, whichever way the app ends.
-		OnShutdown: demo.shutdown,
 		// The Dock's Quit, logout and restart go straight to
 		// applicationShouldTerminate, never through the ⌘Q handler in
 		// menu.go. A dirty document gets the same confirm, shown first
