@@ -94,11 +94,9 @@ func main() {
 	// before the app runs, so no quit can reach ShouldQuit while it is nil.
 	var win *application.WebviewWindow
 	app := application.New(application.Options{
-		// File and portal errors reach the frontend as a cause with a code.
-		MarshalError: marshalError,
-		Name:         "Halmos Editor",
-		Description:  "Academic markdown editor",
-		Services:     []application.Service{application.NewService(docs), application.NewService(settings), application.NewService(updates), application.NewService(demo), application.NewService(portal), application.NewService(palette), application.NewService(styles), application.NewService(tutorial)},
+		Name:        "Halmos Editor",
+		Description: "Academic markdown editor",
+		Services:    []application.Service{application.NewServiceWithOptions(docs, serviceOptions), application.NewServiceWithOptions(settings, serviceOptions), application.NewServiceWithOptions(updates, serviceOptions), application.NewServiceWithOptions(demo, serviceOptions), application.NewServiceWithOptions(portal, serviceOptions), application.NewServiceWithOptions(palette, serviceOptions), application.NewServiceWithOptions(styles, serviceOptions), application.NewServiceWithOptions(tutorial, serviceOptions)},
 		// The Dock's Quit, logout and restart go straight to
 		// applicationShouldTerminate, never through the ⌘Q handler in
 		// menu.go. A dirty document gets the same confirm, shown first

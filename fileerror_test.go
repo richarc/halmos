@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func TestFileErrorCodes(t *testing.T) {
@@ -55,5 +60,51 @@ func TestOpenPathMissingFileIsNotFound(t *testing.T) {
 	var fe *FileError
 	if !errors.As(err, &fe) || fe.Code != "not-found" {
 		t.Fatalf("got %v", err)
+	}
+}
+
+// wrapsFileError is a binding whose error carries context around a
+// FileError, the way any binding may come to.
+type wrapsFileError struct{}
+
+func (*wrapsFileError) Fail() error {
+	return fmt.Errorf("saving paper.md: %w", fileError(fs.ErrPermission, "/a/paper.md"))
+}
+
+// Wails reads MarshalError from each service's options, not from the app's,
+// so the code reaches the frontend only through serviceOptions.
+func TestWrappedFileErrorReachesTheFrontendAsCause(t *testing.T) {
+	testApp()
+	b := application.NewBindings(nil, nil)
+	if err := b.Add(application.NewServiceWithOptions(&wrapsFileError{}, serviceOptions)); err != nil {
+		t.Fatal(err)
+	}
+	m := b.Get(&application.CallOptions{MethodName: "hermes.wrapsFileError.Fail"})
+	if m == nil {
+		t.Fatal("method not bound")
+	}
+	_, err := m.Call(context.Background(), nil)
+	var cerr *application.CallError
+	if !errors.As(err, &cerr) {
+		t.Fatalf("got %v", err)
+	}
+	cause, _ := json.Marshal(cerr.Cause)
+	var v map[string]any
+	if json.Unmarshal(cause, &v) != nil || v["code"] != "permission" {
+		t.Fatalf("cause %s", cause)
+	}
+}
+
+// Every service main.go registers carries serviceOptions.
+func TestEveryServiceCarriesTheErrorMarshaller(t *testing.T) {
+	src, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(src), "application.NewService(") {
+		t.Error("main.go registers a service without serviceOptions")
+	}
+	if n := strings.Count(string(src), ", serviceOptions)"); n < 8 {
+		t.Errorf("%d services carry serviceOptions, want all 8", n)
 	}
 }

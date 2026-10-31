@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // FileError is a file binding's error with a code the frontend can branch
@@ -37,7 +39,7 @@ func fileError(err error, path string) error {
 	return &FileError{Code: code, Path: path, Err: err}
 }
 
-// marshalError is Options.MarshalError: a FileError or PortalError anywhere
+// marshalError is each service's MarshalError: a FileError or PortalError anywhere
 // in the chain becomes the cause the frontend reads. Anything else returns
 // nil, which leaves it to Wails' default.
 func marshalError(err error) []byte {
@@ -58,3 +60,8 @@ func marshalError(err error) []byte {
 	}
 	return b
 }
+
+// serviceOptions is given to every service in main.go. Wails reads
+// MarshalError from each service's options (Bindings.Add), never from the
+// app's, so this is the only place it takes effect.
+var serviceOptions = application.ServiceOptions{MarshalError: marshalError}
