@@ -666,19 +666,6 @@ one — dissolves when the conversion runs on a server Halmos controls.
       to the document's bibliography (Crossref).
 - [ ] **Reference check.** Flags duplicate entries, missing fields, and
       retracted papers (Retraction Watch data in Crossref).
-- [ ] **Word export keeps working citations**, so co-authors can edit the
-      `.docx` without breaking references.
-- [ ] **Publish a document to share it.** Added 2026-10-28; details at
-      planning. A **Publish** button sends the document to the portal,
-      which hosts it at a link the user can send to colleagues or friends.
-      A paid service, so it needs Connect. Republishing updates the same
-      link; the user can unpublish. The contract change comes first, and
-      the portal serves it before this release.
-      Open at planning: what is sent (rendered HTML, or the Markdown with
-      its `.bib`, images and data files for the portal to render); where
-      Publish lives (File menu, toolbar, palette); how the editor shows a
-      document's link and whether it is out of date; and what is kept in
-      the document or beside it.
 - [ ] **Import review changes from a returned Word document.** Added
       2026-10-31. Word export is mostly a hand-off, and the common loop is
       a supervisor or co-author returning the `.docx` with tracked changes
@@ -713,13 +700,81 @@ one — dissolves when the conversion runs on a server Halmos controls.
       protection keychain (`kSecUseDataProtectionKeychain`), which needs a
       keychain access group and an embedded provisioning profile.
 
-## v1.2.0 — AI for routine work
+## v1.2.0 — References without the hunting
 
 Serves: M1.2
 
+Paid, through the v1.1.0 back end, and with no AI, so no AI allowance yet.
+Reordered 2026-10-31: the first paid releases cover review and references,
+which writers need every week, and AI follows in v1.3.0. Auto-update and
+the Windows and Linux versions are for every user and stay at this release.
+
+- [ ] **Find a reference by describing it (`@cite` search).** Type a
+      description instead of a key, such as `[@cite transformer attention
+      Vaswani]` or `[@cite "double descent in deep learning"]`, and get a
+      short list of matching papers from scholarly catalogues (OpenAlex,
+      Semantic Scholar, Crossref), each with its title, authors, year,
+      venue and DOI. The user picks one; its BibTeX is added to the
+      document's `.bib` (not added again if the DOI is already there) and
+      the `@key` replaces the search at the cursor. Built first as a plain
+      catalogue search with no AI, so it needs no AI allowance; v1.4.0 adds
+      AI to build the search and rank what comes back. Every result is a
+      record the catalogue returned, never an entry Halmos wrote. Shares
+      the DOI lookup's route to a `.bib` entry (v1.1.0). Decide the trigger
+      in the spec: typed `@cite` in the editor, an Insert menu item and a
+      palette command. Added 2026-10-31 in v1.3.0; moved here the same day.
+- [ ] **Word export keeps working citations**, so co-authors can edit the
+      `.docx` without breaking references. Moved from v1.1.0 on 2026-10-31:
+      it matters most once review is a loop (v1.1.0's review import), and
+      it invites co-authors to treat the Word file as the master copy.
+- [ ] **Publish a document to share it.** Added 2026-10-28; details at
+      planning. A **Publish** button sends the document to the portal,
+      which hosts it at a link the user can send to colleagues or friends.
+      A paid service, so it needs Connect. Republishing updates the same
+      link; the user can unpublish. The contract change comes first, and
+      the portal serves it before this release. Moved from v1.1.0 on
+      2026-10-31.
+      Open at planning: what is sent (rendered HTML, or the Markdown with
+      its `.bib`, images and data files for the portal to render); where
+      Publish lives (File menu, toolbar, palette); how the editor shows a
+      document's link and whether it is out of date; and what is kept in
+      the document or beside it.
+- [ ] **Auto-update.** Moved from v1.0.0 on 2026-10-18. Without
+      something like Sparkle, everyone who downloads a release stays on it
+      until they think to check. Tolerable at first; the main complaint later.
+      One constraint to note now: Sparkle validates that an update is signed by
+      the same team, so if the Developer ID ever changes — an individual
+      enrolment becoming an organization one, say — that needs a transitional
+      release. Cheapest while there are few users.
+      *Status 2026-10-11*: since v0.10.0 Halmos checks a feed
+      (`updates/latest.json`) and tells the user a newer version exists, but
+      downloading and installing it is still manual.
+- [ ] **Windows and Linux versions.** Moved here on 2026-10-18 from the
+      backlog and v1.0.0. Many academics use Windows, and a Mac-only product
+      limits who can pay. The paths, menus and print behaviour are currently
+      macOS-focused.
+      PDF export, from a review on 2026-10-30: on Windows the app runs in
+      WebView2, which is Chromium, so Export PDF needs its own route there
+      (WebView2's print to PDF, or Chromium's own PDF printing through it).
+      Chromium is the better printer: confirm in a spike whether it gives
+      running headers and footers with page numbers, bookmarks from the
+      headings, tagged PDF and CSS page-margin boxes. `pdfstamp_darwin.go`
+      is PDFKit and does not port, so move the header and footer drawing
+      into shared Go (pdfcpu, as the v1.0.0 bookmarks step does), leaving
+      each platform only to render the preview to a PDF at the paper size.
+      The same document will break pages differently on Mac and Windows
+      (different fonts and line breaking; New York is macOS-only), while
+      each PDF still matches its own preview; say so in the docs. Only a
+      separate typesetter such as Typst would make the two identical, at the
+      cost of the PDF no longer matching the preview.
+
+## v1.3.0 — AI for routine work
+
+Serves: M1.3
+
 Paid, through the v1.1.0 back end. Every result is shown before it is
 inserted, and nothing is written into the document without the user
-accepting it.
+accepting it. Was v1.2.0 until 2026-10-31.
 
 - [ ] **Chart from a prompt.** Describe the chart and the data; the result
       is a Vega-Lite spec that opens in the existing chart builder
@@ -759,62 +814,25 @@ accepting it.
       - The user can edit the record, so it is not tamper-proof evidence,
         and Halmos never says it is.
       Open: manual logging and the statement need no AI back end, so they
-      could ship before v1.2.0; which publishers' policies to template
+      could ship before v1.3.0; which publishers' policies to template
       first; whether the paste prompt helps or nags. Check each publisher's
       current policy wording before writing its template.
 - [ ] **Prompt-injection safety.** An opened document must not be able to
       instruct the AI. Prerequisite: the Content-Security-Policy item in the
       backlog.
-- [ ] **Auto-update.** Moved from v1.0.0 on 2026-10-18. Without
-      something like Sparkle, everyone who downloads a release stays on it
-      until they think to check. Tolerable at first; the main complaint later.
-      One constraint to note now: Sparkle validates that an update is signed by
-      the same team, so if the Developer ID ever changes — an individual
-      enrolment becoming an organization one, say — that needs a transitional
-      release. Cheapest while there are few users.
-      *Status 2026-10-11*: since v0.10.0 Halmos checks a feed
-      (`updates/latest.json`) and tells the user a newer version exists, but
-      downloading and installing it is still manual.
-- [ ] **Windows and Linux versions.** Moved here on 2026-10-18 from the
-      backlog and v1.0.0. Many academics use Windows, and a Mac-only product
-      limits who can pay. The paths, menus and print behaviour are currently
-      macOS-focused.
-      PDF export, from a review on 2026-10-30: on Windows the app runs in
-      WebView2, which is Chromium, so Export PDF needs its own route there
-      (WebView2's print to PDF, or Chromium's own PDF printing through it).
-      Chromium is the better printer: confirm in a spike whether it gives
-      running headers and footers with page numbers, bookmarks from the
-      headings, tagged PDF and CSS page-margin boxes. `pdfstamp_darwin.go`
-      is PDFKit and does not port, so move the header and footer drawing
-      into shared Go (pdfcpu, as the v1.0.0 bookmarks step does), leaving
-      each platform only to render the preview to a PDF at the paper size.
-      The same document will break pages differently on Mac and Windows
-      (different fonts and line breaking; New York is macOS-only), while
-      each PDF still matches its own preview; say so in the docs. Only a
-      separate typesetter such as Typst would make the two identical, at the
-      cost of the PDF no longer matching the preview.
 
-## v1.3.0 — AI limited to the user's own sources
+## v1.4.0 — AI limited to the user's own sources
 
-Serves: M1.3
+Serves: M1.4
 
 Paid. The AI only ever cites what is in the user's `.bib` file or Zotero
 library, or a real record the user finds and picks from a scholarly
-catalogue, so it cannot invent a reference.
+catalogue, so it cannot invent a reference. Was v1.3.0 until 2026-10-31.
 
-- [ ] **Find a reference by describing it (`@cite` search).** Type a
-      description instead of a key, such as `[@cite transformer attention
-      Vaswani]` or `[@cite "double descent in deep learning"]`, and get a
-      short list of matching papers from scholarly catalogues (OpenAlex,
-      Semantic Scholar, Crossref), each with its title, authors, year,
-      venue and DOI. The user picks one; its BibTeX is added to the
-      document's `.bib` (not added again if the DOI is already there) and
-      the `@key` replaces the search at the cursor. The AI only turns the
-      description into a search and ranks what comes back; every result is
-      a record the catalogue returned, never an entry the AI wrote. Shares
-      the DOI lookup's route to a `.bib` entry (v1.1.0). Decide the trigger
-      in the spec: typed `@cite` in the editor, an Insert menu item and a
-      palette command. Added 2026-10-31.
+- [ ] **`@cite` search ranked by AI.** The v1.2.0 search, with the AI
+      turning the description into a better search and ranking what comes
+      back. Results stay records the catalogue returned, never an entry the
+      AI wrote. Added 2026-10-31.
 - [ ] **Suggest references for the text at the cursor** from the user's
       library: the highlighted text if there is a selection, otherwise the
       sentence or paragraph around the cursor. Each suggestion comes with the
