@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -472,21 +471,21 @@ func TestSameNamedRecentsAreTwoCommands(t *testing.T) {
 // action must read the setting, not the item: one run flips it once.
 func TestCheckboxCommandRunsTheSameAction(t *testing.T) {
 	testApp()
-	docs := NewDocumentService(filepath.Join(t.TempDir(), "recents.json"))
-	before := docs.Settings().AutoSave
+	settings := newTestSettings(t)
+	before := settings.Settings().AutoSave
 	menu := application.NewMenu()
 	cmds := newCommandSet()
-	addViewMenu(menu, docs, func(string, ...any) {}, cmds)
+	addViewMenu(menu, settings, func(string, ...any) {}, cmds)
 	r := &commandRegistry{}
 	r.replace(cmds)
 	if !r.run("View › Autosave") {
 		t.Fatal("View › Autosave did not run")
 	}
-	if got := docs.Settings().AutoSave; got == before {
+	if got := settings.Settings().AutoSave; got == before {
 		t.Errorf("AutoSave still %v after one run", got)
 	}
 	r.run("View › Autosave")
-	if got := docs.Settings().AutoSave; got != before {
+	if got := settings.Settings().AutoSave; got != before {
 		t.Errorf("AutoSave %v after two runs, want %v", got, before)
 	}
 }
@@ -494,11 +493,10 @@ func TestCheckboxCommandRunsTheSameAction(t *testing.T) {
 // The palette's own item heads View, on ⇧⌘P, and works with no document.
 func TestViewMenuOpensCommandPalette(t *testing.T) {
 	testApp()
-	docs := NewDocumentService(filepath.Join(t.TempDir(), "recents.json"))
 	menu := application.NewMenu()
 	var emitted []string
 	cmds := newCommandSet()
-	addViewMenu(menu, docs, func(name string, _ ...any) { emitted = append(emitted, name) }, cmds)
+	addViewMenu(menu, newTestSettings(t), func(name string, _ ...any) { emitted = append(emitted, name) }, cmds)
 	view := menu.ItemAt(0).GetSubmenu()
 	first := view.ItemAt(0)
 	if first.Label() != "Command Palette…" || first.GetAccelerator() != "Cmd+Shift+P" {

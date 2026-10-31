@@ -5,15 +5,19 @@ import * as CommandService from "./commandservice.js";
 import * as DemoService from "./demoservice.js";
 import * as DocumentService from "./documentservice.js";
 import * as PortalService from "./portalservice.js";
+import * as SettingsService from "./settingsservice.js";
 import * as StyleService from "./styleservice.js";
 import * as TutorialService from "./tutorialservice.js";
+import * as UpdateService from "./updateservice.js";
 export {
     CommandService,
     DemoService,
     DocumentService,
     PortalService,
+    SettingsService,
     StyleService,
-    TutorialService
+    TutorialService,
+    UpdateService
 };
 
 export type {

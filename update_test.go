@@ -74,7 +74,7 @@ func TestReleaseURL(t *testing.T) {
 }
 
 // A service wired to a fake feed, with a fixed clock and version.
-func newUpdateTestService(t *testing.T, feedBody string, status int) (*DocumentService, *int, *http.Request) {
+func newUpdateTestService(t *testing.T, feedBody string, status int) (*UpdateService, *int, *http.Request) {
 	t.Helper()
 	hits := 0
 	var last http.Request
@@ -85,14 +85,14 @@ func newUpdateTestService(t *testing.T, feedBody string, status int) (*DocumentS
 		_, _ = w.Write([]byte(feedBody))
 	}))
 	t.Cleanup(srv.Close)
-	s := newTestService(t)
+	s := newTestUpdates(t)
 	s.updateFeed = srv.URL
 	s.version = func() string { return "0.9.0" }
 	s.now = func() time.Time { return time.Date(2026, 9, 2, 9, 0, 0, 0, time.UTC) }
 	// Enable the setting so existing tests keep fetching.
-	next := s.Settings()
+	next := s.settings.get()
 	next.UpdateCheck = "on"
-	if err := s.UpdateSettings(next); err != nil {
+	if err := s.settings.set(next); err != nil {
 		t.Fatal(err)
 	}
 	return s, &hits, &last
@@ -126,9 +126,9 @@ func TestCheckForUpdatesFetchesNothingUnlessOn(t *testing.T) {
 	for _, setting := range []string{"unasked", "off"} {
 		t.Run(setting, func(t *testing.T) {
 			s, hits, _ := newUpdateTestService(t, `{"version": "0.10.0"}`, http.StatusOK)
-			next := s.Settings()
+			next := s.settings.get()
 			next.UpdateCheck = setting
-			if err := s.UpdateSettings(next); err != nil {
+			if err := s.settings.set(next); err != nil {
 				t.Fatal(err)
 			}
 			got, err := s.CheckForUpdates(false)
@@ -152,9 +152,9 @@ func TestCheckForUpdatesFetchesNothingUnlessOn(t *testing.T) {
 	}
 	// A forced check ignores the setting.
 	s, hits, _ := newUpdateTestService(t, `{"version": "0.10.0"}`, http.StatusOK)
-	next := s.Settings()
+	next := s.settings.get()
 	next.UpdateCheck = "off"
-	if err := s.UpdateSettings(next); err != nil {
+	if err := s.settings.set(next); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.CheckForUpdates(true); err != nil {
@@ -230,11 +230,11 @@ func TestCheckForUpdatesThrottlePersists(t *testing.T) {
 	if _, err := s.CheckForUpdates(false); err != nil {
 		t.Fatal(err)
 	}
-	wantState := filepath.Join(filepath.Dir(s.recentsPath), "update-check.json")
+	wantState := filepath.Join(filepath.Dir(s.settings.path), "update-check.json")
 	if _, err := os.Stat(wantState); err != nil {
 		t.Fatalf("want the state file at %s: %v", wantState, err)
 	}
-	again := NewDocumentService(s.recentsPath)
+	again := NewUpdateService(filepath.Dir(s.settings.path), s.settings)
 	again.updateFeed, again.version, again.now = s.updateFeed, s.version, s.now
 	got, err := again.CheckForUpdates(false)
 	if err != nil {
@@ -294,7 +294,7 @@ func TestCheckForUpdatesErrors(t *testing.T) {
 }
 
 func TestCheckForUpdatesUnreachable(t *testing.T) {
-	s := newTestService(t)
+	s := newTestUpdates(t)
 	s.updateFeed = "http://127.0.0.1:1"
 	s.version = func() string { return "0.9.0" }
 	if _, err := s.CheckForUpdates(true); err == nil {
@@ -390,13 +390,13 @@ func TestCheckForUpdatesFollowsAPlainHTTPRedirect(t *testing.T) {
 	}))
 	t.Cleanup(a.Close)
 
-	s := newTestService(t)
+	s := newTestUpdates(t)
 	s.updateFeed = a.URL
 	s.version = func() string { return "0.9.0" }
 	s.now = func() time.Time { return time.Date(2026, 9, 2, 9, 0, 0, 0, time.UTC) }
-	next := s.Settings()
+	next := s.settings.get()
 	next.UpdateCheck = "on"
-	if err := s.UpdateSettings(next); err != nil {
+	if err := s.settings.set(next); err != nil {
 		t.Fatal(err)
 	}
 

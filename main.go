@@ -64,6 +64,8 @@ func main() {
 		log.Fatal(err)
 	}
 	docs := NewDocumentService(recentsPath)
+	settings := NewSettingsService(docs.settings)
+	updates := NewUpdateService(filepath.Dir(recentsPath), docs.settings)
 	// Demo mode: plays a script named by HERMES_DEMO into the editor and
 	// records the window (demo.go). Inert unless the variable is set: its
 	// recording and full-screen methods refuse to run without it. The
@@ -96,7 +98,7 @@ func main() {
 		MarshalError: marshalError,
 		Name:         "Halmos Editor",
 		Description:  "Academic markdown editor",
-		Services:     []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal), application.NewService(palette), application.NewService(styles), application.NewService(tutorial)},
+		Services:     []application.Service{application.NewService(docs), application.NewService(settings), application.NewService(updates), application.NewService(demo), application.NewService(portal), application.NewService(palette), application.NewService(styles), application.NewService(tutorial)},
 		// The Dock's Quit, logout and restart go straight to
 		// applicationShouldTerminate, never through the ⌘Q handler in
 		// menu.go. A dirty document gets the same confirm, shown first
@@ -123,7 +125,7 @@ func main() {
 		},
 	})
 
-	windowBg := windowBackground(docs.Settings().Theme)
+	windowBg := windowBackground(settings.Settings().Theme)
 
 	// Create a new window with the necessary options.
 	// 'Title' is the title of the window.
@@ -186,13 +188,13 @@ func main() {
 	// for the AppKit calls; the event lets the frontend refresh its own list.
 	docs.onRecentsChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands, styles)
+			installMenu(app, win, docs, settings, commands, styles)
 		})
 		app.Event.Emit("recents:changed")
 	}
 	docs.onCitationStyleChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands, styles)
+			installMenu(app, win, docs, settings, commands, styles)
 		})
 	}
 	// A style installed from Find a Style…, or by opening a document that
@@ -203,12 +205,12 @@ func main() {
 	// a setting needs no new wiring here.
 	docs.settings.onChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands, styles)
+			installMenu(app, win, docs, settings, commands, styles)
 		})
 		app.Event.Emit("settings:changed")
 	}
 
-	installMenu(app, win, docs, commands, styles)
+	installMenu(app, win, docs, settings, commands, styles)
 
 	// Run the application. This blocks until the application has been exited.
 	err = app.Run()

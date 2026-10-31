@@ -4,7 +4,7 @@ import { mount, unmount, flushSync } from 'svelte'
 import { EditorView } from '@codemirror/view'
 import { completionStatus, acceptCompletion, closeCompletion, startCompletion } from '@codemirror/autocomplete'
 
-const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.hoisted(() => {
+const { DocumentService, SettingsService, UpdateService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.hoisted(() => {
   const listeners: Record<string, (ev: { data: unknown }) => void> = {}
   const recents = { current: [] as string[] }
   const DEFAULT_SETTINGS = {
@@ -51,9 +51,6 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       ChooseHTMLExportPath: vi.fn(async (_docPath: string) => ''),
       WriteHTMLExport: vi.fn(async (_path: string, _html: string) => {}),
       ReadImageDataURI: vi.fn(async (_docPath: string, _src: string) => 'data:image/png;base64,AA=='),
-      Settings: vi.fn(async () => settings.current),
-      UpdateSettings: vi.fn(async (_next: typeof DEFAULT_SETTINGS) => {}),
-      ChangeSettings: vi.fn(async (_base: typeof DEFAULT_SETTINGS, _next: typeof DEFAULT_SETTINGS) => {}),
       ImportData: vi.fn(async () => ''),
       ChooseNewDocumentPath: vi.fn(async () => ''),
       ChooseBibliography: vi.fn(async () => ''),
@@ -64,6 +61,13 @@ const { DocumentService, listeners, recents, settings, DEFAULT_SETTINGS } = vi.h
       DiscardDraft: vi.fn(async (_docPath: string) => {}),
       RecoverDraft: vi.fn(async (_docPath: string) => ({ found: false, content: '' })),
       SavePastedImage: vi.fn(async (_doc: string, _data: string | null, _ext: string) => 'images/pasted-20261017-140305.png'),
+    },
+    SettingsService: {
+      Settings: vi.fn(async () => settings.current),
+      UpdateSettings: vi.fn(async (_next: typeof DEFAULT_SETTINGS) => {}),
+      ChangeSettings: vi.fn(async (_base: typeof DEFAULT_SETTINGS, _next: typeof DEFAULT_SETTINGS) => {}),
+    },
+    UpdateService: {
       CheckForUpdates: vi.fn(async (_force: boolean) => ({
         checked: true, available: false, current: '0.9.0', latest: '0.9.0',
         url: 'https://github.com/richarc/halmos/releases/tag/v0.9.0',
@@ -152,6 +156,8 @@ vi.mock('@wailsio/runtime', () => ({
 // because vi.mock is hoisted above any top-level constant.
 vi.mock('../bindings/hermes', () => ({
   DocumentService,
+  SettingsService,
+  UpdateService,
   TutorialService,
   PortalService,
   CommandService,
@@ -723,8 +729,8 @@ describe('toolbar', () => {
     expect(toggle.getAttribute('aria-pressed')).toBe('false')
     expect(toggle.title).toBe('Show outline (⌘⌥O)')
     toggle.click()
-    await vi.waitFor(() => expect(DocumentService.ChangeSettings).toHaveBeenCalled())
-    expect(DocumentService.ChangeSettings.mock.calls[0][1].showOutline).toBe(true)
+    await vi.waitFor(() => expect(SettingsService.ChangeSettings).toHaveBeenCalled())
+    expect(SettingsService.ChangeSettings.mock.calls[0][1].showOutline).toBe(true)
   })
 
   it('the Outline button reads as pressed while the outline is shown', async () => {
@@ -806,8 +812,8 @@ describe('outline panel', () => {
     await vi.waitFor(() => expect(target.querySelector('.outline')).not.toBeNull())
 
     ;(target.querySelector('.outline-toggle') as HTMLButtonElement).click()
-    await vi.waitFor(() => expect(DocumentService.ChangeSettings).toHaveBeenCalled())
-    expect(DocumentService.ChangeSettings.mock.calls[0][1].showOutline).toBe(false)
+    await vi.waitFor(() => expect(SettingsService.ChangeSettings).toHaveBeenCalled())
+    expect(SettingsService.ChangeSettings.mock.calls[0][1].showOutline).toBe(false)
   })
 })
 
@@ -835,7 +841,7 @@ describe('first launch', () => {
 
   it('still templates the document when Settings() rejects', async () => {
     recents.current = []
-    DocumentService.Settings.mockRejectedValueOnce(new Error('boom'))
+    SettingsService.Settings.mockRejectedValueOnce(new Error('boom'))
     const { target } = mountApp()
 
     await vi.waitFor(() => {
@@ -879,7 +885,7 @@ describe('scroll sync', () => {
     settings.current = { ...DEFAULT_SETTINGS, syncScrolling: true }
     recents.current = []
     const { target } = mountApp()
-    await vi.waitFor(() => expect(DocumentService.Settings).toHaveBeenCalled())
+    await vi.waitFor(() => expect(SettingsService.Settings).toHaveBeenCalled())
     // Wait for onMount's async startup to have finished seeding the template,
     // not merely for the editor to exist. Unmounting between those two points
     // makes doNew() run against a torn-down component — a different race, and
@@ -924,20 +930,20 @@ describe('scroll sync', () => {
     settings.current = { ...DEFAULT_SETTINGS, syncScrolling: true }
     recents.current = []
     mountApp()
-    await vi.waitFor(() => expect(DocumentService.Settings).toHaveBeenCalled())
+    await vi.waitFor(() => expect(SettingsService.Settings).toHaveBeenCalled())
   })
 
   it('re-reads the setting when the menu changes it', async () => {
     settings.current = { ...DEFAULT_SETTINGS }
     recents.current = []
     mountApp()
-    await vi.waitFor(() => expect(DocumentService.Settings).toHaveBeenCalled())
+    await vi.waitFor(() => expect(SettingsService.Settings).toHaveBeenCalled())
 
-    const before = DocumentService.Settings.mock.calls.length
+    const before = SettingsService.Settings.mock.calls.length
     settings.current = { ...DEFAULT_SETTINGS, syncScrolling: true }
     listeners['settings:changed']({ data: null })
     await vi.waitFor(() =>
-      expect(DocumentService.Settings.mock.calls.length).toBeGreaterThan(before),
+      expect(SettingsService.Settings.mock.calls.length).toBeGreaterThan(before),
     )
   })
 })
@@ -2061,7 +2067,7 @@ describe('update check', () => {
   // here sets with mockImplementation would leak into the next. Restore
   // both defaults before each.
   beforeEach(() => {
-    DocumentService.CheckForUpdates.mockImplementation(async () => ({
+    UpdateService.CheckForUpdates.mockImplementation(async () => ({
       checked: true, available: false, current: '0.9.0', latest: '0.9.0',
       url: 'https://github.com/richarc/halmos/releases/tag/v0.9.0',
     }))
@@ -2073,15 +2079,15 @@ describe('update check', () => {
     const { target } = mountApp()
     await vi.waitFor(() => expect(askDialog(target).open).toBe(true))
     expect(target.textContent).toContain('Nothing about you or your documents is sent.')
-    expect(DocumentService.CheckForUpdates).not.toHaveBeenCalled()
+    expect(UpdateService.CheckForUpdates).not.toHaveBeenCalled()
 
     buttonByText(askDialog(target), 'Check Automatically')!.click()
     flushSync()
 
     expect(askDialog(target).open).toBe(false)
-    await vi.waitFor(() => expect(DocumentService.ChangeSettings).toHaveBeenCalled())
-    expect(DocumentService.ChangeSettings.mock.calls[0][1].updateCheck).toBe('on')
-    await vi.waitFor(() => expect(DocumentService.CheckForUpdates).toHaveBeenCalledWith(false))
+    await vi.waitFor(() => expect(SettingsService.ChangeSettings).toHaveBeenCalled())
+    expect(SettingsService.ChangeSettings.mock.calls[0][1].updateCheck).toBe('on')
+    await vi.waitFor(() => expect(UpdateService.CheckForUpdates).toHaveBeenCalledWith(false))
   })
 
   it("Don't Check saves off and fetches nothing", async () => {
@@ -2092,9 +2098,9 @@ describe('update check', () => {
     buttonByText(askDialog(target), "Don't Check")!.click()
     flushSync()
 
-    await vi.waitFor(() => expect(DocumentService.ChangeSettings).toHaveBeenCalled())
-    expect(DocumentService.ChangeSettings.mock.calls[0][1].updateCheck).toBe('off')
-    expect(DocumentService.CheckForUpdates).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(SettingsService.ChangeSettings).toHaveBeenCalled())
+    expect(SettingsService.ChangeSettings.mock.calls[0][1].updateCheck).toBe('off')
+    expect(UpdateService.CheckForUpdates).not.toHaveBeenCalled()
   })
 
   it('Esc on the question counts as Don\'t Check, so it is asked once', async () => {
@@ -2106,8 +2112,8 @@ describe('update check', () => {
     flushSync()
 
     expect(askDialog(target).open).toBe(false)
-    await vi.waitFor(() => expect(DocumentService.ChangeSettings).toHaveBeenCalled())
-    expect(DocumentService.ChangeSettings.mock.calls[0][1].updateCheck).toBe('off')
+    await vi.waitFor(() => expect(SettingsService.ChangeSettings).toHaveBeenCalled())
+    expect(SettingsService.ChangeSettings.mock.calls[0][1].updateCheck).toBe('off')
   })
 
   it('does not ask while a recovery draft is being offered', async () => {
@@ -2127,7 +2133,7 @@ describe('update check', () => {
     // Not a first launch, whose Getting Started hint is a toast of its own.
     recents.current = ['/tmp/paper.md']
     const { target } = mountApp()
-    await vi.waitFor(() => expect(DocumentService.CheckForUpdates).toHaveBeenCalledWith(false))
+    await vi.waitFor(() => expect(UpdateService.CheckForUpdates).toHaveBeenCalledWith(false))
     await new Promise((r) => setTimeout(r, 20))
     expect(noticeDialog(target).open).toBe(false)
     expect(target.querySelector('.toast')).toBeNull()
@@ -2135,7 +2141,7 @@ describe('update check', () => {
 
   it('shows the update dialog when a newer version is available, and View Release opens it', async () => {
     settings.current = { ...DEFAULT_SETTINGS, updateCheck: 'on' }
-    DocumentService.CheckForUpdates.mockResolvedValueOnce(AVAILABLE)
+    UpdateService.CheckForUpdates.mockResolvedValueOnce(AVAILABLE)
     const { target } = mountApp()
     await vi.waitFor(() => expect(noticeDialog(target).open).toBe(true))
     expect(target.textContent).toContain('Halmos 0.10.0 is available. You have 0.9.0.')
@@ -2149,7 +2155,7 @@ describe('update check', () => {
 
   it('Later closes the dialog without opening anything', async () => {
     settings.current = { ...DEFAULT_SETTINGS, updateCheck: 'on' }
-    DocumentService.CheckForUpdates.mockResolvedValueOnce(AVAILABLE)
+    UpdateService.CheckForUpdates.mockResolvedValueOnce(AVAILABLE)
     const { target } = mountApp()
     await vi.waitFor(() => expect(noticeDialog(target).open).toBe(true))
 
@@ -2162,25 +2168,25 @@ describe('update check', () => {
 
   it('does not check at launch when the setting is off', async () => {
     mountApp()
-    await vi.waitFor(() => expect(DocumentService.Settings).toHaveBeenCalled())
+    await vi.waitFor(() => expect(SettingsService.Settings).toHaveBeenCalled())
     await new Promise((r) => setTimeout(r, 20))
-    expect(DocumentService.CheckForUpdates).not.toHaveBeenCalled()
+    expect(UpdateService.CheckForUpdates).not.toHaveBeenCalled()
   })
 
   it('Help → Check for Updates… forces a check and says when it is up to date', async () => {
     const { target } = mountApp()
-    await vi.waitFor(() => expect(DocumentService.Settings).toHaveBeenCalled())
+    await vi.waitFor(() => expect(SettingsService.Settings).toHaveBeenCalled())
 
     listeners['menu:check-updates']({ data: null })
 
-    await vi.waitFor(() => expect(DocumentService.CheckForUpdates).toHaveBeenCalledWith(true))
+    await vi.waitFor(() => expect(UpdateService.CheckForUpdates).toHaveBeenCalledWith(true))
     await vi.waitFor(() => expect(target.textContent).toContain('Halmos 0.9.0 is up to date.'))
   })
 
   it('a manual check reports a failure', async () => {
-    DocumentService.CheckForUpdates.mockRejectedValueOnce(new Error('the version feed returned 404 Not Found'))
+    UpdateService.CheckForUpdates.mockRejectedValueOnce(new Error('the version feed returned 404 Not Found'))
     const { target } = mountApp()
-    await vi.waitFor(() => expect(DocumentService.Settings).toHaveBeenCalled())
+    await vi.waitFor(() => expect(SettingsService.Settings).toHaveBeenCalled())
 
     listeners['menu:check-updates']({ data: null })
 
@@ -2193,10 +2199,10 @@ describe('update check', () => {
     settings.current = { ...DEFAULT_SETTINGS, updateCheck: 'on' }
     // Not a first launch, whose Getting Started hint is a toast of its own.
     recents.current = ['/tmp/paper.md']
-    DocumentService.CheckForUpdates.mockRejectedValueOnce(new Error('offline'))
+    UpdateService.CheckForUpdates.mockRejectedValueOnce(new Error('offline'))
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { target } = mountApp()
-    await vi.waitFor(() => expect(DocumentService.CheckForUpdates).toHaveBeenCalled())
+    await vi.waitFor(() => expect(UpdateService.CheckForUpdates).toHaveBeenCalled())
     await new Promise((r) => setTimeout(r, 20))
     expect(target.querySelector('.toast')).toBeNull()
     expect(noticeDialog(target).open).toBe(false)
@@ -2213,7 +2219,7 @@ describe('update check', () => {
     flushSync()
 
     expect(target.textContent).toContain('Finish or cancel the chart or table before checking for updates.')
-    expect(DocumentService.CheckForUpdates).not.toHaveBeenCalled()
+    expect(UpdateService.CheckForUpdates).not.toHaveBeenCalled()
   })
 })
 
@@ -2221,7 +2227,7 @@ describe('spell checking setting', () => {
   it('reaches the editor: off in settings means spellcheck="false" on the content element', async () => {
     settings.current = { ...DEFAULT_SETTINGS, spellCheck: false }
     const { target } = mountApp()
-    await vi.waitFor(() => expect(DocumentService.Settings).toHaveBeenCalled())
+    await vi.waitFor(() => expect(SettingsService.Settings).toHaveBeenCalled())
     await vi.waitFor(() =>
       expect(target.querySelector('.cm-content')!.getAttribute('spellcheck')).toBe('false'),
     )
@@ -2229,7 +2235,7 @@ describe('spell checking setting', () => {
 
   it('defaults on', async () => {
     const { target } = mountApp()
-    await vi.waitFor(() => expect(DocumentService.Settings).toHaveBeenCalled())
+    await vi.waitFor(() => expect(SettingsService.Settings).toHaveBeenCalled())
     await vi.waitFor(() =>
       expect(target.querySelector('.cm-content')!.getAttribute('spellcheck')).toBe('true'),
     )

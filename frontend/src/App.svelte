@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack, flushSync } from 'svelte'
   import { Events, Browser } from '@wailsio/runtime'
-  import { DocumentService, DemoService, PortalService, CommandService, StyleService } from '../bindings/hermes'
+  import { DocumentService, DemoService, PortalService, CommandService, StyleService, SettingsService, UpdateService } from '../bindings/hermes'
   import type {
     Settings, Draft, UpdateResult, WelcomeInfo, AccountInfo, PortalError, ConvertRequest, ResolvedStyle, TutorialResult,
   } from '../bindings/hermes/models'
@@ -211,8 +211,8 @@
   // only the field changed here, so nothing set in between is lost.
   async function setOutlineShown(shown: boolean) {
     try {
-      const current: Settings = await DocumentService.Settings()
-      await DocumentService.ChangeSettings(current, { ...current, showOutline: shown })
+      const current: Settings = await SettingsService.Settings()
+      await SettingsService.ChangeSettings(current, { ...current, showOutline: shown })
     } catch (err) {
       toast(`Could not save outline visibility: ${err}`)
     }
@@ -1398,8 +1398,8 @@
   async function answerUpdateQuestion(answer: 'on' | 'off') {
     askUpdates = false
     try {
-      const current: Settings = await DocumentService.Settings()
-      await DocumentService.ChangeSettings(current, { ...current, updateCheck: answer })
+      const current: Settings = await SettingsService.Settings()
+      await SettingsService.ChangeSettings(current, { ...current, updateCheck: answer })
     } catch (err) {
       toast(`Could not save the update-check setting: ${err}`)
       return
@@ -1416,7 +1416,7 @@
       return
     }
     try {
-      const result: UpdateResult = await DocumentService.CheckForUpdates(manual)
+      const result: UpdateResult = await UpdateService.CheckForUpdates(manual)
       if (result.available) {
         updateNotice = result
         return
@@ -1447,7 +1447,7 @@
   }
 
   async function refreshSettings() {
-    const s: Settings = await DocumentService.Settings()
+    const s: Settings = await SettingsService.Settings()
     syncScrolling = s.syncScrolling
     showOutline = s.showOutline
     autoSave = s.autoSave

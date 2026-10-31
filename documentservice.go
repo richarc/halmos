@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -78,27 +77,20 @@ type DocumentService struct {
 	// not from the file as it is when the watch begins. Guarded by watchMu.
 	bibReadPath, bibReadVersion string
 	caywBase                    string
-	// The update check's inputs, injectable so the tests can point it at an
-	// httptest server with a fixed clock and version. See update.go.
-	updateFeed      string
-	updateStatePath string
-	now             func() time.Time
-	version         func() string
+	// The app's version, for the start screen. Injectable for tests.
+	version func() string
 }
 
 func NewDocumentService(recentsPath string) *DocumentService {
 	dataDir := filepath.Dir(recentsPath)
 	s := &DocumentService{
-		recentsPath:     recentsPath,
-		settings:        newSettingsStore(filepath.Join(dataDir, "settings.json")),
-		drafts:          newDraftStore(filepath.Join(dataDir, "drafts")),
-		watchTick:       2 * time.Second,
-		docTick:         time.Second,
-		caywBase:        "http://127.0.0.1:23119",
-		updateFeed:      updateFeedURL,
-		updateStatePath: filepath.Join(dataDir, "update-check.json"),
-		now:             time.Now,
-		version:         appVersion,
+		recentsPath: recentsPath,
+		settings:    newSettingsStore(filepath.Join(dataDir, "settings.json")),
+		drafts:      newDraftStore(filepath.Join(dataDir, "drafts")),
+		watchTick:   2 * time.Second,
+		docTick:     time.Second,
+		caywBase:    "http://127.0.0.1:23119",
+		version:     appVersion,
 	}
 	s.drafts.prune(time.Now())
 	s.onDocMoved = func(from, to string) {
@@ -383,40 +375,6 @@ func (s *DocumentService) CreateDocument(path, content, bibName, bibContent stri
 		return Document{}, err
 	}
 	return Document{Path: path, Content: content}, nil
-}
-
-// Settings returns every persisted preference. Values are always valid: a
-// missing or malformed file, and any field outside its allowed set, read back
-// as that field's default.
-func (s *DocumentService) Settings() Settings {
-	return s.settings.get()
-}
-
-// UpdateSettings persists the given preferences and returns an error if they
-// could not be written, so a caller can tell the user the choice did not
-// stick. Out-of-range values are normalised rather than rejected.
-func (s *DocumentService) UpdateSettings(next Settings) error {
-	return s.settings.set(next)
-}
-
-// ChangeSettings writes only the fields where next differs from base, onto
-// the stored value. base is what the caller read, next what it wants, so a
-// setting changed in between (from the menu, say) is kept.
-func (s *DocumentService) ChangeSettings(base, next Settings) error {
-	return s.settings.update(func(cur *Settings) {
-		b, n, c := reflect.ValueOf(base), reflect.ValueOf(next), reflect.ValueOf(cur).Elem()
-		for i := 0; i < n.NumField(); i++ {
-			if n.Field(i).Interface() != b.Field(i).Interface() {
-				c.Field(i).Set(n.Field(i))
-			}
-		}
-	})
-}
-
-// updateSettings is the menu's change of one setting, applied to the stored
-// value under the store's lock.
-func (s *DocumentService) updateSettings(change func(*Settings)) error {
-	return s.settings.update(change)
 }
 
 // paperPoints returns a paper's width and height in PostScript points, which

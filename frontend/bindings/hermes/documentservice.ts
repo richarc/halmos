@@ -20,28 +20,6 @@ export function AcceptDiskVersion(version: string): $CancellablePromise<void> {
 }
 
 /**
- * ChangeSettings writes only the fields where next differs from base, onto
- * the stored value. base is what the caller read, next what it wants, so a
- * setting changed in between (from the menu, say) is kept.
- */
-export function ChangeSettings(base: $models.Settings, next: $models.Settings): $CancellablePromise<void> {
-    return $Call.ByID(371647913, base, next);
-}
-
-/**
- * CheckForUpdates compares the running version with the feed's. force skips
- * the once-a-day throttle and the setting gate; the Help menu's manual item
- * passes true, the automatic check at launch passes false.
- * 
- * The privacy rules are all here: the request is the same bare URL every
- * time with no query string and no custom header, and it happens at most
- * once per interval. Nothing about the installation travels.
- */
-export function CheckForUpdates(force: boolean): $CancellablePromise<$models.UpdateResult> {
-    return $Call.ByID(713991859, force);
-}
-
-/**
  * ChooseBibliography is the open panel behind "an existing file" in the New
  * Document flow. It returns "" when the author cancels, so the caller can
  * tell a cancel from an error, as ChooseNewDocumentPath does.
@@ -264,30 +242,12 @@ export function SetDirty(dirty: boolean): $CancellablePromise<void> {
 }
 
 /**
- * Settings returns every persisted preference. Values are always valid: a
- * missing or malformed file, and any field outside its allowed set, read back
- * as that field's default.
- */
-export function Settings(): $CancellablePromise<$models.Settings> {
-    return $Call.ByID(3490222329);
-}
-
-/**
  * TakeLaunchFile returns the file Hermes was launched to open ("" if none) and
  * marks the frontend ready, so later requests arrive as file:open events. The
  * frontend calls it once, after subscribing to file:open. See launchfiles.go.
  */
 export function TakeLaunchFile(): $CancellablePromise<string> {
     return $Call.ByID(928258302);
-}
-
-/**
- * UpdateSettings persists the given preferences and returns an error if they
- * could not be written, so a caller can tell the user the choice did not
- * stick. Out-of-range values are normalised rather than rejected.
- */
-export function UpdateSettings(next: $models.Settings): $CancellablePromise<void> {
-    return $Call.ByID(2788627576, next);
 }
 
 /**
