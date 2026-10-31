@@ -563,27 +563,6 @@ a static documentation site, with no server to run and no ongoing cost beyond
 the Apple Developer Program. Hosting users' documents as blog posts is a
 separate, much larger project and is deliberately not part of this.
 
-- [ ] **A release workflow.** CI arrived on 2026-08-23 — `ci.yml` runs the
-      frontend suite and audit on Linux and the Go suite, build and
-      govulncheck on macOS, and `codeql.yml` alongside it — but nothing
-      releases. Do the first release by hand so the steps are understood, then
-      move `wails3 task release` into a tag-triggered workflow. *Status
-      2026-10-11*: every release from v0.9.0 to v0.11.4 has been cut by hand
-      with `wails3 task release`, so the manual steps are understood; the
-      workflow is what remains. That needs the
-      Developer ID certificate and an App Store Connect API key as repository
-      secrets, which is the part worth getting right rather than fast: a
-      leaked signing identity is not revocable in any comfortable way. The
-      API key matters more than convenience here — unlike an app-specific
-      password it is not tied to a personal Apple ID, and it can be revoked
-      on its own.
-      *Status 2026-10-18*: the workflow exists (`release.yml`): a `v*` tag
-      produces a notarized draft release. Tick this when a real release has
-      gone through it. It notarizes with the Apple ID and an app-specific
-      password for now, by choice; `release` already accepts an API key, and
-      switching is a change to the workflow's build step. Parked the same
-      day: the workflow is disabled on GitHub and releases are still cut by
-      hand until the secrets are set up.
 - [x] **A documentation site.** Done outside this repository: instead of a
       static site on GitHub Pages, the `hermesportal` application serves
       [halmoseditor.com](https://www.halmoseditor.com) — the landing page, the
@@ -633,7 +612,8 @@ separate, much larger project and is deliberately not part of this.
 - [ ] **Pre-1.0 clean-up.** An architecture review on 2026-10-30 found the
       code in good shape (vet clean, no races, 78% Go coverage, all calls
       through generated bindings) and listed 20 fixes to make before the
-      1.0 freeze. Small defects: Show in Finder leaves a process behind, a
+      1.0 freeze, plus `release` refusing a working tree that is not clean
+      or not at the tag (added 2026-10-31). Small defects: Show in Finder leaves a process behind, a
       shared error value, a test double in the app, the bibliography reader
       accepting any file, Print finding the wrong window, and `wails3 dev`
       building a production binary. Then Wails v3.0.0's own patterns: typed
@@ -815,6 +795,33 @@ library, so it cannot invent a reference.
 
 Ideas noted along the way, not yet committed to a release:
 
+- **A release workflow.** CI arrived on 2026-08-23 — `ci.yml` runs the
+  frontend suite and audit on Linux and the Go suite, build and
+  govulncheck on macOS, and `codeql.yml` alongside it — but nothing
+  releases. Do the first release by hand so the steps are understood, then
+  move `wails3 task release` into a tag-triggered workflow. *Status
+  2026-10-11*: every release from v0.9.0 to v0.11.4 has been cut by hand
+  with `wails3 task release`, so the manual steps are understood; the
+  workflow is what remains. That needs the
+  Developer ID certificate and an App Store Connect API key as repository
+  secrets, which is the part worth getting right rather than fast: a
+  leaked signing identity is not revocable in any comfortable way. The
+  API key matters more than convenience here — unlike an app-specific
+  password it is not tied to a personal Apple ID, and it can be revoked
+  on its own.
+  *Status 2026-10-18*: the workflow exists (`release.yml`): a `v*` tag
+  produces a notarized draft release. Tick this when a real release has
+  gone through it. It notarizes with the Apple ID and an app-specific
+  password for now, by choice; `release` already accepts an API key, and
+  switching is a change to the workflow's build step. Parked the same
+  day: the workflow is disabled on GitHub and releases are still cut by
+  hand until the secrets are set up.
+  *Moved to the Backlog 2026-10-31*: not needed for 1.0. Its one gain over
+  the hand release is a build of exactly the tagged commit, which the
+  pre-1.0 clean-up gets by making `release` refuse a working tree that is
+  not clean or not at the tag. The cost it would add is the signing
+  identity held as GitHub secrets. The workflow stays in the repository,
+  disabled.
 - **More reference formatting options.** Follows the v0.16.0 author-list
   keys (2026-10-29), same mechanism. Candidates from the CSL
   specification: `and` ("and" versus "&"), `initialize-with` and
