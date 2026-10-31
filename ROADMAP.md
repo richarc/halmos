@@ -779,8 +779,22 @@ accepting it.
 Serves: M1.3
 
 Paid. The AI only ever cites what is in the user's `.bib` file or Zotero
-library, so it cannot invent a reference.
+library, or a real record the user finds and picks from a scholarly
+catalogue, so it cannot invent a reference.
 
+- [ ] **Find a reference by describing it (`@cite` search).** Type a
+      description instead of a key, such as `[@cite transformer attention
+      Vaswani]` or `[@cite "double descent in deep learning"]`, and get a
+      short list of matching papers from scholarly catalogues (OpenAlex,
+      Semantic Scholar, Crossref), each with its title, authors, year,
+      venue and DOI. The user picks one; its BibTeX is added to the
+      document's `.bib` (not added again if the DOI is already there) and
+      the `@key` replaces the search at the cursor. The AI only turns the
+      description into a search and ranks what comes back; every result is
+      a record the catalogue returned, never an entry the AI wrote. Shares
+      the DOI lookup's route to a `.bib` entry (v1.1.0). Decide the trigger
+      in the spec: typed `@cite` in the editor, an Insert menu item and a
+      palette command. Added 2026-10-31.
 - [ ] **Suggest references for the text at the cursor** from the user's
       library: the highlighted text if there is a selection, otherwise the
       sentence or paragraph around the cursor. Each suggestion comes with the
