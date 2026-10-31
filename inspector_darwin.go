@@ -54,12 +54,12 @@ import (
 // enableInspector lets Safari's Develop menu see the window's webview.
 //
 // Since macOS 13.3 Safari lists a WKWebView only if its `inspectable`
-// property is on. Wails beta.12 never set it on macOS; beta.30's dev build
-// does. Wails beta.12's dev build also set WebKit's private
-// `developerExtrasEnabled` preference; beta.30 sets it only on macOS older
-// than 13.3, so this sets it too, keeping dev builds as they were. Dev builds
-// only: this file is compiled out under the `production` tag, the same tag
-// that removes Wails' own devtools code.
+// property is on, and attaches (and offers Inspect Element) only with
+// WebKit's private `developerExtrasEnabled` preference on too. Wails v3.0.0's
+// dev build sets `inspectable` on 13.3 and later and sets the preference only
+// on older systems (webview_window_darwin_dev.go), so this sets both. Dev
+// builds only: this file is compiled out under the `production` tag, the
+// same tag that removes Wails' own devtools code.
 //
 // Hooked on WindowDidBecomeKey rather than run inline, because the native
 // window does not exist until the app runs. Setting the property again on
