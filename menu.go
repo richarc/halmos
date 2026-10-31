@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/wailsapp/wails/v3/pkg/mac"
 )
 
 // citationStyles are the styles bundled with the app, in menu order. The ids
@@ -179,7 +178,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 		// Worth knowing when debugging either: the implementation discards the
 		// result of `open` in a goroutine, so a bad target fails silently and
 		// only a failure to *start* `open` is ever returned.
-		if resources, err := mac.ResourcePath(); err == nil {
+		if resources, err := resourcePath(); err == nil {
 			if dir, ok := licencesPath(resources); ok {
 				if err := app.Browser.OpenFile(dir); err != nil {
 					log.Printf("could not open the licences: %v", err)

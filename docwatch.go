@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -51,11 +50,7 @@ func statPath(path string) diskStat {
 }
 
 func statOf(info os.FileInfo) diskStat {
-	st := diskStat{exists: true, mod: info.ModTime().UnixNano(), size: info.Size()}
-	if sys, ok := info.Sys().(*syscall.Stat_t); ok {
-		st.ino = sys.Ino
-	}
-	return st
+	return diskStat{exists: true, mod: info.ModTime().UnixNano(), size: info.Size(), ino: inode(info)}
 }
 
 // startWatching opens the tracked file and starts its poll goroutine. The
