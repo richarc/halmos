@@ -1888,20 +1888,20 @@
     // A menu command while the palette is open closes it first, focus and
     // selection restored, then does what it does from the menu — ⌘Q included.
     // Running a palette entry arrives here too, after the palette has closed.
-    const onMenu = (name: string, cb: (ev: { data: unknown }) => void) =>
-      Events.On(name, (ev: { data: unknown }) => {
+    // Payload types come from Go's RegisterEvent calls (events.go), through
+    // the generated bindings.
+    const onMenu = <E extends keyof Events.CustomEvents>(name: E, cb: (ev: Events.WailsEvent<E>) => void) =>
+      Events.On(name, (ev) => {
         closePalette()
         cb(ev)
       })
     onMenu('menu:new', requestNew)
     onMenu('menu:open', requestOpen)
     onMenu('menu:tutorial', requestTutorial)
-    onMenu('menu:open-recent', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') requestOpenRecent(ev.data)
-    })
+    onMenu('menu:open-recent', (ev) => requestOpenRecent(ev.data))
     onMenu('menu:save', () => void save())
     onMenu('menu:save-as', () => void saveAs())
-    onMenu('close:confirm', (ev: { data: unknown }) => {
+    onMenu('close:confirm', (ev) => {
       // 'close' from the window's close button, 'quit' from ⌘Q. Anything
       // else is treated as a quit, the older and safer reading.
       const intent = ev.data === 'close' ? 'close' : 'quit'
@@ -1917,57 +1917,31 @@
       if (!dirty) finishPending()
     })
     Events.On('document:closed', closeDocument)
-    Events.On('document:changed', (ev: { data: unknown }) => {
-      const d = ev.data as { path?: unknown; version?: unknown; content?: unknown } | null
-      if (typeof d?.path !== 'string' || typeof d.version !== 'string' || typeof d.content !== 'string') return
-      onDiskChange({ path: d.path, version: d.version, content: d.content })
-    })
-    Events.On('document:moved', (ev: { data: unknown }) => {
-      const d = ev.data as { from?: unknown; to?: unknown } | null
-      if (typeof d?.from !== 'string' || typeof d.to !== 'string') return
-      onDiskMove({ from: d.from, to: d.to })
-    })
-    Events.On('document:deleted', (ev: { data: unknown }) => {
-      const d = ev.data as { path?: unknown } | null
-      if (typeof d?.path !== 'string') return
-      onDiskDelete({ path: d.path })
-    })
+    Events.On('document:changed', (ev) => onDiskChange(ev.data))
+    Events.On('document:moved', (ev) => onDiskMove(ev.data))
+    Events.On('document:deleted', (ev) => onDiskDelete(ev.data))
     // Finder's Open With while running (#19); same path as Open Recent, so
     // unsaved changes are asked about first.
-    onMenu('file:open', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') requestOpenRecent(ev.data)
-    })
+    onMenu('file:open', (ev) => requestOpenRecent(ev.data))
     Events.On('recents:changed', () => void refreshRecents())
     Events.On('bib:changed', () => void reloadBibliography())
     onMenu('menu:insert-citation', () => void insertCitation())
     onMenu('menu:insert-crossref', () => insertCrossref())
     onMenu('menu:export-pdf', () => exportPDF())
     onMenu('menu:export-html', () => void exportHTML())
-    onMenu('menu:export-pandoc', (ev: { data: unknown }) => {
+    onMenu('menu:export-pandoc', (ev) => {
       if (ev.data === 'docx' || ev.data === 'latex') void exportPandoc(ev.data)
     })
     onMenu('menu:account', () => void openAccount())
-    Events.On('portal:pairing', (ev: { data: unknown }) => {
-      if (ev.data && typeof ev.data === 'object') onPairing(ev.data as { state: string; email?: string })
-    })
+    Events.On('portal:pairing', (ev) => onPairing(ev.data))
     onMenu('menu:insert-chart', () => openChartBuilder())
     onMenu('menu:insert-table', () => openTableBuilder())
-    onMenu('menu:insert-code', (ev: { data: unknown }) => {
-      // '' is the Plain text item, and a legitimate payload — a bare fence.
-      if (typeof ev.data === 'string') insertCodeBlock(ev.data)
-    })
-    onMenu('menu:format', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') applyFormat(ev.data)
-    })
-    onMenu('menu:find', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') applyFind(ev.data)
-    })
-    onMenu('menu:citation-style', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') void applyCitationStyle(ev.data)
-    })
-    onMenu('menu:fold', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') applyFold(ev.data)
-    })
+    // '' is the Plain text item, and a legitimate payload — a bare fence.
+    onMenu('menu:insert-code', (ev) => insertCodeBlock(ev.data))
+    onMenu('menu:format', (ev) => applyFormat(ev.data))
+    onMenu('menu:find', (ev) => applyFind(ev.data))
+    onMenu('menu:citation-style', (ev) => void applyCitationStyle(ev.data))
+    onMenu('menu:fold', (ev) => applyFold(ev.data))
     Events.On('settings:changed', () => void refreshSettings())
     onMenu('menu:check-updates', () => void checkForUpdates(true))
     Events.On('menu:command-palette', togglePalette)
