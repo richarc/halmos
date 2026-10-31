@@ -820,6 +820,12 @@ accepting it. Was v1.2.0 until 2026-10-31.
 - [ ] **Prompt-injection safety.** An opened document must not be able to
       instruct the AI. Prerequisite: the Content-Security-Policy item in the
       backlog.
+- [ ] **AI usage meter and packs.** Added 2026-10-31. AI use is capped at a
+      monthly allowance, counted in operations rather than tokens. The
+      editor shows what is used and left (Account… and beside the AI
+      commands), warns before the allowance runs out, and when it has,
+      says so and links to buying a pack on the portal. Prices stay on the
+      portal; the editor shows none.
 
 ## v1.4.0 — AI limited to the user's own sources
 
