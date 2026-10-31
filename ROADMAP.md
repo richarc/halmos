@@ -679,6 +679,26 @@ one — dissolves when the conversion runs on a server Halmos controls.
       Publish lives (File menu, toolbar, palette); how the editor shows a
       document's link and whether it is out of date; and what is kept in
       the document or beside it.
+- [ ] **Import review changes from a returned Word document.** Added
+      2026-10-31. Word export is mostly a hand-off, and the common loop is
+      a supervisor or co-author returning the `.docx` with tracked changes
+      and comments, which the author now copies into the Markdown by hand.
+      Import the returned file and show its tracked changes and comments as
+      suggestions against the Markdown, one paragraph at a time, beside the
+      source; the user accepts or rejects each, and the Markdown stays the
+      master copy. It works because Halmos knows what it exported: keep a
+      snapshot of the text each export sent, have the portal convert the
+      returned file with Pandoc keeping tracked changes and comments,
+      compare paragraph by paragraph against the snapshot, and map each
+      change back to its source lines. Only prose changes are offered:
+      citations, charts, cross-references, labels and frontmatter are never
+      re-imported from Word. A paid service, so it needs Connect; the
+      contract change comes first, and the portal serves it before this
+      release. Open at planning: where the snapshot is kept (beside the
+      document, or in the app's data folder keyed by document), what
+      happens when the Markdown changed after the export, how a change that
+      spans paragraphs or touches a citation is shown, and whether comments
+      can be kept as Markdown comments.
 - [ ] **Release v1.1.0**, once the items above are done and the portal's
       go-live deploy has switched billing on: the editor's paid features
       call what the portal must already serve. Before cutting it, check
