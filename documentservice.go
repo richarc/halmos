@@ -458,7 +458,7 @@ func (s *DocumentService) ExportPDF(docPath string, furniture PageFurniture) err
 	set := s.settings.get()
 	landscape := set.PrintOrientation == "landscape"
 	w, h := paperPoints(set.PaperSize, landscape)
-	if !exportPDF(path, paperPWGName(set.PaperSize), landscape, w, h, furniture.normalised(), set.BodyFont) {
+	if !exportPDF(s.window.NativeWindow(), path, paperPWGName(set.PaperSize), landscape, w, h, furniture.normalised(), set.BodyFont) {
 		return fmt.Errorf("could not export the PDF")
 	}
 	return nil
@@ -471,7 +471,7 @@ func (s *DocumentService) PrintDocument() {
 	if s.window == nil {
 		return
 	}
-	if !printWithOrientation(s.settings.get().PrintOrientation == "landscape") {
+	if !printWithOrientation(s.window.NativeWindow(), s.settings.get().PrintOrientation == "landscape") {
 		// Fallback: Wails' built-in print (hardcodes landscape upstream).
 		_ = s.window.Print()
 	}
