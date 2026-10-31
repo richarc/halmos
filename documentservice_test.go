@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -497,5 +498,45 @@ func TestWelcomeInfoReportsVersionAndHome(t *testing.T) {
 	}
 	if got.Home != home {
 		t.Errorf("Home = %q, want %q", got.Home, home)
+	}
+}
+
+func TestReadBibliographyRefusesOtherFiles(t *testing.T) {
+	s := newTestService(t)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ReadBibliography("notes.txt", filepath.Join(dir, "paper.md"))
+	if !errors.Is(err, errNotBibliography) || got != "" {
+		t.Fatalf("got %q, %v", got, err)
+	}
+}
+
+func TestReadBibliographyRefusesSymlinkToOtherFile(t *testing.T) {
+	s := newTestService(t)
+	dir := t.TempDir()
+	secret := filepath.Join(dir, "secret.txt")
+	if err := os.WriteFile(secret, []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(dir, "refs.bib")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ReadBibliography("refs.bib", filepath.Join(dir, "paper.md"))
+	if !errors.Is(err, errNotBibliography) || got != "" {
+		t.Fatalf("got %q, %v", got, err)
+	}
+}
+
+func TestReadBibliographyAcceptsUpperCaseExtension(t *testing.T) {
+	s := newTestService(t)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Refs.BIB"), []byte("@book{b}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ReadBibliography("Refs.BIB", filepath.Join(dir, "paper.md"))
+	if err != nil || got != "@book{b}" {
+		t.Fatalf("got %q, %v", got, err)
 	}
 }

@@ -583,8 +583,32 @@ func resolveAgainstDoc(path, docPath string) string {
 	return filepath.Join(filepath.Dir(docPath), path)
 }
 
+var errNotBibliography = errors.New("not a bibliography file")
+
+// bibliographyFile refuses anything but a .bib file, by the name asked for
+// and by the file a symlink leads to, as localImageFile does for images: the
+// path comes from a document, and a document can come from anyone. A missing
+// file returns the os error, which the frontend reads as no bibliography yet.
+func bibliographyFile(resolved string) error {
+	isBib := func(p string) bool { return strings.EqualFold(filepath.Ext(p), ".bib") }
+	if !isBib(resolved) {
+		return errNotBibliography
+	}
+	target, err := filepath.EvalSymlinks(resolved)
+	if err != nil {
+		return err
+	}
+	if !isBib(target) {
+		return errNotBibliography
+	}
+	return nil
+}
+
 func (s *DocumentService) ReadBibliography(path, docPath string) (string, error) {
 	resolved := resolveAgainstDoc(path, docPath)
+	if err := bibliographyFile(resolved); err != nil {
+		return "", err
+	}
 	data, err := os.ReadFile(resolved)
 	if err != nil {
 		return "", err
