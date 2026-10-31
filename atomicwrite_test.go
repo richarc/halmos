@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -154,5 +156,55 @@ func TestWriteFileAtomicIsNotVisibleUntilComplete(t *testing.T) {
 	}
 	if len(entries) != 1 {
 		t.Errorf("want a single file after the write, got %d entries", len(entries))
+	}
+}
+
+// A document reached through a symlink stays a symlink: the write goes to
+// the file it leads to.
+func TestSaveThroughSymlinkKeepsLink(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "paper.md")
+	if err := os.WriteFile(target, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "paper.md")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileAtomic(link, []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("the link was replaced: %v %v", info, err)
+	}
+	if b, _ := os.ReadFile(target); string(b) != "new" {
+		t.Fatalf("target holds %q", b)
+	}
+}
+
+// When the target's folder cannot be written, the save fails with a
+// permission error and the link is left as it was.
+func TestSaveThroughSymlinkToReadOnlyTarget(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "paper.md")
+	if err := os.WriteFile(target, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	link := filepath.Join(t.TempDir(), "paper.md")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	err := writeFileAtomic(link, []byte("new"), 0o644)
+	if !errors.Is(err, fs.ErrPermission) {
+		t.Fatalf("err = %v", err)
+	}
+	if info, _ := os.Lstat(link); info.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("the link was replaced")
+	}
+	if b, _ := os.ReadFile(target); string(b) != "old" {
+		t.Fatalf("target holds %q", b)
 	}
 }

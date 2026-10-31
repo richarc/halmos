@@ -19,9 +19,18 @@ import (
 // The temp file lives beside the destination rather than in the system temp
 // dir so that both are on the same filesystem — rename cannot cross one.
 func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	// A symlinked document stays a symlink: write the file it leads to. A
+	// link that leads nowhere is replaced, as a missing file is created.
+	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		if target, err := filepath.EvalSymlinks(path); err == nil {
+			path = target
+		}
+	}
 	dir := filepath.Dir(path)
+	existed := false
 	if info, err := os.Stat(path); err == nil {
 		perm = info.Mode().Perm()
+		existed = true
 	}
 
 	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp*")
@@ -47,6 +56,12 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 	}
 	if err := f.Close(); err != nil {
 		return err
+	}
+	// The rename replaces the file, so its extended attributes (Finder tags
+	// among them) are copied onto the new one first. Best effort: losing a
+	// tag is not worth failing the save over.
+	if existed {
+		_ = copyXattrs(path, tmp)
 	}
 	if err := os.Rename(tmp, path); err != nil {
 		return err
