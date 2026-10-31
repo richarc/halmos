@@ -103,7 +103,7 @@ export function CloseWindow(): $CancellablePromise<void> {
  * has already confirmed any replacement.
  * 
  * Split from the dialog so it is testable without one, the same reason
- * feedbackURL and quitRequest are separate from what calls them.
+ * feedbackURL and closeRequest are separate from what calls them.
  */
 export function CreateDocument(path: string, content: string, bibName: string, bibContent: string): $CancellablePromise<$models.Document> {
     return $Call.ByID(839519561, path, content, bibName, bibContent);
