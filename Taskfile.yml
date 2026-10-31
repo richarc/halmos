@@ -191,10 +191,10 @@ tasks:
       # (the Release workflow's) does not compile without it, and a local
       # one would test against whatever dist was left by the last build.
       - '{{.PACKAGE_MANAGER}} --prefix frontend run build'
-      - go test ./.
+      - go test ./. ./internal/...
       # The same tests as the release build compiles them: without the paid
       # features (paidfeatures_off.go).
-      - go test -tags nopaid ./.
+      - go test -tags nopaid ./. ./internal/...
       - '{{.PACKAGE_MANAGER}} --prefix frontend test'
       - task: quicklook:test
       # create:app:bundle never cleans, so a Resources file deleted since the
