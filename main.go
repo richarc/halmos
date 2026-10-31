@@ -92,9 +92,11 @@ func main() {
 	// before the app runs, so no quit can reach ShouldQuit while it is nil.
 	var win *application.WebviewWindow
 	app := application.New(application.Options{
-		Name:        "Halmos Editor",
-		Description: "Academic markdown editor",
-		Services:    []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal), application.NewService(palette), application.NewService(styles), application.NewService(tutorial)},
+		// File and portal errors reach the frontend as a cause with a code.
+		MarshalError: marshalError,
+		Name:         "Halmos Editor",
+		Description:  "Academic markdown editor",
+		Services:     []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal), application.NewService(palette), application.NewService(styles), application.NewService(tutorial)},
 		// A recording the script left running is stopped so the file on disk
 		// is closed, whichever way the app ends.
 		OnShutdown: demo.shutdown,

@@ -80,6 +80,7 @@
   import { readSpec, type BuilderState } from './lib/chartSpec'
   import { refusalMessage } from './lib/chartLabels'
   import type { ChartWidth, FigureAlignment } from './lib/figures'
+  import { fileErrorText } from './lib/fileError'
   import {
     DEFAULT_PAPER_SIZE,
     DEFAULT_ORIENTATION,
@@ -502,12 +503,12 @@
       loadedBib = styleNotice ? null : { text, csl, xml }
       if (styleNotice) toast(styleNotice)
       else if (installedNotice) toast(installedNotice)
-    } catch {
+    } catch (err) {
       if (gen !== reloadGeneration) return // superseded by a newer request
       formatter = undefined
       bibEntries = []
       loadedBib = null
-      toast(`Bibliography not found: ${wanted}`)
+      toast(fileErrorText('bibliography', err, wanted))
     }
     void DocumentService.WatchBibliography(wanted, path)
   }
@@ -1595,7 +1596,7 @@
       if (!doc.path) return // cancelled
       loadDocument(doc.path, doc.content)
     } catch (err) {
-      toast(`Could not open file: ${err}`)
+      toast(fileErrorText('open', err, 'file'))
     }
   }
 
@@ -1617,7 +1618,7 @@
       const doc = await DocumentService.OpenPath(p)
       loadDocument(doc.path, doc.content)
     } catch (err) {
-      toast(`Could not open ${p}: ${err}`)
+      toast(fileErrorText('open', err, p))
     }
   }
 
@@ -1652,7 +1653,7 @@
       diskGone = false
       return true
     } catch (err) {
-      toast(`Could not save: ${err}`)
+      toast(fileErrorText('save', err, path ?? ''))
       return false
     }
   }
@@ -1670,7 +1671,7 @@
       draftWriteWarned = false
       void refreshRecents()
     } catch (err) {
-      toast(`Could not save: ${err}`)
+      toast(fileErrorText('save', err, path ?? ''))
     }
   }
 

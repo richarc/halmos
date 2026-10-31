@@ -111,7 +111,7 @@ func NewDocumentService(recentsPath string) *DocumentService {
 func (s *DocumentService) OpenPath(path string) (Document, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return Document{}, err
+		return Document{}, fileError(err, path)
 	}
 	s.docMu.Lock()
 	s.trackDocument(path, data)
@@ -136,11 +136,11 @@ func (s *DocumentService) Save(path, content string, overwrite bool) (SaveResult
 				return SaveResult{Conflict: true}, nil
 			}
 		case !errors.Is(err, os.ErrNotExist):
-			return SaveResult{}, err
+			return SaveResult{}, fileError(err, path)
 		}
 	}
 	if err := writeFileAtomic(path, []byte(content), 0o644); err != nil {
-		return SaveResult{}, err
+		return SaveResult{}, fileError(err, path)
 	}
 	s.trackDocument(path, []byte(content))
 	_ = s.drafts.markSaved(path, contentVersion([]byte(content)))
@@ -263,7 +263,7 @@ func (s *DocumentService) ImportData(docPath string) (string, error) {
 func readDataFile(path string) (string, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return "", err
+		return "", fileError(err, path)
 	}
 	if info.Size() > maxDataFileBytes {
 		return "", fmt.Errorf("that file is %d MB; the limit is %d MB because the data is stored in the document",
@@ -271,7 +271,7 @@ func readDataFile(path string) (string, error) {
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return "", err
+		return "", fileError(err, path)
 	}
 	return string(b), nil
 }
@@ -373,10 +373,10 @@ func (s *DocumentService) CreateDocument(path, content, bibName, bibContent stri
 		bibPath := resolveAgainstDoc(bibName, path)
 		if _, err := os.Stat(bibPath); os.IsNotExist(err) {
 			if err := writeFileAtomic(bibPath, []byte(bibContent), 0o644); err != nil {
-				return Document{}, fmt.Errorf("creating bibliography: %w", err)
+				return Document{}, fileError(fmt.Errorf("creating bibliography: %w", err), bibPath)
 			}
 		} else if err != nil {
-			return Document{}, fmt.Errorf("checking for bibliography: %w", err)
+			return Document{}, fileError(fmt.Errorf("checking for bibliography: %w", err), bibPath)
 		}
 	}
 	if _, err := s.Save(path, content, true); err != nil {
@@ -628,11 +628,11 @@ func bibliographyFile(resolved string) error {
 func (s *DocumentService) ReadBibliography(path, docPath string) (string, error) {
 	resolved := resolveAgainstDoc(path, docPath)
 	if err := bibliographyFile(resolved); err != nil {
-		return "", err
+		return "", fileError(err, resolved)
 	}
 	data, err := os.ReadFile(resolved)
 	if err != nil {
-		return "", err
+		return "", fileError(err, resolved)
 	}
 	s.watchMu.Lock()
 	s.bibReadPath, s.bibReadVersion = resolved, contentVersion(data)
