@@ -46,7 +46,7 @@ for this release have shipped (see CHANGELOG.md, v0.15.0).
       PDFKit, so the Windows version (v1.1.0) can reuse that step; check
       first that pdfcpu writes nested bookmarks and keeps the links and
       searchable text WebKit produced. Added 2026-10-30.
-- [ ] **Pre-1.0 clean-up.** An architecture review on 2026-10-30 found the
+- [x] **Pre-1.0 clean-up.** An architecture review on 2026-10-30 found the
       code in good shape (vet clean, no races, 78% Go coverage, all calls
       through generated bindings) and listed 20 fixes to make before the
       1.0 freeze, plus `release` refusing a working tree that is not clean
@@ -62,7 +62,9 @@ for this release have shipped (see CHANGELOG.md, v0.15.0).
       a Windows compile check in CI, and fuzz tests. Spec
       `docs/superpowers/specs/2026-10-30-pre1.0-cleanup-design.md`, plan
       `docs/superpowers/plans/2026-10-30-pre1.0-cleanup.md`. Added
-      2026-10-30.
+      2026-10-30. Done 2026-11-01, except moving the portal and style
+      catalogue code into `internal/`: their tests share stand-ins with
+      the main package, which needs a choice of approach first.
 
 ## v1.1.0 — Windows and free export
 
