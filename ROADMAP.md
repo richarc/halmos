@@ -271,7 +271,7 @@ reference. Was v1.4.0 until 2026-11-01.
 
 Serves: M1.4
 
-AI help with charts and tables, shown before it is inserted, and
+AI help with charts, diagrams and tables, shown before it is inserted, and
 publishing a document to share it. Was in v1.2.0 (publishing) and v1.3.0
 (charts and tables) until 2026-11-01.
 
@@ -280,6 +280,13 @@ publishing a document to share it. Was in v1.2.0 (publishing) and v1.3.0
       (`readSpec`) for editing. If the builder cannot model the spec, say so
       instead of inserting it unseen.
       *Moved to v1.4.0 on 2026-11-01*: after the citation work.
+- [ ] **Diagram from a prompt.** Describe the diagram (a flowchart, a
+      sequence, a state machine, a class or entity diagram); the result is
+      a ` ```mermaid ` fence, shown rendered with its source, editable,
+      before it is inserted. If Mermaid cannot parse it, say so instead of
+      inserting it. Like Chart from a prompt, it writes the source the
+      editor already renders, so the diagram stays editable by hand.
+      *Added 2026-11-01.*
 - [ ] **Table from pasted text** (a copied spreadsheet range, a PDF table),
       opened in the table builder.
       *Moved to v1.4.0 on 2026-11-01*: after the citation work.
