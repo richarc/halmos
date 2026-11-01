@@ -12,6 +12,6 @@ func printWithOrientation(win unsafe.Pointer, landscape bool) bool { return fals
 // exportPDF reports false off macOS: the panel-free export is an AppKit
 // NSPrintOperation, and there is no equivalent here. The caller surfaces the
 // failure to the user rather than writing an empty file.
-func exportPDF(win unsafe.Pointer, path, paperName string, landscape bool, paperWidth, paperHeight float64, f PageFurniture, fontKey string) bool {
+func exportPDF(win unsafe.Pointer, path, paperName string, landscape bool, paperWidth, paperHeight float64, f PageFurniture, fontKey string, exportID int) bool {
 	return false
 }

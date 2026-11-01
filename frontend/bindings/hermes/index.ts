@@ -32,6 +32,8 @@ export type {
     Document,
     Draft,
     ExportImage,
+    PDFHeading,
+    PDFOutline,
     PageFurniture,
     PairingEvent,
     PairingInfo,

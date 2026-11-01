@@ -132,6 +132,30 @@ export interface ExportImage {
 }
 
 /**
+ * PDFHeading is one heading of the document, sent by the frontend with the
+ * export. Text is what the bookmark shows (the sidebar outline's text);
+ * Match is the same heading with maths, code and markup left out, which is
+ * what can be found in the PDF's text. An empty Match cannot be found.
+ */
+export interface PDFHeading {
+    "level": number;
+    "text": string;
+    "match": string;
+}
+
+/**
+ * PDFOutline is what Export PDF… adds to the rendered PDF: the bookmarks,
+ * and the Title and Author properties. Contents says the document renders
+ * a contents list, whose entries repeat the headings' text.
+ */
+export interface PDFOutline {
+    "headings": PDFHeading[] | null;
+    "title": string;
+    "authors": string[] | null;
+    "contents": boolean;
+}
+
+/**
  * PageFurniture is Export PDF's running header and footer: the frontmatter's
  * `header` and `footer` templates as written, with the value for `{title}`.
  * The export fills that, `{date}`, `{page}` and `{pages}` in, page by page, in

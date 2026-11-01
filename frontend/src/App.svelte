@@ -874,7 +874,7 @@
   // first heading in the outline (lib/pageFurniture.ts).
   function exportPDF() {
     const furniture = pageFurniture(fm, outline[0]?.text ?? '', filename)
-    void DocumentService.ExportPDF(path ?? '', furniture).catch((e) => toast(String(e)))
+    void DocumentService.ExportPDF(path ?? '', furniture, { headings: [], title: '', authors: [], contents: false }).catch((e) => toast(String(e)))
   }
 
   async function exportHTML() {
