@@ -306,6 +306,18 @@ Ideas noted along the way, not yet committed to a release:
 - **Quantum circuit diagrams.** What `quantikz` does in LaTeX; Mermaid does
   not draw circuits. Investigate a circuit builder like the chart builder.
   Noted 2026-11-01.
+- **Try Pele as the diagram renderer.** Pele (`pele`, MIT, from the
+  Obsidian team) reads Mermaid 12.1 syntax and draws SVG with no
+  dependencies: about 230 KB against Mermaid's 1.6 MB, and well under a
+  millisecond a diagram. It would make diagrams appear at once, shrink
+  Quick Look's single script (8.4 MB, mostly Mermaid), and drop the
+  Mermaid 12 settings `lib/mermaid.ts` pins. The swap is one function,
+  `renderMermaid`, whose SVG the HTML and Word exports already use. Not
+  before 1.0: it was four weeks old with 23 releases when noted, against
+  the 1.0 dependency hold, and it draws with its own layout and look, so
+  every existing diagram would change. Compare both renderers on the
+  diagrams in `docs/` first; Quick Look could move before the app.
+  Noted 2026-11-01.
 - **Word export keeps working citations**, so co-authors can edit the
   `.docx` without breaking references. Moved from v1.1.0 on 2026-10-31:
   it matters most once review is a loop (v1.1.0's review import), and
