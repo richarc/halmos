@@ -1,7 +1,7 @@
 <script lang="ts">
   import Dialog from './Dialog.svelte'
   import { DocumentService } from '../bindings/hermes'
-  import { loadAcknowledgements, type Acknowledgements } from './lib/acknowledgements'
+  import { lastLoadFailure, loadAcknowledgements, type Acknowledgements } from './lib/acknowledgements'
 
   interface Props {
     open: boolean
@@ -13,12 +13,17 @@
   // undefined while loading, null when the build has no notices (dev server).
   let notices: Acknowledgements | null | undefined = $state(undefined)
   let error = $state('')
+  // Why the notices did not load, shown under the message.
+  let failure = $state('')
 
   // Loaded the first time the page opens, then kept: the notices do not
   // change while the app runs.
   $effect(() => {
     if (open && notices === undefined) {
-      void loadAcknowledgements().then((n) => (notices = n))
+      void loadAcknowledgements().then((n) => {
+        notices = n
+        failure = n ? '' : lastLoadFailure()
+      })
     }
   })
 
@@ -41,6 +46,7 @@
     <p class="dialog-hint">Loading…</p>
   {:else if notices === null}
     <p>The licence notices are only available in the packaged app.</p>
+    {#if failure}<p class="dialog-hint">Could not load them: {failure}</p>{/if}
   {:else}
     <ul class="ack-list">
       {#each notices.entries as e (`${e.name}@${e.version}`)}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { loadAcknowledgements } from './acknowledgements'
+import { describeFailure, loadAcknowledgements } from './acknowledgements'
 
 const good = {
   generatedBy: 'halmos-notices',
@@ -21,6 +21,12 @@ describe('loadAcknowledgements', () => {
   it('returns null for a file that is not the notices', async () => {
     expect(await loadAcknowledgements(respond(200, {}))).toBeNull()
     expect(await loadAcknowledgements(respond(200, { generatedBy: 'halmos-notices' }))).toBeNull()
+  })
+  it('says why it could not load them', async () => {
+    expect(await describeFailure(respond(404, {}))).toBe('HTTP 404')
+    expect(await describeFailure(respond(200, {}))).toBe('not a licence notices file')
+    expect(await describeFailure(vi.fn(async () => Promise.reject(new TypeError('Load failed'))))).toBe('TypeError: Load failed')
+    expect(await describeFailure(respond(200, good))).toBe('')
   })
   it('returns null when the fetch fails', async () => {
     expect(await loadAcknowledgements(vi.fn(async () => Promise.reject(new Error('offline'))))).toBeNull()

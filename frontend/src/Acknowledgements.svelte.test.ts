@@ -7,7 +7,7 @@ const { DocumentService, load } = vi.hoisted(() => ({
   load: vi.fn(),
 }))
 vi.mock('../bindings/hermes', () => ({ DocumentService }))
-vi.mock('./lib/acknowledgements', () => ({ loadAcknowledgements: load }))
+vi.mock('./lib/acknowledgements', () => ({ loadAcknowledgements: load, lastLoadFailure: () => 'HTTP 404' }))
 
 import Acknowledgements from './Acknowledgements.svelte'
 
@@ -80,6 +80,7 @@ describe('Acknowledgements', () => {
     load.mockResolvedValue(null)
     const { target } = mountPage()
     await vi.waitFor(() => expect(target.textContent).toContain('The licence notices are only available in the packaged app.'))
+    expect(target.textContent).toContain('Could not load them: HTTP 404')
   })
 
   it('shows the licence files in Finder', async () => {
