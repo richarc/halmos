@@ -234,3 +234,50 @@ func TestWriteOutlineRefusesSomethingThatIsNotAPDF(t *testing.T) {
 		t.Fatal("want an error")
 	}
 }
+
+func TestAssignPagesHeadingRightAfterTheContentsList(t *testing.T) {
+	// The list fills page 1; "Introduction" opens page 2 with nothing
+	// between them, and "Background" follows straight after it.
+	pages := []string{
+		pageOf("Contents", "Introduction", "Background", "Results"),
+		pageOf("Introduction", "Background", body, "Results", body),
+	}
+	hs := []PDFHeading{h(1, "Introduction"), h(2, "Background"), h(1, "Results")}
+	if got, want := assignPages(hs, pages, true), []int{2, 2, 2}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesContentsListOmitsDeepHeadings(t *testing.T) {
+	// toc-depth 1: the list names only the level-1 headings.
+	pages := []string{
+		pageOf("Contents", "One", "Two", "One", "Detail", body),
+		pageOf(body, "Two", body),
+	}
+	hs := []PDFHeading{h(1, "One"), h(3, "Detail"), h(1, "Two")}
+	if got, want := assignPages(hs, pages, true), []int{1, 1, 2}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesHeadingWithMathsAndWords(t *testing.T) {
+	// "Results for $x^2$ in $\mathbb{R}$": KaTeX prints the maths as
+	// something other than its source, so those parts are gaps.
+	hd := PDFHeading{Level: 1, Text: "Results for x^2 in \\mathbb{R}", Match: "Results for \x00 in \x00", Gaps: []int{3, 11}}
+	pages := []string{pageOf(body), pageOf(body, "Results for x2 in R", body)}
+	if got, want := assignPages([]PDFHeading{hd}, pages, false), []int{2}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesMathsGapIsBounded(t *testing.T) {
+	// "For $x$" must not match a body line that merely starts "For".
+	hd := PDFHeading{Level: 1, Text: "For x", Match: "For \x00", Gaps: []int{1}}
+	pages := []string{
+		pageOf("For example, the results hold for every case we tried."),
+		pageOf(body, "For x", body),
+	}
+	if got, want := assignPages([]PDFHeading{h(1, "Intro"), hd}, append([]string{pageOf("Intro")}, pages...), false), []int{1, 3}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}

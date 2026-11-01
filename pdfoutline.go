@@ -21,12 +21,16 @@ import (
 
 // PDFHeading is one heading of the document, sent by the frontend with the
 // export. Text is what the bookmark shows (the sidebar outline's text);
-// Match is the same heading with maths, code and markup left out, which is
-// what can be found in the PDF's text. An empty Match cannot be found.
+// Match is what can be found in the PDF's text: the same heading with each
+// piece of maths replaced by a NUL, since KaTeX prints maths as something
+// other than its source. Gaps holds each piece's source length, which
+// bounds how much printed text may stand in for it. A Match with no words
+// cannot be found.
 type PDFHeading struct {
 	Level int    `json:"level"`
 	Text  string `json:"text"`
 	Match string `json:"match"`
+	Gaps  []int  `json:"gaps"`
 }
 
 // PDFOutline is what Export PDF… adds to the rendered PDF: the bookmarks,
@@ -61,6 +65,101 @@ func skeleton(s string) string {
 	}, s)
 }
 
+// pattern is a heading as compared with whole lines of a page: the
+// skeletons of its words, with a bounded gap between two of them wherever a
+// piece of maths was.
+type pattern struct {
+	segs   []string
+	maxGap []int
+}
+
+func patternOf(hd PDFHeading) pattern {
+	parts := strings.Split(hd.Match, "\x00")
+	p := pattern{}
+	for i, part := range parts {
+		p.segs = append(p.segs, skeleton(part))
+		if i > 0 {
+			n := 0
+			if i-1 < len(hd.Gaps) {
+				n = hd.Gaps[i-1]
+			}
+			// Printed maths is rarely longer than its source; the slack is
+			// for symbols KaTeX spells out.
+			p.maxGap = append(p.maxGap, max(4, 2*n))
+		}
+	}
+	return p
+}
+
+// empty reports a pattern with no words to look for.
+func (p pattern) empty() bool {
+	for _, s := range p.segs {
+		if s != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// matches reports whether acc, the concatenated skeletons of a run of
+// lines, reads as the whole pattern.
+func (p pattern) matches(acc string) bool {
+	var at func(i, pos int) bool
+	at = func(i, pos int) bool {
+		if !strings.HasPrefix(acc[pos:], p.segs[i]) {
+			return false
+		}
+		pos += len(p.segs[i])
+		if i == len(p.segs)-1 {
+			return pos == len(acc)
+		}
+		for gap := 1; gap <= p.maxGap[i] && pos+gap <= len(acc); gap++ {
+			if at(i+1, pos+gap) {
+				return true
+			}
+		}
+		return false
+	}
+	return at(0, 0)
+}
+
+// mayContinue reports whether more lines could still complete a match:
+// acc is no longer than the longest text the pattern can read as, and
+// starts with its first words.
+func (p pattern) mayContinue(acc string) bool {
+	longest := 0
+	for _, s := range p.segs {
+		longest += len(s)
+	}
+	for _, g := range p.maxGap {
+		longest += g
+	}
+	first := p.segs[0]
+	if len(acc) < len(first) {
+		return strings.HasPrefix(first, acc)
+	}
+	return strings.HasPrefix(acc, first) && len(acc) < longest
+}
+
+// runAt returns how many lines from line l of a page read as the pattern,
+// or 0. Headings wrap over a few lines at most.
+func (p pattern) runAt(page []string, skipped func(int) bool, l int) int {
+	if page[l] == "" || skipped(l) {
+		return 0
+	}
+	acc := ""
+	for k := l; k < len(page) && k < l+6 && !skipped(k); k++ {
+		acc += page[k]
+		if p.matches(acc) {
+			return k - l + 1
+		}
+		if !p.mayContinue(acc) {
+			return 0
+		}
+	}
+	return 0
+}
+
 // assignPages returns the 1-based page each heading is on, in order.
 //
 // A heading is found where whole lines of a page read as its text (one
@@ -68,8 +167,7 @@ func skeleton(s string) string {
 // mention in body text does not count. The search starts where the
 // previous heading was found and only moves forward, so two headings with
 // the same text land on their own pages and no bookmark goes backwards.
-// With contents set, the entries of the contents list (the lines after its
-// "Contents" title that are part of a heading's text) are skipped. A
+// With contents set, the entries of the contents list are skipped. A
 // heading that cannot be found takes the previous heading's page.
 func assignPages(headings []PDFHeading, pageTexts []string, contents bool) []int {
 	lines := make([][]string, len(pageTexts))
@@ -78,23 +176,23 @@ func assignPages(headings []PDFHeading, pageTexts []string, contents bool) []int
 			lines[p] = append(lines[p], skeleton(l))
 		}
 	}
-	targets := make([]string, len(headings))
+	pats := make([]pattern, len(headings))
 	for i, hd := range headings {
-		targets[i] = skeleton(hd.Match)
+		pats[i] = patternOf(hd)
 	}
 	skipped := map[[2]int]bool{}
 	if contents {
-		skipContentsList(lines, targets, skipped)
+		skipContentsList(lines, pats, skipped)
 	}
 
 	pages := make([]int, len(headings))
 	page, line, last := 0, 0, 1
-	for i, target := range targets {
+	for i, pat := range pats {
 		pages[i] = last
-		if target == "" {
+		if pat.empty() {
 			continue
 		}
-		if p, next, ok := findLines(lines, skipped, target, page, line); ok {
+		if p, next, ok := findRun(lines, skipped, pat, page, line); ok {
 			pages[i] = p + 1
 			last = p + 1
 			page, line = p, next
@@ -103,62 +201,64 @@ func assignPages(headings []PDFHeading, pageTexts []string, contents bool) []int
 	return pages
 }
 
-// findLines looks from (page, line) on for consecutive lines of one page
-// that together read as target; it returns the page and the line after
-// them.
-func findLines(lines [][]string, skipped map[[2]int]bool, target string, page, line int) (int, int, bool) {
+// findRun looks from (page, line) on for lines that read as pat; it
+// returns the page and the line after them.
+func findRun(lines [][]string, skipped map[[2]int]bool, pat pattern, page, line int) (int, int, bool) {
 	for p := page; p < len(lines); p++ {
 		start := 0
 		if p == page {
 			start = line
 		}
+		isSkipped := func(l int) bool { return skipped[[2]int{p, l}] }
 		for l := start; l < len(lines[p]); l++ {
-			if skipped[[2]int{p, l}] || lines[p][l] == "" {
-				continue
-			}
-			acc := ""
-			for k := l; k < len(lines[p]) && !skipped[[2]int{p, k}]; k++ {
-				acc += lines[p][k]
-				if acc == target {
-					return p, k + 1, true
-				}
-				if !strings.HasPrefix(target, acc) {
-					break
-				}
+			if n := pat.runAt(lines[p], isSkipped, l); n > 0 {
+				return p, l + n, true
 			}
 		}
 	}
 	return 0, 0, false
 }
 
-// skipContentsList marks the contents list's entries: the lines after the
-// first line reading "Contents" (the title lib/toc.ts gives the list) that
-// are each part of some heading's text.
-func skipContentsList(lines [][]string, targets []string, skipped map[[2]int]bool) {
-	partOfAHeading := func(s string) bool {
-		if s == "" {
-			return false
-		}
-		for _, t := range targets {
-			if t != "" && strings.Contains(t, s) {
-				return true
-			}
-		}
-		return false
-	}
+// skipContentsList marks the contents list's entries. The list starts after
+// the first line reading "Contents" (the title lib/toc.ts gives it) and
+// names headings in document order, perhaps not all of them (toc-depth):
+// each entry is the next line run that reads as a heading after the one
+// the previous entry named. The first run that does not is where the list
+// ends, so a heading straight after the list (which comes earlier in the
+// document than the list's last entry) is not taken for an entry.
+func skipContentsList(lines [][]string, pats []pattern, skipped map[[2]int]bool) {
 	for p := range lines {
 		for l, s := range lines[p] {
 			if s != "contents" {
 				continue
 			}
-			// The list may run onto the next pages.
-			for q, m := p, l+1; q < len(lines); q, m = q+1, 0 {
-				for ; m < len(lines[q]); m++ {
-					if !partOfAHeading(lines[q][m]) {
-						return
-					}
-					skipped[[2]int{q, m}] = true
+			next := 0
+			q, m := p, l+1
+			for q < len(lines) {
+				if m >= len(lines[q]) {
+					q, m = q+1, 0
+					continue
 				}
+				if lines[q][m] == "" {
+					m++
+					continue
+				}
+				n, j := 0, next
+				for ; j < len(pats); j++ {
+					if !pats[j].empty() {
+						if n = pats[j].runAt(lines[q], func(int) bool { return false }, m); n > 0 {
+							break
+						}
+					}
+				}
+				if n == 0 {
+					return
+				}
+				for k := m; k < m+n; k++ {
+					skipped[[2]int{q, k}] = true
+				}
+				m += n
+				next = j + 1
 			}
 			return
 		}
