@@ -149,3 +149,22 @@ func TestPendingExportsHandOutEachOutlineOnce(t *testing.T) {
 	}
 	pending.take(a)
 }
+
+func TestFinishExportLeavesTheFileReadableByOthers(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no Unix permissions")
+	}
+	tmp, out := t.TempDir(), t.TempDir()
+	dest := filepath.Join(out, "Paper.pdf")
+	if err := finishExport(copyFixture(t, tmp, "rendered.pdf"), "", dest, fixtureOutline, fixturePageTexts); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Stat(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// What NSPrintOperation wrote before: 0644 under the usual umask.
+	if fi.Mode().Perm()&0o044 != 0o044 {
+		t.Fatalf("mode %v: group and others cannot read it", fi.Mode().Perm())
+	}
+}

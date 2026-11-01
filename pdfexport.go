@@ -45,7 +45,14 @@ func finishExport(rendered, stamped, dest string, o PDFOutline, pageTexts func(s
 		return fmt.Errorf("could not write %s: %w", dest, err)
 	}
 	tmpPath := tmp.Name()
+	// CreateTemp makes the file owner-only; the PDF is a document like any
+	// other, readable by others as NSPrintOperation's file was.
+	chmodErr := tmp.Chmod(0o644)
 	tmp.Close()
+	if chmodErr != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("could not write %s: %w", dest, chmodErr)
+	}
 	defer os.Remove(tmpPath)
 
 	if err := writeOutline(src, tmpPath, nodes, o); err != nil {
