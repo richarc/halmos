@@ -1732,6 +1732,31 @@ describe('export PDF', () => {
       expect.anything(),
     )
   })
+
+  it('sends the headings, title and authors for the PDF outline', async () => {
+    recents.current = ['/tmp/paper.md']
+    DocumentService.OpenPath.mockResolvedValueOnce({
+      path: '/tmp/paper.md',
+      content: '---\ntitle: A Thesis\nauthor: Ada Lovelace\ntoc: true\n---\n# Results\n\n## For $x$\n',
+    })
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    listeners['menu:open-recent']({ data: '/tmp/paper.md' })
+    await vi.waitFor(() => expect(target.textContent).toContain('Results'))
+
+    listeners['menu:export-pdf']({ data: null })
+    flushSync()
+
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md', expect.anything(), {
+      headings: [
+        { level: 1, text: 'Results', match: 'Results' },
+        { level: 2, text: 'For x', match: 'For' },
+      ],
+      title: 'A Thesis',
+      authors: ['Ada Lovelace'],
+      contents: true,
+    })
+  })
 })
 
 describe('export HTML', () => {

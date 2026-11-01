@@ -22,6 +22,13 @@ describe('outline', () => {
     expect(outline[0].text).toBe('The bold code link and E=mc^2')
   })
 
+  it('gives a heading with maths a match text without it, for finding it in a PDF', () => {
+    const { outline } = renderDocument('## Results for $x^2$ and `code`\n\n## $E=mc^2$\n\n## Plain\n')
+    expect(outline[0]).toMatchObject({ text: 'Results for x^2 and code', match: 'Results for and code' })
+    expect(outline[1]).toMatchObject({ text: 'E=mc^2', match: '' })
+    expect(outline[2]).not.toHaveProperty('match')
+  })
+
   it('ignores headings inside fences and blockquotes', () => {
     const { outline } = renderDocument('# Real\n\n```text\n# Not a heading\n```\n\n> # Quoted\n')
     expect(outline).toEqual([{ level: 1, text: 'Real', line: 1 }])
