@@ -11,7 +11,7 @@ import type { OutlineEntry } from './outline'
  */
 export function pdfOutline(outline: OutlineEntry[], fm: Frontmatter): PDFOutline {
   return {
-    headings: outline.map((e) => ({ level: e.level, text: e.text, match: e.match ?? e.text })),
+    headings: outline.map((e) => ({ level: e.level, text: e.text, match: e.match ?? e.text, gaps: e.gaps ?? [] })),
     title: fm.title ?? '',
     authors: (fm.authors ?? []).map((a) => a.name).filter((n) => n !== ''),
     contents: fm.toc === 'true',

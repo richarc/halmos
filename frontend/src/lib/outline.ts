@@ -11,11 +11,13 @@ export interface OutlineEntry {
   /** 1-based document line, the same value the preview's data-source-line carries. */
   line: number
   /**
-   * Only on a heading with maths: its text without the maths, which is what
-   * can be found in an exported PDF (KaTeX's rendering of the maths is not
-   * its source). Used by lib/pdfOutline.ts.
+   * Only on a heading with maths: its text with each piece of maths
+   * replaced by a NUL, which is what can be found in an exported PDF
+   * (KaTeX's rendering of the maths is not its source), and each piece's
+   * source length in gaps. Used by lib/pdfOutline.ts.
    */
   match?: string
+  gaps?: number[]
 }
 
 /**
@@ -47,7 +49,10 @@ function collectOutline(state: StateCore): boolean {
     const line = Number(token.attrGet('data-source-line'))
     if (!Number.isFinite(line)) continue
     const entry: OutlineEntry = { level: Number(token.tag.slice(1)), text: plainText(inline), line }
-    if (inline?.children?.some((c) => c.type === 'math_inline')) entry.match = plainText(inline, false)
+    if (inline?.children?.some((c) => c.type === 'math_inline')) {
+      entry.match = plainText(inline, false)
+      entry.gaps = inline.children.filter((c) => c.type === 'math_inline').map((c) => c.content.length)
+    }
     entries.push(entry)
   }
   ;(state.env as { outline?: OutlineEntry[] }).outline = entries
@@ -62,7 +67,7 @@ function plainText(inline: Token | undefined, maths = true): string {
     if (child.type === 'text' || child.type === 'code_inline') out += child.content
     else if (child.type === 'softbreak' || child.type === 'hardbreak') out += ' '
     // math_inline is KaTeX source; showing it raw is more useful than nothing.
-    else if (child.type === 'math_inline' && maths) out += child.content
+    else if (child.type === 'math_inline') out += maths ? child.content : '\u0000'
   }
   return out.replace(/\s+/g, ' ').trim()
 }

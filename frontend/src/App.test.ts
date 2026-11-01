@@ -1749,8 +1749,8 @@ describe('export PDF', () => {
 
     expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md', expect.anything(), {
       headings: [
-        { level: 1, text: 'Results', match: 'Results' },
-        { level: 2, text: 'For x', match: 'For' },
+        { level: 1, text: 'Results', match: 'Results', gaps: [] },
+        { level: 2, text: 'For x', match: 'For \u0000', gaps: [1] },
       ],
       title: 'A Thesis',
       authors: ['Ada Lovelace'],

@@ -134,13 +134,17 @@ export interface ExportImage {
 /**
  * PDFHeading is one heading of the document, sent by the frontend with the
  * export. Text is what the bookmark shows (the sidebar outline's text);
- * Match is the same heading with maths, code and markup left out, which is
- * what can be found in the PDF's text. An empty Match cannot be found.
+ * Match is what can be found in the PDF's text: the same heading with each
+ * piece of maths replaced by a NUL, since KaTeX prints maths as something
+ * other than its source. Gaps holds each piece's source length, which
+ * bounds how much printed text may stand in for it. A Match with no words
+ * cannot be found.
  */
 export interface PDFHeading {
     "level": number;
     "text": string;
     "match": string;
+    "gaps": number[] | null;
 }
 
 /**

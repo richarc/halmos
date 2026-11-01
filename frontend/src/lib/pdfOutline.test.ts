@@ -7,13 +7,13 @@ describe('pdfOutline', () => {
     const o = pdfOutline(
       [
         { level: 1, text: 'Introduction', line: 1 },
-        { level: 2, text: 'Results for x^2', line: 5, match: 'Results for' },
+        { level: 2, text: 'Results for x^2', line: 5, match: 'Results for \u0000', gaps: [3] },
       ],
       parseFrontmatter('# Introduction\n'),
     )
     expect(o.headings).toEqual([
-      { level: 1, text: 'Introduction', match: 'Introduction' },
-      { level: 2, text: 'Results for x^2', match: 'Results for' },
+      { level: 1, text: 'Introduction', match: 'Introduction', gaps: [] },
+      { level: 2, text: 'Results for x^2', match: 'Results for \u0000', gaps: [3] },
     ])
   })
 
