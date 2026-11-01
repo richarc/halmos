@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import wails from "@wailsio/runtime/plugins/vite";
 import { withContentSecurityPolicy } from "./src/lib/csp";
+import { noticesCheck, noticesCollector } from "./scripts/notices/plugin";
 
 /**
  * The Quick Look extension loads its page with WKWebView's loadFileURL, so
@@ -37,7 +38,9 @@ export default defineConfig(({ mode }) => {
   if (mode === "quicklook") {
     return {
       base: "./",
-      plugins: [svelte(), classicScript()],
+      // Quick Look builds after the app: its packages must be in the app's
+      // licence notices, which are the one list the bundle carries.
+      plugins: [svelte(), classicScript(), noticesCheck("dist")],
       build: {
         outDir: "dist-quicklook",
         emptyOutDir: true,
@@ -48,12 +51,16 @@ export default defineConfig(({ mode }) => {
       },
     };
   }
+  // The licence notices for everything the app bundles, workers included
+  // (scripts/notices/plugin.ts).
+  const notices = noticesCollector();
   return {
     server: {
       host: "127.0.0.1",
       port: Number(process.env.WAILS_VITE_PORT) || 9245,
       strictPort: true,
     },
-    plugins: [svelte(), wails("./bindings"), contentSecurityPolicy()],
+    plugins: [svelte(), wails("./bindings"), contentSecurityPolicy(), notices.plugin()],
+    worker: { plugins: () => [notices.worker()] },
   };
 });
