@@ -606,7 +606,7 @@ separate, much larger project and is deliberately not part of this.
       page each heading landed on, which only the finished PDF knows: on
       macOS, find each heading's text in it with PDFKit. Write the outline
       and properties in Go with pdfcpu (Apache-2.0, pure Go) rather than
-      PDFKit, so the Windows version (v1.2.0) can reuse that step; check
+      PDFKit, so the Windows version (v1.1.0) can reuse that step; check
       first that pdfcpu writes nested bookmarks and keeps the links and
       searchable text WebKit produced. Added 2026-10-30.
 - [ ] **Pre-1.0 clean-up.** An architecture review on 2026-10-30 found the
@@ -627,25 +627,63 @@ separate, much larger project and is deliberately not part of this.
       `docs/superpowers/plans/2026-10-30-pre1.0-cleanup.md`. Added
       2026-10-30.
 
-## v1.1.0 — Back end, payment and first paid services
+## v1.1.0 — Windows and free export
 
 Serves: M1.1
 
-The hosted back end, decided 2026-08-28 and given its first paid features
-on 2026-10-12. Pandoc export moved here from v0.10.0: the dependency
-question it turns on below — shell out to a user-installed Pandoc, or bundle
-one — dissolves when the conversion runs on a server Halmos controls.
+Free, for every user. Reordered 2026-11-01 around the users the editor is
+aimed at first, students writing assignments, lab reports and problem sets
+in physics, maths, engineering, computing and quantum technology; technical
+authors second. About 60% of the students asked on one Master's course use
+Windows, and they hand in PDF, so the Windows version comes before payment,
+and Word and LaTeX export are free with a free account.
 
+The hosted back end was decided 2026-08-28. Pandoc export moved here from
+v0.10.0: the dependency question it turns on below — shell out to a
+user-installed Pandoc, or bundle one — dissolves when the conversion runs on
+a server Halmos controls.
+
+- [ ] **Windows and Linux versions.** Moved here on 2026-10-18 from the
+      backlog and v1.0.0. Many academics use Windows, and a Mac-only product
+      limits who can pay. Students more so: about 60% of those asked on one
+      Master's course (2026-11-01) use Windows. The paths, menus and print behaviour are currently
+      macOS-focused.
+      PDF export, from a review on 2026-10-30: on Windows the app runs in
+      WebView2, which is Chromium, so Export PDF needs its own route there
+      (WebView2's print to PDF, or Chromium's own PDF printing through it).
+      Chromium is the better printer: confirm in a spike whether it gives
+      running headers and footers with page numbers, bookmarks from the
+      headings, tagged PDF and CSS page-margin boxes. `pdfstamp_darwin.go`
+      is PDFKit and does not port, so move the header and footer drawing
+      into shared Go (pdfcpu, as the v1.0.0 bookmarks step does), leaving
+      each platform only to render the preview to a PDF at the paper size.
+      The same document will break pages differently on Mac and Windows
+      (different fonts and line breaking; New York is macOS-only), while
+      each PDF still matches its own preview; say so in the docs. Only a
+      separate typesetter such as Typst would make the two identical, at the
+      cost of the PDF no longer matching the preview.
+      *Moved to v1.1.0 on 2026-11-01*: first after v1.0.0, ahead of payment,
+      because the students the editor is aimed at first mostly use Windows.
+      Windows is the requirement; Linux ships with it only if it costs little
+      more, otherwise it follows.
+- [ ] **Auto-update.** Moved from v1.0.0 on 2026-10-18. Without
+      something like Sparkle, everyone who downloads a release stays on it
+      until they think to check. Tolerable at first; the main complaint later.
+      One constraint to note now: Sparkle validates that an update is signed by
+      the same team, so if the Developer ID ever changes — an individual
+      enrolment becoming an organization one, say — that needs a transitional
+      release. Cheapest while there are few users.
+      *Status 2026-10-11*: since v0.10.0 Halmos checks a feed
+      (`updates/latest.json`) and tells the user a newer version exists, but
+      downloading and installing it is still manual.
+      *Moved to v1.1.0 on 2026-11-01*: with the Windows version, which needs
+      its own update route.
 - [x] **Accounts and sign-in from the desktop app.** The app learns which
       paid features the user has. Sign-in tokens kept in the macOS Keychain.
       Payment, the privacy policy and terms, and the name clearance are
-      product work outside this repository: see the M1.1 milestone.
+      product work outside this repository: see the M1.2 milestone.
       *Done 2026-10-20*: Connect pairs the Mac with the portal, Account…
       in the app menu shows the connection and the subscription.
-- [ ] **Contributor licence agreement** before accepting outside pull
-      requests. Today every commit is the author's, so the licence of future
-      versions can still be changed; outside contributions without an
-      agreement would remove that option.
 - [x] Export to DOCX and LaTeX through Pandoc. Halmos already builds toward
       Pandoc without collecting the payoff: `![caption](img)` was chosen
       because it is exactly Pandoc's figure convention, citations are `[@key]`,
@@ -662,53 +700,56 @@ one — dissolves when the conversion runs on a server Halmos controls.
       Pandoc resolves the citations. Charts, diagrams and SVG go as PNG.
       Citations in the `.docx` are plain text, not live fields: that is
       the separate item below.
-- [ ] **DOI lookup.** Paste a DOI or article URL and get a `.bib` entry added
-      to the document's bibliography (Crossref).
-- [ ] **Reference check.** Flags duplicate entries, missing fields, and
-      retracted papers (Retraction Watch data in Crossref).
-- [ ] **Import review changes from a returned Word document.** Added
-      2026-10-31. Word export is mostly a hand-off, and the common loop is
-      a supervisor or co-author returning the `.docx` with tracked changes
-      and comments, which the author now copies into the Markdown by hand.
-      Import the returned file and show its tracked changes and comments as
-      suggestions against the Markdown, one paragraph at a time, beside the
-      source; the user accepts or rejects each, and the Markdown stays the
-      master copy. It works because Halmos knows what it exported: keep a
-      snapshot of the text each export sent, have the portal convert the
-      returned file with Pandoc keeping tracked changes and comments,
-      compare paragraph by paragraph against the snapshot, and map each
-      change back to its source lines. Only prose changes are offered:
-      citations, charts, cross-references, labels and frontmatter are never
-      re-imported from Word. A paid service, so it needs Connect; the
-      contract change comes first, and the portal serves it before this
-      release. Open at planning: where the snapshot is kept (beside the
-      document, or in the app's data folder keyed by document), what
-      happens when the Markdown changed after the export, how a change that
-      spans paragraphs or touches a citation is shown, and whether comments
-      can be kept as Markdown comments.
-- [ ] **Release v1.1.0**, once the items above are done and the portal's
-      go-live deploy has switched billing on: the editor's paid features
-      call what the portal must already serve. Before cutting it, check
-      that signed builds never ask for the Keychain password (added
-      2026-10-29). Development builds are signed ad hoc, so each rebuild is
-      a new app to the Keychain and asks for the login password at every
-      paid-service call (the refresh token is rewritten on each refresh).
-      Release builds are signed with Developer ID, which should keep access
-      across versions without asking. Check it: install a signed build,
-      Connect and use a paid service; update to a second signed build and
-      use it again. Neither should ask. If one does, consider the data
-      protection keychain (`kSecUseDataProtectionKeychain`), which needs a
-      keychain access group and an embedded provisioning profile.
+- [ ] **Word and LaTeX export, free for any connected account.** Added
+      2026-11-01. Students hand in PDF, so export is a convenience rather
+      than a reason to pay, and a free account is worth more as a way to
+      reach users. Release builds show Connect and Export Word…/LaTeX… from
+      v1.1.0; the portal serves conversion to any connected device. Narrow
+      the `nopaid` tag to what asks the user to subscribe (Account…'s
+      subscription part, any subscribe links), which v1.2.0 drops. The
+      export guide and Getting Started say export needs a free account and
+      an internet connection, and that documents are converted and not
+      kept. Pandoc stays on the server for now: bundling it locally means
+      porting the portal's conversion to Go, signing and shipping Pandoc
+      and pandoc-crossref (GPL, as separate programs) for each platform,
+      and releasing the editor for every conversion fix. Reconsider if
+      users ask for offline export.
+- [ ] **Contributor licence agreement** before accepting outside pull
+      requests. Today every commit is the author's, so the licence of future
+      versions can still be changed; outside contributions without an
+      agreement would remove that option.
+- [ ] **Release v1.1.0**, once the items above are done and the portal
+      serves conversion to any connected account: the editor calls what the
+      portal must already serve. Before cutting it, check that signed builds
+      never ask for the Keychain password (added 2026-10-29). Development
+      builds are signed ad hoc, so each rebuild is a new app to the Keychain
+      and asks for the login password at every portal call (the refresh
+      token is rewritten on each refresh). Release builds are signed with
+      Developer ID, which should keep access across versions without
+      asking. Check it: install a signed build, Connect and export to Word;
+      update to a second signed build and export again. Neither should ask.
+      If one does, consider the data protection keychain
+      (`kSecUseDataProtectionKeychain`), which needs a keychain access group
+      and an embedded provisioning profile. Includes the Windows build.
 
-## v1.2.0 — References without the hunting
+## v1.2.0 — Payment, with citations and equations right
 
 Serves: M1.2
 
-Paid, through the v1.1.0 back end, and with no AI, so no AI allowance yet.
-Reordered 2026-10-31: the first paid releases cover review and references,
-which writers need every week, and AI follows in v1.3.0. Auto-update and
-the Windows and Linux versions are for every user and stay at this release.
+Paid, through the back end the editor connects to from v1.1.0. The first
+paid services are the two things students lose most time on: getting a
+reference right (DOI lookup, reference check, `@cite` search) and LaTeX for
+equations, written from a prompt. The AI allowance starts here. Every AI
+result is shown before it is inserted, and nothing is written into the
+document without the user accepting it. Was v1.1.0 (payment) and v1.3.0
+(LaTeX from a prompt) until 2026-11-01.
 
+- [ ] **DOI lookup.** Paste a DOI or article URL and get a `.bib` entry added
+      to the document's bibliography (Crossref).
+      *Moved to v1.2.0 on 2026-11-01*: with payment.
+- [ ] **Reference check.** Flags duplicate entries, missing fields, and
+      retracted papers (Retraction Watch data in Crossref).
+      *Moved to v1.2.0 on 2026-11-01*: with payment.
 - [ ] **Find a reference by describing it (`@cite` search).** Type a
       description instead of a key, such as `[@cite transformer attention
       Vaswani]` or `[@cite "double descent in deep learning"]`, and get a
@@ -717,73 +758,16 @@ the Windows and Linux versions are for every user and stay at this release.
       venue and DOI. The user picks one; its BibTeX is added to the
       document's `.bib` (not added again if the DOI is already there) and
       the `@key` replaces the search at the cursor. Built first as a plain
-      catalogue search with no AI, so it needs no AI allowance; v1.4.0 adds
+      catalogue search with no AI, so it needs no AI allowance; v1.3.0 adds
       AI to build the search and rank what comes back. Every result is a
       record the catalogue returned, never an entry Halmos wrote. Shares
-      the DOI lookup's route to a `.bib` entry (v1.1.0). Decide the trigger
+      the DOI lookup's route to a `.bib` entry (v1.2.0). Decide the trigger
       in the spec: typed `@cite` in the editor, an Insert menu item and a
       palette command. Added 2026-10-31 in v1.3.0; moved here the same day.
-- [ ] **Word export keeps working citations**, so co-authors can edit the
-      `.docx` without breaking references. Moved from v1.1.0 on 2026-10-31:
-      it matters most once review is a loop (v1.1.0's review import), and
-      it invites co-authors to treat the Word file as the master copy.
-- [ ] **Publish a document to share it.** Added 2026-10-28; details at
-      planning. A **Publish** button sends the document to the portal,
-      which hosts it at a link the user can send to colleagues or friends.
-      A paid service, so it needs Connect. Republishing updates the same
-      link; the user can unpublish. The contract change comes first, and
-      the portal serves it before this release. Moved from v1.1.0 on
-      2026-10-31.
-      Open at planning: what is sent (rendered HTML, or the Markdown with
-      its `.bib`, images and data files for the portal to render); where
-      Publish lives (File menu, toolbar, palette); how the editor shows a
-      document's link and whether it is out of date; and what is kept in
-      the document or beside it.
-- [ ] **Auto-update.** Moved from v1.0.0 on 2026-10-18. Without
-      something like Sparkle, everyone who downloads a release stays on it
-      until they think to check. Tolerable at first; the main complaint later.
-      One constraint to note now: Sparkle validates that an update is signed by
-      the same team, so if the Developer ID ever changes — an individual
-      enrolment becoming an organization one, say — that needs a transitional
-      release. Cheapest while there are few users.
-      *Status 2026-10-11*: since v0.10.0 Halmos checks a feed
-      (`updates/latest.json`) and tells the user a newer version exists, but
-      downloading and installing it is still manual.
-- [ ] **Windows and Linux versions.** Moved here on 2026-10-18 from the
-      backlog and v1.0.0. Many academics use Windows, and a Mac-only product
-      limits who can pay. The paths, menus and print behaviour are currently
-      macOS-focused.
-      PDF export, from a review on 2026-10-30: on Windows the app runs in
-      WebView2, which is Chromium, so Export PDF needs its own route there
-      (WebView2's print to PDF, or Chromium's own PDF printing through it).
-      Chromium is the better printer: confirm in a spike whether it gives
-      running headers and footers with page numbers, bookmarks from the
-      headings, tagged PDF and CSS page-margin boxes. `pdfstamp_darwin.go`
-      is PDFKit and does not port, so move the header and footer drawing
-      into shared Go (pdfcpu, as the v1.0.0 bookmarks step does), leaving
-      each platform only to render the preview to a PDF at the paper size.
-      The same document will break pages differently on Mac and Windows
-      (different fonts and line breaking; New York is macOS-only), while
-      each PDF still matches its own preview; say so in the docs. Only a
-      separate typesetter such as Typst would make the two identical, at the
-      cost of the PDF no longer matching the preview.
-
-## v1.3.0 — AI for routine work
-
-Serves: M1.3
-
-Paid, through the v1.1.0 back end. Every result is shown before it is
-inserted, and nothing is written into the document without the user
-accepting it. Was v1.2.0 until 2026-10-31.
-
-- [ ] **Chart from a prompt.** Describe the chart and the data; the result
-      is a Vega-Lite spec that opens in the existing chart builder
-      (`readSpec`) for editing. If the builder cannot model the spec, say so
-      instead of inserting it unseen.
 - [ ] **LaTeX from a prompt** at the cursor, shown rendered before it is
       inserted.
-- [ ] **Table from pasted text** (a copied spreadsheet range, a PDF table),
-      opened in the table builder.
+      *Moved to v1.2.0 on 2026-11-01*: the first AI service, because writing
+      equations in LaTeX by hand is where students lose the most time.
 - [ ] **AI-use record and disclosure statement.** Many publishers now ask
       authors to declare generative AI use: the tool and version, what it
       was used for, and where in the paper. Authors piece this together
@@ -814,45 +798,126 @@ accepting it. Was v1.2.0 until 2026-10-31.
       - The user can edit the record, so it is not tamper-proof evidence,
         and Halmos never says it is.
       Open: manual logging and the statement need no AI back end, so they
-      could ship before v1.3.0; which publishers' policies to template
+      could ship before v1.2.0; which publishers' policies to template
       first; whether the paste prompt helps or nags. Check each publisher's
       current policy wording before writing its template.
+      *Moved to v1.2.0 on 2026-11-01*: with the first AI service. Universities
+      increasingly ask students to declare how they used AI in an assignment,
+      so templates for that come before publishers' ones.
 - [ ] **Prompt-injection safety.** An opened document must not be able to
       instruct the AI. Prerequisite: the Content-Security-Policy item in the
       backlog.
+      *Moved to v1.2.0 on 2026-11-01*: with the first AI service.
 - [ ] **AI usage meter and packs.** Added 2026-10-31. AI use is capped at a
       monthly allowance, counted in operations rather than tokens. The
       editor shows what is used and left (Account… and beside the AI
       commands), warns before the allowance runs out, and when it has,
       says so and links to buying a pack on the portal. Prices stay on the
       portal; the editor shows none.
+      *Moved to v1.2.0 on 2026-11-01*: with the first AI service.
+- [ ] **Release v1.2.0**, once the items above are done and the portal's
+      go-live deploy has switched billing on: the editor's paid features
+      call what the portal must already serve. Drops the `nopaid` tag.
+      Added 2026-11-01, when payment moved here from v1.1.0.
 
-## v1.4.0 — AI limited to the user's own sources
+## v1.3.0 — Knowing what to cite
 
-Serves: M1.4
+Serves: M1.3
 
-Paid. The AI only ever cites what is in the user's `.bib` file or Zotero
-library, or a real record the user finds and picks from a scholarly
-catalogue, so it cannot invent a reference. Was v1.3.0 until 2026-10-31.
+Paid. Points out what needs a citation and finds it. The AI only ever cites
+what is in the user's `.bib` file or Zotero library, or a real record the
+user finds and picks from a scholarly catalogue, so it cannot invent a
+reference. Was v1.4.0 until 2026-11-01.
 
-- [ ] **`@cite` search ranked by AI.** The v1.2.0 search, with the AI
-      turning the description into a better search and ranking what comes
-      back. Results stay records the catalogue returned, never an entry the
-      AI wrote. Added 2026-10-31.
+- [ ] **Uncited-claim check.** Point out statements that look like they
+      need a citation. Suggests, never writes.
+      *Moved to v1.3.0 on 2026-11-01*: first in this release: knowing whether
+      something needs a citation is one of the hardest parts of writing an
+      assignment.
 - [ ] **Suggest references for the text at the cursor** from the user's
       library: the highlighted text if there is a selection, otherwise the
       sentence or paragraph around the cursor. Each suggestion comes with the
       reason it fits. The user chooses what to insert.
+- [ ] **`@cite` search ranked by AI.** The v1.2.0 search, with the AI
+      turning the description into a better search and ranking what comes
+      back. Results stay records the catalogue returned, never an entry the
+      AI wrote. Added 2026-10-31.
 - [ ] **Search the PDFs in the user's Zotero library** to find where a
       source supports a claim. Decide whether the index is built locally or
       on the server; unpublished work and licensed PDFs argue for local.
-- [ ] **Uncited-claim check.** Point out statements that look like they
-      need a citation. Suggests, never writes.
+
+## v1.4.0 — Charts, tables and sharing
+
+Serves: M1.4
+
+Paid. AI help with charts and tables, shown before it is inserted, and
+publishing a document to share it. Was in v1.2.0 (publishing) and v1.3.0
+(charts and tables) until 2026-11-01.
+
+- [ ] **Chart from a prompt.** Describe the chart and the data; the result
+      is a Vega-Lite spec that opens in the existing chart builder
+      (`readSpec`) for editing. If the builder cannot model the spec, say so
+      instead of inserting it unseen.
+      *Moved to v1.4.0 on 2026-11-01*: after the citation work.
+- [ ] **Table from pasted text** (a copied spreadsheet range, a PDF table),
+      opened in the table builder.
+      *Moved to v1.4.0 on 2026-11-01*: after the citation work.
+- [ ] **Publish a document to share it.** Added 2026-10-28; details at
+      planning. A **Publish** button sends the document to the portal,
+      which hosts it at a link the user can send to colleagues or friends.
+      A paid service, so it needs Connect. Republishing updates the same
+      link; the user can unpublish. The contract change comes first, and
+      the portal serves it before this release. Moved from v1.1.0 on
+      2026-10-31.
+      Open at planning: what is sent (rendered HTML, or the Markdown with
+      its `.bib`, images and data files for the portal to render); where
+      Publish lives (File menu, toolbar, palette); how the editor shows a
+      document's link and whether it is out of date; and what is kept in
+      the document or beside it.
+      *Moved to v1.4.0 on 2026-11-01*: after the citation work.
 
 ## Backlog (unscheduled)
 
 Ideas noted along the way, not yet committed to a release:
 
+- **A Problem set starter** in the New dialog: numbered questions, each
+  with a worked answer under it. Noted 2026-11-01, for students writing
+  STEM assignments.
+- **Check Dirac notation.** Confirm that `\ket`, `\bra` and `\braket`
+  render well in the preview and in every export, for quantum courses.
+  Noted 2026-11-01.
+- **Quantum circuit diagrams.** What `quantikz` does in LaTeX; Mermaid does
+  not draw circuits. Investigate a circuit builder like the chart builder.
+  Noted 2026-11-01.
+- **Word export keeps working citations**, so co-authors can edit the
+  `.docx` without breaking references. Moved from v1.1.0 on 2026-10-31:
+  it matters most once review is a loop (v1.1.0's review import), and
+  it invites co-authors to treat the Word file as the master copy.
+  *Moved to the backlog on 2026-11-01*: students hand in PDF; this matters
+  once co-authors edit Word files.
+- **Import review changes from a returned Word document.** Added
+  2026-10-31. Word export is mostly a hand-off, and the common loop is
+  a supervisor or co-author returning the `.docx` with tracked changes
+  and comments, which the author now copies into the Markdown by hand.
+  Import the returned file and show its tracked changes and comments as
+  suggestions against the Markdown, one paragraph at a time, beside the
+  source; the user accepts or rejects each, and the Markdown stays the
+  master copy. It works because Halmos knows what it exported: keep a
+  snapshot of the text each export sent, have the portal convert the
+  returned file with Pandoc keeping tracked changes and comments,
+  compare paragraph by paragraph against the snapshot, and map each
+  change back to its source lines. Only prose changes are offered:
+  citations, charts, cross-references, labels and frontmatter are never
+  re-imported from Word. A paid service, so it needs Connect; the
+  contract change comes first, and the portal serves it before this
+  release. Open at planning: where the snapshot is kept (beside the
+  document, or in the app's data folder keyed by document), what
+  happens when the Markdown changed after the export, how a change that
+  spans paragraphs or touches a citation is shown, and whether comments
+  can be kept as Markdown comments.
+  *Moved to the backlog on 2026-11-01*: tutors mark up the PDF in the learning
+  platform rather than return tracked changes; this matters once researchers
+  are the audience.
 - **A release workflow.** CI arrived on 2026-08-23 — `ci.yml` runs the
   frontend suite and audit on Linux and the Go suite, build and
   govulncheck on macOS, and `codeql.yml` alongside it — but nothing
@@ -936,7 +1001,7 @@ Ideas noted along the way, not yet committed to a release:
   - Split `DocumentService` (37 methods over 9 concerns). A refactor, no
     defect.
   - A diagnostics log, so a user can send one with a support request.
-    Plan it with the paid services in v1.1.0.
+    Plan it with the Windows version in v1.1.0.
   - Type the Go → JS events and pin the remaining Go/TS constants with
     tests, as the existing ones are.
   - Editing a citation reformats every citation (186 ms at 200); use
