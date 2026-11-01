@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -86,6 +87,20 @@ func osDescription(name, version string) string {
 // Split out so the join is testable without a bundle to run in — mac.ResourcePath
 // reports ErrNotInAppBundle for a bare binary, which is the ordinary case
 // under `go run` and in CI.
+// licencesFolder is the licences folder inside the running app's bundle, or
+// an error when there is no bundle (`go run`, the bare binary), for the
+// Acknowledgements page's Show Licence Files in Finder.
+func licencesFolder(resources func() (string, error)) (string, error) {
+	dir, err := resources()
+	if err != nil {
+		return "", err
+	}
+	if p, ok := licencesPath(dir); ok {
+		return p, nil
+	}
+	return "", errors.New("no app bundle")
+}
+
 func licencesPath(resourcesDir string) (string, bool) {
 	if resourcesDir == "" {
 		return "", false

@@ -49,6 +49,11 @@ export const FileOpen = "file:open";
 export const MenuAccount = "menu:account";
 
 /**
+ * Name of the custom event "menu:acknowledgements".
+ */
+export const MenuAcknowledgements = "menu:acknowledgements";
+
+/**
  * Name of the custom event "menu:check-updates".
  */
 export const MenuCheckUpdates = "menu:check-updates";

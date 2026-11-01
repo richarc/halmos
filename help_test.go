@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/url"
 	"strings"
 	"testing"
@@ -108,5 +109,18 @@ func TestLicencesPath(t *testing.T) {
 func TestLicencesPathUnbundled(t *testing.T) {
 	if _, ok := licencesPath(""); ok {
 		t.Error("expected no path when there is no resources directory")
+	}
+}
+
+func TestLicencesFolderUnbundled(t *testing.T) {
+	if _, err := licencesFolder(func() (string, error) { return "", errors.New("not in a bundle") }); err == nil {
+		t.Fatal("want an error outside an app bundle")
+	}
+}
+
+func TestLicencesFolderBundled(t *testing.T) {
+	got, err := licencesFolder(func() (string, error) { return "/A.app/Contents/Resources", nil })
+	if err != nil || got != "/A.app/Contents/Resources/licences" {
+		t.Fatalf("got %q, %v", got, err)
 	}
 }

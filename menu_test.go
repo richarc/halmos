@@ -672,3 +672,42 @@ func TestRegisterQuitKeepsTheRoleAndListsQuit(t *testing.T) {
 		t.Fatalf("the palette's Quit ran quit %d times", quits)
 	}
 }
+
+func TestHelpMenuAcknowledgements(t *testing.T) {
+	testApp()
+	help := application.NewMenu()
+	var emitted []string
+	shown := false
+	cmds := newCommandSet()
+	addAcknowledgements(help, func() { shown = true }, func(name string, _ ...any) { emitted = append(emitted, name) }, cmds)
+	var found *Command
+	for _, c := range commandsOf(cmds) {
+		if c.ID == "Help › Acknowledgements" {
+			found = &c
+		}
+	}
+	if found == nil {
+		t.Fatal("no Help › Acknowledgements command")
+	}
+	if found.NeedsDocument {
+		t.Error("Acknowledgements needs a document")
+	}
+	r := &commandRegistry{}
+	r.replace(cmds)
+	if !r.run("Help › Acknowledgements") {
+		t.Fatal("did not run")
+	}
+	if !shown || !reflect.DeepEqual(emitted, []string{"menu:acknowledgements"}) {
+		t.Errorf("shown %v, emitted %v", shown, emitted)
+	}
+}
+
+func TestHelpMenuHasNoLicencesItem(t *testing.T) {
+	src, err := os.ReadFile("menu.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(src), `help.Add("Licences")`) {
+		t.Error("Help → Licences is still in the menu; Acknowledgements replaces it")
+	}
+}

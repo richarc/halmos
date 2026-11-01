@@ -167,31 +167,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 			log.Printf("could not open the discussions: %v", err)
 		}
 	}, commandOpts{})
-	// The licence texts ride in the bundle because a distributed binary has to
-	// carry them — see Taskfile.yml's bundle:licences. Reachable from here so
-	// they are not only discoverable by way of Show Package Contents.
-	cmds.item(help.Add("Licences"), helpP, func() {
-		// OpenFile, not OpenURL with a file:// URL. Both end at
-		// exec.Command("open", target), so a plain path is handed straight to
-		// `open` with no shell in between — where a hand-built file:// URL
-		// would carry a raw space from "Halmos Editor.app" and be malformed.
-		// Worth knowing when debugging either: the implementation discards the
-		// result of `open` in a goroutine, so a bad target fails silently and
-		// only a failure to *start* `open` is ever returned.
-		if resources, err := resourcePath(); err == nil {
-			if dir, ok := licencesPath(resources); ok {
-				if err := app.Browser.OpenFile(dir); err != nil {
-					log.Printf("could not open the licences: %v", err)
-				}
-				return
-			}
-		}
-		// Unbundled there is nothing to open — `go run`, or the bare binary —
-		// so fall back to the repository rather than doing nothing.
-		if err := app.Browser.OpenURL(docsURL); err != nil {
-			log.Printf("could not open the licences: %v", err)
-		}
-	}, commandOpts{})
+	addAcknowledgements(help, func() { showWindow(win) }, func(name string, data ...any) { app.Event.Emit(name, data...) }, cmds)
 	help.AddSeparator()
 	// The manual route. The frontend runs the check and reports the result,
 	// because the result is a dialog or a toast, which live there.
@@ -718,6 +694,17 @@ func addInsertMenu(menu *application.Menu, emit func(name string, data ...any), 
 	cmds.item(codeBlock.Add("Plain text"), codeP, func() {
 		emit("menu:insert-code", "")
 	}, doc)
+}
+
+// addAcknowledgements is Help → Acknowledgements: the third-party licence
+// notices the bundle has to carry (Taskfile.yml's bundle:licences), shown by
+// the frontend (Acknowledgements.svelte). It shows the window first, as
+// Getting Started does, since the page is drawn in it.
+func addAcknowledgements(help *application.Menu, show func(), emit func(name string, data ...any), cmds *commandSet) {
+	cmds.item(help.Add("Acknowledgements"), []string{"Help"}, func() {
+		show()
+		emit("menu:acknowledgements")
+	}, commandOpts{})
 }
 
 // addGettingStarted puts Help → Getting Started first in the Help menu. It
