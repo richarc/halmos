@@ -220,6 +220,15 @@ export function embedKatexFonts(css: string, fonts: Record<string, string>): str
 }
 
 /**
+ * KaTeX's stylesheet and fonts are a substantial part of KaTeX, which is MIT
+ * licensed, so an exported page carries its notice with them. The minified
+ * stylesheet in the bundle has lost its own.
+ */
+export function withKatexNotice(css: string, version: string): string {
+  return `/*! KaTeX v${version} | Copyright (c) 2013-2020 Khan Academy and other contributors | MIT License | https://katex.org */\n${css}`
+}
+
+/**
  * The two stylesheets an export needs. KaTeX's CSS and fonts come from the
  * bundle through Vite (`?raw`, `?inline`), loaded here on first export only.
  * style.css lives in public/, which Vite will not import, so it is read from
@@ -230,8 +239,9 @@ export async function loadExportStyles(): Promise<{ css: string; katexCss: strin
     query: '?inline',
     import: 'default',
   })
-  const [katexRaw, fonts, styleCss] = await Promise.all([
+  const [katexRaw, katexVersion, fonts, styleCss] = await Promise.all([
     import('katex/dist/katex.min.css?raw').then((m) => m.default),
+    import('katex').then((m) => m.default.version),
     Promise.all(
       Object.entries(fontModules).map(
         async ([path, load]) => [path.slice(path.lastIndexOf('/') + 1), await load()] as const,
@@ -242,5 +252,5 @@ export async function loadExportStyles(): Promise<{ css: string; katexCss: strin
       return r.text()
     }),
   ])
-  return { css: documentCss(styleCss), katexCss: embedKatexFonts(katexRaw, fonts) }
+  return { css: documentCss(styleCss), katexCss: withKatexNotice(embedKatexFonts(katexRaw, fonts), katexVersion) }
 }

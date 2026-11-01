@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildStandaloneHTML, documentCss, embedKatexFonts } from './htmlExport'
+import { buildStandaloneHTML, documentCss, embedKatexFonts, withKatexNotice } from './htmlExport'
 
 const here = fileURLToPath(import.meta.url)
 const STYLE_CSS = readFileSync(join(here, '../../../public/style.css'), 'utf8')
@@ -252,5 +252,13 @@ describe('documentCss', () => {
 
   it('carries no comments', () => {
     expect(css).not.toContain('/*')
+  })
+})
+
+describe('withKatexNotice', () => {
+  it('the exported KaTeX stylesheet carries KaTeX’s licence notice', () => {
+    const css = withKatexNotice('.katex{font:1em KaTeX_Main}', '0.19.1')
+    expect(css.startsWith('/*! KaTeX v0.19.1 | Copyright (c) 2013-2020 Khan Academy and other contributors | MIT License | https://katex.org */\n')).toBe(true)
+    expect(css.endsWith('.katex{font:1em KaTeX_Main}')).toBe(true)
   })
 })

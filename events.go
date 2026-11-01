@@ -34,6 +34,7 @@ func init() {
 	application.RegisterEvent[application.Void]("menu:account")
 	application.RegisterEvent[application.Void]("menu:check-updates")
 	application.RegisterEvent[application.Void]("menu:tutorial")
+	application.RegisterEvent[application.Void]("menu:acknowledgements")
 	application.RegisterEvent[application.Void]("menu:command-palette")
 	application.RegisterEvent[application.Void]("menu:insert-citation")
 	application.RegisterEvent[application.Void]("menu:insert-crossref")

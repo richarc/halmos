@@ -479,6 +479,17 @@ func (s *DocumentService) TakeLaunchFile() string {
 // CloseWindow is what runs after the user resolves the unsaved-changes dialog
 // raised by the close button. It hides the window rather than quitting, so the
 // app stays in the Dock (#17); a clean close takes the same path from main.go.
+// ShowLicences opens the bundle's licences folder in Finder, for the
+// Acknowledgements page. Unbundled there is no folder, and the error says so.
+// OpenFile, not OpenURL: the bundle name has a space (see CLAUDE.md).
+func (s *DocumentService) ShowLicences() error {
+	dir, err := licencesFolder(resourcePath)
+	if err != nil {
+		return fmt.Errorf("the licence files are only in the packaged app: %w", err)
+	}
+	return application.Get().Browser.OpenFile(dir)
+}
+
 func (s *DocumentService) CloseWindow() {
 	if s.closeWindow != nil {
 		s.closeWindow()

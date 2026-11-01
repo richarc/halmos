@@ -20,6 +20,7 @@ declare module "@wailsio/runtime" {
             "document:moved": main$0.DocMove;
             "file:open": string;
             "menu:account": void;
+            "menu:acknowledgements": void;
             "menu:check-updates": void;
             "menu:citation-style": string;
             "menu:command-palette": void;

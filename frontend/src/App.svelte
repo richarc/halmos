@@ -41,6 +41,7 @@
   import NewDocument, { type BibliographyChoice } from './NewDocument.svelte'
   import StyleFinder from './StyleFinder.svelte'
   import GettingStarted from './GettingStarted.svelte'
+  import Acknowledgements from './Acknowledgements.svelte'
   import { applyStyleOptions, hasStyleOptions, readStyleOptions, STYLE_OPTION_KEYS } from './lib/styleOptions'
   import { parseFrontmatter, frontmatterKeyChange } from './lib/frontmatter'
   import { pageFurniture } from './lib/pageFurniture'
@@ -1168,6 +1169,16 @@
   // about first.
   let tutorialOpen = $state(false)
 
+  // Help → Acknowledgements: the third-party licence notices. Any command
+  // closes it first (beforeCommand below), so it never sits under another
+  // dialog.
+  let acknowledgementsOpen = $state(false)
+
+  function requestAcknowledgements() {
+    if (chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
+    acknowledgementsOpen = true
+  }
+
   function requestTutorial() {
     if (chartOpen || tableOpen || newOpen || styleFinderOpen || tutorialOpen) return
     tutorialOpen = true
@@ -1877,6 +1888,7 @@
         'menu:new': requestNew,
         'menu:open': requestOpen,
         'menu:tutorial': requestTutorial,
+        'menu:acknowledgements': requestAcknowledgements,
         'menu:open-recent': (ev) => requestOpenRecent(ev.data),
         'menu:save': () => void save(),
         'menu:save-as': () => void saveAs(),
@@ -1925,7 +1937,12 @@
         'menu:check-updates': () => void checkForUpdates(true),
         'menu:command-palette': togglePalette,
       },
-      { beforeCommand: closePalette },
+      {
+        beforeCommand: () => {
+          closePalette()
+          acknowledgementsOpen = false
+        },
+      },
     )
 
     const media = window.matchMedia('(prefers-color-scheme: dark)')
@@ -2137,6 +2154,7 @@
 
   <NewDocument open={newOpen} onclose={() => (newOpen = false)} oncreate={(b, c, s) => void createDocument(b, c, s)} />
   <GettingStarted open={tutorialOpen} onclose={() => (tutorialOpen = false)} onstarted={tutorialStarted} />
+  <Acknowledgements open={acknowledgementsOpen} onclose={() => (acknowledgementsOpen = false)} />
   <StyleFinder
     open={styleFinderOpen}
     onclose={() => (styleFinderOpen = false)}

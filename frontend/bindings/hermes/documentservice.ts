@@ -62,11 +62,6 @@ export function ClearRecents(): $CancellablePromise<void> {
     return $Call.ByID(3493938995);
 }
 
-/**
- * CloseWindow is what runs after the user resolves the unsaved-changes dialog
- * raised by the close button. It hides the window rather than quitting, so the
- * app stays in the Dock (#17); a clean close takes the same path from main.go.
- */
 export function CloseWindow(): $CancellablePromise<void> {
     return $Call.ByID(2063789588);
 }
@@ -239,6 +234,18 @@ export function SetCitationStyle(csl: string): $CancellablePromise<void> {
 
 export function SetDirty(dirty: boolean): $CancellablePromise<void> {
     return $Call.ByID(2193338676, dirty);
+}
+
+/**
+ * CloseWindow is what runs after the user resolves the unsaved-changes dialog
+ * raised by the close button. It hides the window rather than quitting, so the
+ * app stays in the Dock (#17); a clean close takes the same path from main.go.
+ * ShowLicences opens the bundle's licences folder in Finder, for the
+ * Acknowledgements page. Unbundled there is no folder, and the error says so.
+ * OpenFile, not OpenURL: the bundle name has a space (see CLAUDE.md).
+ */
+export function ShowLicences(): $CancellablePromise<void> {
+    return $Call.ByID(1792779165);
 }
 
 /**
