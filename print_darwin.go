@@ -14,16 +14,22 @@ int hermesStampPDFAt(NSURL *in, NSURL *out, NSString *header, NSString *footer,
                      NSString *title, NSString *date, NSString *fontKey,
                      BOOL skipFirstHeader);
 
-// Finishes an export that has a header or footer. WebKit's PDF was saved to
-// a temporary file; once the operation has run, the header and footer are
-// drawn onto it on the way to the file the user chose. If that fails the
-// unstamped PDF is moved there instead, so the export still produces the
-// document. Releases itself when done.
+// pdfexport_darwin.go: takes the rendered (and stamped) PDF from here, adds
+// the outline and properties off the main thread, and writes dest.
+extern void hermesPDFExportFinished(int id, int success, char *rendered, char *stamped, char *dest);
+
+// Finishes every export. WebKit's PDF was saved to a temporary file; once
+// the operation has run, the header and footer (if any) are drawn onto a
+// second temporary file, and both go to Go (hermesPDFExportFinished), which
+// adds the outline and properties and writes the file the user chose. If
+// the stamping fails, Go gets only the unstamped PDF, so the export still
+// produces the document. Releases itself when done.
 @interface HermesExportFinisher : NSObject {
 @public
 	NSURL *temp, *dest;
 	NSString *header, *footer, *title, *date, *fontKey;
 	BOOL skipFirstHeader;
+	int exportID;
 }
 @end
 
@@ -33,18 +39,23 @@ int hermesStampPDFAt(NSURL *in, NSURL *out, NSString *header, NSString *footer,
                  contextInfo:(void *)info {
 	NSFileManager *fm = [NSFileManager defaultManager];
 	if (success && [fm fileExistsAtPath:temp.path]) {
-		if (!hermesStampPDFAt(temp, dest, header, footer, title, date, fontKey, skipFirstHeader)) {
-			NSLog(@"Halmos: could not add the header and footer to %@", dest.path);
-			// Replace rather than delete-then-move, so a failed move cannot
-			// leave the user with neither file. Move when there is nothing
-			// at dest to replace.
-			if (![fm replaceItemAtURL:dest withItemAtURL:temp backupItemName:nil
-			                  options:0 resultingItemURL:nil error:nil]) {
-				[fm moveItemAtURL:temp toURL:dest error:nil];
+		NSString *stamped = @"";
+		if (header.length || footer.length) {
+			NSURL *out = [NSURL fileURLWithPath:[temp.path stringByAppendingString:@"-stamped.pdf"]];
+			if (hermesStampPDFAt(temp, out, header, footer, title, date, fontKey, skipFirstHeader)) {
+				stamped = out.path;
+			} else {
+				NSLog(@"Halmos: could not add the header and footer to %@", dest.path);
+				[fm removeItemAtURL:out error:nil];
 			}
 		}
+		// Go removes both temporary files when it is done with them.
+		hermesPDFExportFinished(exportID, 1, (char *)temp.path.UTF8String,
+		                        (char *)stamped.UTF8String, (char *)dest.path.UTF8String);
+	} else {
+		[fm removeItemAtURL:temp error:nil];
+		hermesPDFExportFinished(exportID, 0, "", "", (char *)dest.path.UTF8String);
 	}
-	[fm removeItemAtURL:temp error:nil];
 	[temp release]; [dest release];
 	[header release]; [footer release]; [title release]; [date release]; [fontKey release];
 	[self release];
@@ -155,7 +166,7 @@ static int hermesExportWebViewPDF(void *nsWindow, const char *path, const char *
                                   int landscape, double paperWidth,
                                   double paperHeight, const char *header,
                                   const char *footer, const char *title,
-                                  const char *fontKey, int skipFirstHeader) {
+                                  const char *fontKey, int skipFirstHeader, int exportID) {
 	if (@available(macOS 11.0, *)) {
 		// The app's own window, not whichever is key: a panel can be key, or
 		// no window when the app is in the background.
@@ -170,9 +181,11 @@ static int hermesExportWebViewPDF(void *nsWindow, const char *path, const char *
 		}
 
 		NSURL *url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path]];
-		HermesExportFinisher *finisher = nil;
-		if (header[0] || footer[0]) {
-			finisher = [[HermesExportFinisher alloc] init];
+		// Every export goes through the finisher: WebKit renders to a
+		// temporary file, and Go writes the chosen path from it.
+		HermesExportFinisher *finisher = [[HermesExportFinisher alloc] init];
+		{
+			finisher->exportID = exportID;
 			finisher->dest = [url retain];
 			finisher->temp = [[NSURL fileURLWithPath:[NSTemporaryDirectory()
 			    stringByAppendingPathComponent:[NSString stringWithFormat:@"halmos-export-%@.pdf",
@@ -248,7 +261,7 @@ static int hermesExportWebViewPDF(void *nsWindow, const char *path, const char *
 		// deadlocks on the main thread.
 		[po runOperationModalForWindow:window
 		                      delegate:finisher
-		                didRunSelector:finisher ? @selector(printOperationDidRun:success:contextInfo:) : nil
+		                didRunSelector:@selector(printOperationDidRun:success:contextInfo:)
 		                   contextInfo:nil];
 		return 1;
 	}
@@ -295,7 +308,7 @@ func printWithOrientation(win unsafe.Pointer, landscape bool) bool {
 //
 // f's header and footer are drawn on every page in the body font named by
 // fontKey (pdfstamp_darwin.go); with neither, WebKit's PDF is written as it is.
-func exportPDF(win unsafe.Pointer, path, paperName string, landscape bool, paperWidth, paperHeight float64, f PageFurniture, fontKey string) bool {
+func exportPDF(win unsafe.Pointer, path, paperName string, landscape bool, paperWidth, paperHeight float64, f PageFurniture, fontKey string, exportID int) bool {
 	l := C.int(0)
 	if landscape {
 		l = 1
@@ -307,6 +320,6 @@ func exportPDF(win unsafe.Pointer, path, paperName string, landscape bool, paper
 	defer freeCStrings(cs)
 	return application.InvokeSyncWithResult(func() bool {
 		return C.hermesExportWebViewPDF(win, cs[0], cs[1], l, C.double(paperWidth), C.double(paperHeight),
-			cs[2], cs[3], cs[4], cs[5], cBool(f.SkipFirstPageHeader)) != 0
+			cs[2], cs[3], cs[4], cs[5], cBool(f.SkipFirstPageHeader), C.int(exportID)) != 0
 	})
 }

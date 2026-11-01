@@ -132,6 +132,34 @@ export interface ExportImage {
 }
 
 /**
+ * PDFHeading is one heading of the document, sent by the frontend with the
+ * export. Text is what the bookmark shows (the sidebar outline's text);
+ * Match is what can be found in the PDF's text: the same heading with each
+ * piece of maths replaced by a NUL, since KaTeX prints maths as something
+ * other than its source. Gaps holds each piece's source length, which
+ * bounds how much printed text may stand in for it. A Match with no words
+ * cannot be found.
+ */
+export interface PDFHeading {
+    "level": number;
+    "text": string;
+    "match": string;
+    "gaps": number[] | null;
+}
+
+/**
+ * PDFOutline is what Export PDF… adds to the rendered PDF: the bookmarks,
+ * and the Title and Author properties. Contents says the document renders
+ * a contents list, whose entries repeat the headings' text.
+ */
+export interface PDFOutline {
+    "headings": PDFHeading[] | null;
+    "title": string;
+    "authors": string[] | null;
+    "contents": boolean;
+}
+
+/**
  * PageFurniture is Export PDF's running header and footer: the frontmatter's
  * `header` and `footer` templates as written, with the value for `{title}`.
  * The export fills that, `{date}`, `{page}` and `{pages}` in, page by page, in

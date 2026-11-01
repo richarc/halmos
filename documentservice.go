@@ -424,8 +424,11 @@ func pdfExportFilename(docPath string) string {
 // they wrote against.
 //
 // furniture is the running header and footer from the document's frontmatter
-// (lib/pageFurniture.ts); empty templates draw nothing.
-func (s *DocumentService) ExportPDF(docPath string, furniture PageFurniture) error {
+// (lib/pageFurniture.ts); empty templates draw nothing. outline is the
+// bookmarks and the Title and Author properties (lib/pdfOutline.ts), added
+// after rendering, off the main thread (pdfexport.go); this returns once the
+// export has started.
+func (s *DocumentService) ExportPDF(docPath string, furniture PageFurniture, outline PDFOutline) error {
 	if s.window == nil {
 		return nil
 	}
@@ -439,7 +442,9 @@ func (s *DocumentService) ExportPDF(docPath string, furniture PageFurniture) err
 	set := s.settings.get()
 	landscape := set.PrintOrientation == "landscape"
 	w, h := paperPoints(set.PaperSize, landscape)
-	if !exportPDF(s.window.NativeWindow(), path, paperPWGName(set.PaperSize), landscape, w, h, furniture.normalised(), set.BodyFont) {
+	id := pending.add(outline)
+	if !exportPDF(s.window.NativeWindow(), path, paperPWGName(set.PaperSize), landscape, w, h, furniture.normalised(), set.BodyFont, id) {
+		pending.take(id)
 		return fmt.Errorf("could not export the PDF")
 	}
 	return nil

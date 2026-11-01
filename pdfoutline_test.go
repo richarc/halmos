@@ -1,0 +1,283 @@
+package main
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
+)
+
+func h(level int, text string) PDFHeading { return PDFHeading{Level: level, Text: text, Match: text} }
+
+func pageOf(lines ...string) string { return strings.Join(lines, "\n") }
+
+const body = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+
+func TestAssignPagesFindsEachHeadingOnItsPage(t *testing.T) {
+	pages := []string{
+		pageOf("Introduction", body),
+		pageOf(body, "Method", body),
+		pageOf(body, body, "Results", body),
+	}
+	got := assignPages([]PDFHeading{h(1, "Introduction"), h(2, "Method"), h(1, "Results")}, pages, false)
+	if want := []int{1, 2, 3}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesSkipsAnEarlierMention(t *testing.T) {
+	pages := []string{
+		pageOf("Introduction", body),
+		pageOf("As the Results section shows, the method holds.", body),
+		pageOf(body),
+		pageOf(body, "Results", body),
+	}
+	got := assignPages([]PDFHeading{h(1, "Introduction"), h(1, "Results")}, pages, false)
+	if want := []int{1, 4}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesSkipsTheContentsList(t *testing.T) {
+	// The contents list and the first chapter share page 1, as in a real
+	// export: the list's entries are skipped, the page is not.
+	pages := []string{
+		pageOf("Contents", "Chapter 1 Results", "Chapter 2 Results", "Chapter 3 Results", "See example.com.", "Chapter 1 Results", body),
+		pageOf(body, "Chapter 2 Results", body),
+		pageOf(body, "Chapter 3 Results", body),
+	}
+	hs := []PDFHeading{h(1, "Chapter 1 Results"), h(1, "Chapter 2 Results"), h(1, "Chapter 3 Results")}
+	if got, want := assignPages(hs, pages, true), []int{1, 2, 3}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("with contents: pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesContentsEntryThatWraps(t *testing.T) {
+	long := "A rather long chapter title that the contents list has to wrap"
+	pages := []string{
+		pageOf("Contents", "A rather long chapter title that the", "contents list has to wrap", "Short", body),
+		pageOf(body, "A rather long chapter title that the", "contents list has to wrap", body),
+		pageOf(body, "Short", body),
+	}
+	if got, want := assignPages([]PDFHeading{h(1, long), h(1, "Short")}, pages, true), []int{2, 3}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesWrappedHeading(t *testing.T) {
+	pages := []string{
+		pageOf(body),
+		pageOf(body, "The effect of temperature on the", "rate of reaction", body),
+	}
+	got := assignPages([]PDFHeading{h(1, "The effect of temperature on the rate of reaction")}, pages, false)
+	if want := []int{2}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesSameTextTwice(t *testing.T) {
+	pages := make([]string, 10)
+	for i := range pages {
+		pages[i] = pageOf(body)
+	}
+	pages[2] = pageOf("Introduction", body)
+	pages[8] = pageOf(body, "Introduction", body)
+	got := assignPages([]PDFHeading{h(1, "Introduction"), h(1, "Introduction")}, pages, false)
+	if want := []int{3, 9}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesTwoHeadingsOnOnePage(t *testing.T) {
+	pages := []string{pageOf("One", body, "Two", body), pageOf("Three")}
+	if got, want := assignPages([]PDFHeading{h(1, "One"), h(2, "Two"), h(1, "Three")}, pages, false), []int{1, 1, 2}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesNoMatchTakesThePreviousPage(t *testing.T) {
+	pages := []string{pageOf(body), pageOf(body, "Method", body), pageOf(body)}
+	hs := []PDFHeading{
+		{Level: 1, Text: "$E=mc^2$", Match: ""}, // maths only: nothing to match
+		h(1, "Method"),
+		h(2, "Not in the PDF"),
+	}
+	if got, want := assignPages(hs, pages, false), []int{1, 2, 2}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesNormalisesCaseSpacesHyphensAndLigatures(t *testing.T) {
+	pages := []string{pageOf(body), pageOf("EFFICIENT   ﬁeld", "meth-", "ods", body)}
+	if got, want := assignPages([]PDFHeading{h(1, "Efficient field methods")}, pages, false), []int{2}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesNoPages(t *testing.T) {
+	if got := assignPages([]PDFHeading{h(1, "A")}, nil, false); !reflect.DeepEqual(got, []int{1}) {
+		t.Fatalf("pages %v, want [1]", got)
+	}
+}
+
+func TestNestOutline(t *testing.T) {
+	hs := []PDFHeading{h(1, "A"), h(2, "A.1"), h(2, "A.2"), h(1, "B"), h(3, "B.x")}
+	got := nestOutline(hs, []int{1, 2, 3, 4, 5})
+	want := []outlineNode{
+		{Title: "A", Page: 1, Kids: []outlineNode{{Title: "A.1", Page: 2}, {Title: "A.2", Page: 3}}},
+		{Title: "B", Page: 4, Kids: []outlineNode{{Title: "B.x", Page: 5}}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v\nwant %+v", got, want)
+	}
+}
+
+func TestNestOutlineStartsDeeperThanLevelOne(t *testing.T) {
+	got := nestOutline([]PDFHeading{h(2, "A"), h(3, "A.1"), h(1, "B")}, []int{1, 1, 2})
+	want := []outlineNode{{Title: "A", Page: 1, Kids: []outlineNode{{Title: "A.1", Page: 1}}}, {Title: "B", Page: 2}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v\nwant %+v", got, want)
+	}
+}
+
+func TestNestOutlineNoHeadings(t *testing.T) {
+	if got := nestOutline(nil, nil); got != nil {
+		t.Fatalf("got %+v, want nil", got)
+	}
+}
+
+func bookmarksOf(t *testing.T, path string) []outlineNode {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	bms, err := api.Bookmarks(context.Background(), f, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var conv func([]pdfcpu.Bookmark) []outlineNode
+	conv = func(bs []pdfcpu.Bookmark) []outlineNode {
+		var ns []outlineNode
+		for _, b := range bs {
+			ns = append(ns, outlineNode{Title: b.Title, Page: b.PageFrom, Kids: conv(b.Kids)})
+		}
+		return ns
+	}
+	return conv(bms)
+}
+
+func TestWriteOutlineBookmarksAndProperties(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out.pdf")
+	nodes := []outlineNode{{Title: "Chapter 1 Results", Page: 1, Kids: []outlineNode{{Title: "Method 1", Page: 2}}}, {Title: "Chapter 2", Page: 3}}
+	o := PDFOutline{Title: "A Thesis", Authors: []string{"Ada Lovelace", "Charles Babbage"}}
+	if err := writeOutline("testdata/webkit-export.pdf", out, nodes, o); err != nil {
+		t.Fatal(err)
+	}
+	if got := bookmarksOf(t, out); !reflect.DeepEqual(got, nodes) {
+		t.Errorf("bookmarks\n got %+v\nwant %+v", got, nodes)
+	}
+	for key, want := range map[string]string{"Title": "A Thesis", "Author": "Ada Lovelace, Charles Babbage", "Creator": "Halmos Editor"} {
+		if got := info(t, out, key); got != want {
+			t.Errorf("%s = %q, want %q", key, got, want)
+		}
+	}
+	if vp := readContext(t, out).ViewerPref; vp == nil || vp.DisplayDocTitle == nil || !*vp.DisplayDocTitle {
+		t.Error("DisplayDocTitle not set")
+	}
+}
+
+func TestWriteOutlineUntitledNoHeadings(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out.pdf")
+	if err := writeOutline("testdata/webkit-export.pdf", out, nil, PDFOutline{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := bookmarksOf(t, out); len(got) != 0 {
+		t.Errorf("bookmarks %+v, want none", got)
+	}
+	if got := info(t, out, "Title"); got != "" {
+		t.Errorf("Title = %q, want none", got)
+	}
+	if got := info(t, out, "Creator"); got != "Halmos Editor" {
+		t.Errorf("Creator = %q", got)
+	}
+	if vp := readContext(t, out).ViewerPref; vp != nil && vp.DisplayDocTitle != nil && *vp.DisplayDocTitle {
+		t.Error("DisplayDocTitle set without a title")
+	}
+	if err := api.ValidateFile(context.Background(), out, nil, nil); err != nil {
+		t.Errorf("not a valid PDF: %v", err)
+	}
+}
+
+func TestWriteOutlineKeepsPageCount(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out.pdf")
+	if err := writeOutline("testdata/webkit-export.pdf", out, []outlineNode{{Title: "A", Page: 1}}, PDFOutline{Title: "T"}); err != nil {
+		t.Fatal(err)
+	}
+	if a, b := readContext(t, "testdata/webkit-export.pdf").PageCount, readContext(t, out).PageCount; a != b {
+		t.Errorf("pages %d -> %d", a, b)
+	}
+}
+
+func TestWriteOutlineRefusesSomethingThatIsNotAPDF(t *testing.T) {
+	bad := filepath.Join(t.TempDir(), "bad.pdf")
+	if err := os.WriteFile(bad, []byte("not a pdf"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeOutline(bad, filepath.Join(t.TempDir(), "out.pdf"), nil, PDFOutline{}); err == nil {
+		t.Fatal("want an error")
+	}
+}
+
+func TestAssignPagesHeadingRightAfterTheContentsList(t *testing.T) {
+	// The list fills page 1; "Introduction" opens page 2 with nothing
+	// between them, and "Background" follows straight after it.
+	pages := []string{
+		pageOf("Contents", "Introduction", "Background", "Results"),
+		pageOf("Introduction", "Background", body, "Results", body),
+	}
+	hs := []PDFHeading{h(1, "Introduction"), h(2, "Background"), h(1, "Results")}
+	if got, want := assignPages(hs, pages, true), []int{2, 2, 2}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesContentsListOmitsDeepHeadings(t *testing.T) {
+	// toc-depth 1: the list names only the level-1 headings.
+	pages := []string{
+		pageOf("Contents", "One", "Two", "One", "Detail", body),
+		pageOf(body, "Two", body),
+	}
+	hs := []PDFHeading{h(1, "One"), h(3, "Detail"), h(1, "Two")}
+	if got, want := assignPages(hs, pages, true), []int{1, 1, 2}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesHeadingWithMathsAndWords(t *testing.T) {
+	// "Results for $x^2$ in $\mathbb{R}$": KaTeX prints the maths as
+	// something other than its source, so those parts are gaps.
+	hd := PDFHeading{Level: 1, Text: "Results for x^2 in \\mathbb{R}", Match: "Results for \x00 in \x00", Gaps: []int{3, 11}}
+	pages := []string{pageOf(body), pageOf(body, "Results for x2 in R", body)}
+	if got, want := assignPages([]PDFHeading{hd}, pages, false), []int{2}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}
+
+func TestAssignPagesMathsGapIsBounded(t *testing.T) {
+	// "For $x$" must not match a body line that merely starts "For".
+	hd := PDFHeading{Level: 1, Text: "For x", Match: "For \x00", Gaps: []int{1}}
+	pages := []string{
+		pageOf("For example, the results hold for every case we tried."),
+		pageOf(body, "For x", body),
+	}
+	if got, want := assignPages([]PDFHeading{h(1, "Intro"), hd}, append([]string{pageOf("Intro")}, pages...), false), []int{1, 3}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("pages %v, want %v", got, want)
+	}
+}

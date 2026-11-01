@@ -95,10 +95,13 @@ export function DiscardDraft(docPath: string): $CancellablePromise<void> {
  * they wrote against.
  * 
  * furniture is the running header and footer from the document's frontmatter
- * (lib/pageFurniture.ts); empty templates draw nothing.
+ * (lib/pageFurniture.ts); empty templates draw nothing. outline is the
+ * bookmarks and the Title and Author properties (lib/pdfOutline.ts), added
+ * after rendering, off the main thread (pdfexport.go); this returns once the
+ * export has started.
  */
-export function ExportPDF(docPath: string, furniture: $models.PageFurniture): $CancellablePromise<void> {
-    return $Call.ByID(2450231792, docPath, furniture);
+export function ExportPDF(docPath: string, furniture: $models.PageFurniture, outline: $models.PDFOutline): $CancellablePromise<void> {
+    return $Call.ByID(2450231792, docPath, furniture, outline);
 }
 
 /**

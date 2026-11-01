@@ -1692,7 +1692,7 @@ describe('export PDF', () => {
     listeners['menu:export-pdf']({ data: null })
     flushSync()
 
-    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('', { header: '', footer: '', title: '', skipFirstPageHeader: false })
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('', { header: '', footer: '', title: '', skipFirstPageHeader: false }, expect.anything())
   })
 
   it('passes the open document’s path once one is open', async () => {
@@ -1709,7 +1709,7 @@ describe('export PDF', () => {
     listeners['menu:export-pdf']({ data: null })
     flushSync()
 
-    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md', { header: '', footer: '', title: '', skipFirstPageHeader: false })
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md', { header: '', footer: '', title: '', skipFirstPageHeader: false }, expect.anything())
   })
 
   it('passes the frontmatter’s header and footer, titled by the first heading', async () => {
@@ -1729,7 +1729,33 @@ describe('export PDF', () => {
     expect(DocumentService.ExportPDF).toHaveBeenCalledWith(
       '/tmp/paper.md',
       expect.objectContaining({ header: '{title}', footer: 'Page {page} of {pages}', title: 'Results' }),
+      expect.anything(),
     )
+  })
+
+  it('sends the headings, title and authors for the PDF outline', async () => {
+    recents.current = ['/tmp/paper.md']
+    DocumentService.OpenPath.mockResolvedValueOnce({
+      path: '/tmp/paper.md',
+      content: '---\ntitle: A Thesis\nauthor: Ada Lovelace\ntoc: true\n---\n# Results\n\n## For $x$\n',
+    })
+    const { target } = mountApp()
+    await vi.waitFor(() => expect(target.querySelector('.welcome')).not.toBeNull())
+    listeners['menu:open-recent']({ data: '/tmp/paper.md' })
+    await vi.waitFor(() => expect(target.textContent).toContain('Results'))
+
+    listeners['menu:export-pdf']({ data: null })
+    flushSync()
+
+    expect(DocumentService.ExportPDF).toHaveBeenCalledWith('/tmp/paper.md', expect.anything(), {
+      headings: [
+        { level: 1, text: 'Results', match: 'Results', gaps: [] },
+        { level: 2, text: 'For x', match: 'For \u0000', gaps: [1] },
+      ],
+      title: 'A Thesis',
+      authors: ['Ada Lovelace'],
+      contents: true,
+    })
   })
 })
 

@@ -419,8 +419,10 @@ when a key inserts but will not resolve — is in
 ## Exporting to PDF
 
 **Export → Export PDF…** (⌘E) prints the rendered preview, including maths,
-charts, and the References section. Page orientation is set under **File → PDF
-Orientation** and is remembered between sessions.
+charts, and the References section. The PDF has a bookmark for each heading,
+the sidebar outline in Preview and Acrobat, and takes its title and author from
+the frontmatter. Page orientation is set under **File → PDF Orientation** and is
+remembered between sessions.
 
 ## Exporting to Word and LaTeX
 

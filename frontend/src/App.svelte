@@ -84,6 +84,7 @@
   import { fileErrorText } from './lib/fileError'
   import { DiskState, type DiskChange } from './lib/diskState.svelte'
   import { subscribeAppEvents } from './lib/appEvents'
+  import { pdfOutline } from './lib/pdfOutline'
   import {
     DEFAULT_PAPER_SIZE,
     DEFAULT_ORIENTATION,
@@ -871,10 +872,11 @@
   // KaTeX assets it loads are imported on first use: they are not part of
   // the startup bundle.
   // The header and footer come from the frontmatter, the title from the
-  // first heading in the outline (lib/pageFurniture.ts).
+  // first heading in the outline (lib/pageFurniture.ts); the bookmarks and
+  // properties from the outline and frontmatter (lib/pdfOutline.ts).
   function exportPDF() {
     const furniture = pageFurniture(fm, outline[0]?.text ?? '', filename)
-    void DocumentService.ExportPDF(path ?? '', furniture).catch((e) => toast(String(e)))
+    void DocumentService.ExportPDF(path ?? '', furniture, pdfOutline(outline, fm)).catch((e) => toast(String(e)))
   }
 
   async function exportHTML() {
