@@ -7,8 +7,16 @@ package main
 // See docs/superpowers/specs/2026-11-01-pdf-outline-design.md.
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"os"
 	"strings"
 	"unicode"
+
+	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 )
 
 // PDFHeading is one heading of the document, sent by the frontend with the
@@ -178,4 +186,59 @@ func nestOutline(headings []PDFHeading, pages []int) []outlineNode {
 	}
 	roots, _ := build(0, 0)
 	return roots
+}
+
+// pdfCreator is the Creator property of every exported PDF, so a
+// submission system can tell where the file came from.
+const pdfCreator = "Halmos Editor"
+
+// writeOutline writes out from the PDF in, with the bookmarks in nodes
+// (none when it is empty), Title and DisplayDocTitle when o has a title,
+// Author when it has authors, and Creator always. One read and one write,
+// so WebKit's links and text are kept as they are.
+func writeOutline(in, out string, nodes []outlineNode, o PDFOutline) error {
+	c := context.Background()
+	f, err := os.Open(in)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	ctx, err := api.ReadValidateAndOptimize(c, f, model.NewDefaultConfiguration(), nil)
+	if err != nil {
+		return fmt.Errorf("read the PDF: %w", err)
+	}
+	if len(nodes) > 0 {
+		if err := pdfcpu.AddBookmarks(c, ctx, toBookmarks(nodes), true); err != nil {
+			return fmt.Errorf("add the bookmarks: %w", err)
+		}
+	}
+	props := map[string]string{"Creator": pdfCreator}
+	if o.Title != "" {
+		props["Title"] = o.Title
+	}
+	if len(o.Authors) > 0 {
+		props["Author"] = strings.Join(o.Authors, ", ")
+	}
+	if err := pdfcpu.PropertiesAdd(c, ctx, props); err != nil {
+		return fmt.Errorf("set the properties: %w", err)
+	}
+	if o.Title != "" {
+		vp := model.ViewerPreferences{}
+		vp.SetDisplayDocTitle(true)
+		ctx.ViewerPref = &vp
+		ctx.BindViewerPreferences()
+	}
+	var buf bytes.Buffer
+	if err := api.WriteContext(c, ctx, &buf); err != nil {
+		return fmt.Errorf("write the PDF: %w", err)
+	}
+	return os.WriteFile(out, buf.Bytes(), 0o644)
+}
+
+func toBookmarks(nodes []outlineNode) []pdfcpu.Bookmark {
+	bms := make([]pdfcpu.Bookmark, len(nodes))
+	for i, n := range nodes {
+		bms[i] = pdfcpu.Bookmark{Title: n.Title, PageFrom: n.Page, Kids: toBookmarks(n.Kids)}
+	}
+	return bms
 }

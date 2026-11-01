@@ -1,9 +1,15 @@
 package main
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
 
 func h(level int, text string) PDFHeading { return PDFHeading{Level: level, Text: text, Match: text} }
@@ -142,5 +148,89 @@ func TestNestOutlineStartsDeeperThanLevelOne(t *testing.T) {
 func TestNestOutlineNoHeadings(t *testing.T) {
 	if got := nestOutline(nil, nil); got != nil {
 		t.Fatalf("got %+v, want nil", got)
+	}
+}
+
+func bookmarksOf(t *testing.T, path string) []outlineNode {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	bms, err := api.Bookmarks(context.Background(), f, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var conv func([]pdfcpu.Bookmark) []outlineNode
+	conv = func(bs []pdfcpu.Bookmark) []outlineNode {
+		var ns []outlineNode
+		for _, b := range bs {
+			ns = append(ns, outlineNode{Title: b.Title, Page: b.PageFrom, Kids: conv(b.Kids)})
+		}
+		return ns
+	}
+	return conv(bms)
+}
+
+func TestWriteOutlineBookmarksAndProperties(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out.pdf")
+	nodes := []outlineNode{{Title: "Chapter 1 Results", Page: 1, Kids: []outlineNode{{Title: "Method 1", Page: 2}}}, {Title: "Chapter 2", Page: 3}}
+	o := PDFOutline{Title: "A Thesis", Authors: []string{"Ada Lovelace", "Charles Babbage"}}
+	if err := writeOutline("testdata/webkit-export.pdf", out, nodes, o); err != nil {
+		t.Fatal(err)
+	}
+	if got := bookmarksOf(t, out); !reflect.DeepEqual(got, nodes) {
+		t.Errorf("bookmarks\n got %+v\nwant %+v", got, nodes)
+	}
+	for key, want := range map[string]string{"Title": "A Thesis", "Author": "Ada Lovelace, Charles Babbage", "Creator": "Halmos Editor"} {
+		if got := info(t, out, key); got != want {
+			t.Errorf("%s = %q, want %q", key, got, want)
+		}
+	}
+	if vp := readContext(t, out).ViewerPref; vp == nil || vp.DisplayDocTitle == nil || !*vp.DisplayDocTitle {
+		t.Error("DisplayDocTitle not set")
+	}
+}
+
+func TestWriteOutlineUntitledNoHeadings(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out.pdf")
+	if err := writeOutline("testdata/webkit-export.pdf", out, nil, PDFOutline{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := bookmarksOf(t, out); len(got) != 0 {
+		t.Errorf("bookmarks %+v, want none", got)
+	}
+	if got := info(t, out, "Title"); got != "" {
+		t.Errorf("Title = %q, want none", got)
+	}
+	if got := info(t, out, "Creator"); got != "Halmos Editor" {
+		t.Errorf("Creator = %q", got)
+	}
+	if vp := readContext(t, out).ViewerPref; vp != nil && vp.DisplayDocTitle != nil && *vp.DisplayDocTitle {
+		t.Error("DisplayDocTitle set without a title")
+	}
+	if err := api.ValidateFile(context.Background(), out, nil, nil); err != nil {
+		t.Errorf("not a valid PDF: %v", err)
+	}
+}
+
+func TestWriteOutlineKeepsPageCount(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out.pdf")
+	if err := writeOutline("testdata/webkit-export.pdf", out, []outlineNode{{Title: "A", Page: 1}}, PDFOutline{Title: "T"}); err != nil {
+		t.Fatal(err)
+	}
+	if a, b := readContext(t, "testdata/webkit-export.pdf").PageCount, readContext(t, out).PageCount; a != b {
+		t.Errorf("pages %d -> %d", a, b)
+	}
+}
+
+func TestWriteOutlineRefusesSomethingThatIsNotAPDF(t *testing.T) {
+	bad := filepath.Join(t.TempDir(), "bad.pdf")
+	if err := os.WriteFile(bad, []byte("not a pdf"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeOutline(bad, filepath.Join(t.TempDir(), "out.pdf"), nil, PDFOutline{}); err == nil {
+		t.Fatal("want an error")
 	}
 }
