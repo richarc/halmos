@@ -42,12 +42,15 @@ export type CollectorOptions = {
 const go = (args: string[]) => execFileSync('go', args, { cwd: REPO_ROOT, encoding: 'utf8' }).trim()
 
 /**
- * The modules linked into the app, from `go list -deps` on the main package
- * with the production tag. The paid-features switch is a tag too, but the
- * paid code stays in both builds, so it does not change this list.
+ * The modules linked into the app, from `go list -deps` on the main package,
+ * with and without the production tag: release and package builds use it,
+ * dev builds do not and link one more module (go-isatty, for Wails' dev
+ * logging). The paid-features switch is a tag too, but the paid code stays
+ * in both builds, so it does not change this list.
  */
 function listGoModules(): GoModule[] {
-  const out = go(['list', '-deps', '-tags', 'production', '-f', '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}} {{.Dir}}{{end}}{{end}}', '.'])
+  const format = '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}} {{.Dir}}{{end}}{{end}}'
+  const out = [['-tags', 'production'], []].map((tags) => go(['list', '-deps', ...tags, '-f', format, '.'])).join('\n')
   const seen = new Map<string, GoModule>()
   for (const line of out.split('\n')) {
     const [path, version, ...dir] = line.trim().split(' ')
