@@ -24,7 +24,7 @@ A signed, notarized editor anyone can download, with the licence notices
 it owes. The documentation site, the new start screen and the design system
 for this release have shipped (see CHANGELOG.md, v0.15.0).
 
-- [ ] **Third-party licence notices in the app.** The MIT, BSD and ISC
+- [x] **Third-party licence notices in the app.** The MIT, BSD and ISC
       licences of the bundled libraries (about 260: CodeMirror, markdown-it,
       KaTeX, Mermaid, Vega and their dependencies) require their copyright
       and licence text to travel with every copy. `bundle:licences` ships
@@ -34,7 +34,11 @@ for this release have shipped (see CHANGELOG.md, v0.15.0).
       for Vite), copy it in with `bundle:licences`, and optionally add
       Help → Acknowledgements to open it. Also correct NOTICE, which says
       these dependencies "are credited in README.md": a credit is not the
-      licence text.
+      licence text. Done 2026-11-01: `frontend/scripts/notices` writes
+      `THIRD-PARTY-NOTICES.txt` from what the build bundles (181
+      components, the Go modules included), shown at Help →
+      Acknowledgements, which replaces Help → Licences. Spec and plan
+      `2026-11-01-third-party-notices`.
 - [ ] **Bookmarks and document properties in the exported PDF.** Export
       PDF… writes a PDF with no outline and no title or author, because
       WebKit's printing adds neither. Add a bookmark for each heading (the
