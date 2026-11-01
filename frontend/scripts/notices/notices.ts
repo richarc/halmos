@@ -7,7 +7,7 @@
  * found fails the build rather than shipping without its notice. See
  * docs/superpowers/specs/2026-11-01-third-party-notices-design.md.
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 export type NoticeEntry = {
@@ -33,7 +33,10 @@ export type NoticeEntry = {
 
 export type Notices = { generatedBy: 'halmos-notices'; entries: NoticeEntry[] }
 
-const LICENCE_FILE = /^(licen[cs]e|copying)([-.].*)?$/i
+// LICENSE, LICENCE.md, COPYING.txt, LICENSE-MIT: a licence name, then an
+// optional licence suffix, then an optional text extension. Nothing looser:
+// packages ship code named like licences (cytoscape's license-update.mjs).
+const LICENCE_FILE = /^(licen[cs]e|copying)(-(mit|apache(-2\.0)?|bsd|isc|mpl(-2\.0)?))?(\.(md|txt|markdown|rst))?$/i
 const COPYRIGHT_LINE = /^\s*(copyright|\(c\)|©)/i
 
 /** The package a bundled module belongs to, or null for the app's own files. */
@@ -57,7 +60,7 @@ export function overrideFileName(name: string, version: string): string {
 function licenceFile(dir: string): string | null {
   if (!existsSync(dir)) return null
   const match = readdirSync(dir)
-    .filter((f) => LICENCE_FILE.test(f))
+    .filter((f) => LICENCE_FILE.test(f) && statSync(join(dir, f)).isFile())
     .sort()[0]
   return match ? join(dir, match) : null
 }
@@ -110,11 +113,16 @@ export function npmEntry(dir: string, overridesDir: string): NoticeEntry {
   const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as Record<string, unknown>
   const name = String(pkg.name)
   const version = String(pkg.version)
-  const base = { name, version, licence: declaredLicence(pkg), repository: repositoryURL(pkg), origin: 'npm' as const }
+  const base = { name, version, repository: repositoryURL(pkg), origin: 'npm' as const }
+  // A package.json that names no licence gets the one its text shows.
+  const label = (text: string) => {
+    const declared = declaredLicence(pkg)
+    return declared === 'see text' ? detectLicence(text) : declared
+  }
   const own = licenceFile(dir)
   if (own) {
     const text = readFileSync(own, 'utf8').trim()
-    return { ...base, copyright: copyrightLines(text), text }
+    return { ...base, licence: label(text), copyright: copyrightLines(text), text }
   }
   const file = overrideFileName(name, version)
   const path = join(overridesDir, file)
@@ -127,7 +135,7 @@ export function npmEntry(dir: string, overridesDir: string): NoticeEntry {
   // Drop the Source line and the blank line after it: they say where the
   // text came from, and are not part of it.
   const text = readFileSync(path, 'utf8').replace(/^Source:.*\r?\n(\r?\n)?/, '').trim()
-  return { ...base, copyright: copyrightLines(text), text, override: file }
+  return { ...base, licence: label(text), copyright: copyrightLines(text), text, override: file }
 }
 
 /** One entry per package and version, for every module id that is in one. */
@@ -175,7 +183,9 @@ export function applyElections(e: NoticeEntry, licencesDir: string): NoticeEntry
   const read = (f: string) => readFileSync(join(licencesDir, f), 'utf8').trim()
   switch (e.name) {
     case 'citeproc':
-      return { ...e, election: 'Halmos elects the CPAL-1.0 option.', extraText: read('CPAL-1.0.txt'), source: sourceStatement(e) }
+      // Its package.json says AGPL-1.0; its licence file and README say
+      // AGPL-3.0 or later, which is what NOTICE and the header state.
+      return { ...e, licence: 'CPAL-1.0 OR AGPL-3.0', election: 'Halmos elects the CPAL-1.0 option.', extraText: read('CPAL-1.0.txt'), source: sourceStatement(e) }
     case 'elkjs':
       return { ...e, extraText: read('EPL-2.0.txt'), source: sourceStatement(e) }
     case 'dompurify':

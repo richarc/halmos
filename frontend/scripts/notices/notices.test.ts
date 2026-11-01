@@ -52,6 +52,10 @@ beforeAll(() => {
   pkg(at('license-mit'), { name: 'license-mit', version: '1.0.0', license: 'MIT' }, { 'LICENSE-MIT': MIT('C') })
   pkg(at('lower'), { name: 'lower', version: '1.0.0', license: 'MIT' }, { license: MIT('D') })
   pkg(at('no-file'), { name: 'no-file', version: '1.0.0', license: 'ISC' })
+  pkg(at('code-named-license'), { name: 'code-named-license', version: '1.0.0', license: 'MIT' }, { 'license-update.mjs': 'export const x = 1', 'license.js': 'module.exports = 1', 'LICENSE.txt': MIT('Real') })
+  pkg(at('only-code'), { name: 'only-code', version: '1.0.0', license: 'MIT' }, { 'license.js': 'module.exports = 1' })
+  mkdirSync(join(at('only-code'), 'licenses'), { recursive: true })
+  pkg(at('no-licence-field'), { name: 'no-licence-field', version: '1.0.0' }, { license: MIT('Unlabelled') })
   pkg(at('no-file-newer'), { name: 'no-file-newer', version: '2.0.0', license: 'ISC' })
   writeFileSync(join(overrides, 'no-file@1.0.0.txt'), 'Source: https://example.com/LICENSE\n\nISC License\n\nCopyright (c) Someone\n')
   pkg(at('@scope/name'), { name: '@scope/name', version: '3.1.0', license: 'MIT' }, { LICENSE: MIT('Scoped') })
@@ -98,6 +102,13 @@ describe('npmEntry', () => {
     for (const name of ['plain-license', 'licence-md', 'copying', 'license-mit', 'lower']) {
       expect(npmEntry(at(name), overrides).text).toContain('Permission is hereby granted')
     }
+  })
+  test('never takes a code file or a folder for the licence', () => {
+    expect(npmEntry(at('code-named-license'), overrides).text).toContain('Copyright (c) 2020 Real')
+    expect(() => npmEntry(at('only-code'), overrides)).toThrow(/only-code@1\.0\.0/)
+  })
+  test('reads the licence from the text when package.json does not name one', () => {
+    expect(npmEntry(at('no-licence-field'), overrides).licence).toBe('MIT')
   })
   test('takes copyright lines from the text', () => {
     expect(npmEntry(at('plain-license'), overrides).copyright).toEqual(['Copyright (c) 2020 Fixture Author'])
@@ -151,6 +162,7 @@ describe('applyElections', () => {
   test('citeproc-js: CPAL election, the CPAL text and where the source is', () => {
     const c = applyElections(npmEntry(at('citeproc'), overrides), licences)
     expect(c.election).toBe('Halmos elects the CPAL-1.0 option.')
+    expect(c.licence).toBe('CPAL-1.0 OR AGPL-3.0')
     expect(c.extraText).toContain('Common Public Attribution License')
     expect(c.source).toBe('Source code for this version: https://github.com/Juris-M/citeproc-js, version 2.4.63.')
   })
