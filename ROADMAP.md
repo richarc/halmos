@@ -39,7 +39,7 @@ for this release have shipped (see CHANGELOG.md, v0.15.0).
       components, the Go modules included), shown at Help →
       Acknowledgements, which replaces Help → Licences. Spec and plan
       `2026-11-01-third-party-notices`.
-- [ ] **Bookmarks and document properties in the exported PDF.** Export
+- [x] **Bookmarks and document properties in the exported PDF.** Export
       PDF… writes a PDF with no outline and no title or author, because
       WebKit's printing adds neither. Add a bookmark for each heading (the
       sidebar outline in Preview and Acrobat, which a long thesis needs)
@@ -49,7 +49,12 @@ for this release have shipped (see CHANGELOG.md, v0.15.0).
       and properties in Go with pdfcpu (Apache-2.0, pure Go) rather than
       PDFKit, so the Windows version (v1.1.0) can reuse that step; check
       first that pdfcpu writes nested bookmarks and keeps the links and
-      searchable text WebKit produced. Added 2026-10-30.
+      searchable text WebKit produced. Added 2026-10-30. Done 2026-11-01:
+      pdfcpu v0.16.4 passed those checks (165 pages: 3% larger, 40 ms);
+      headings are matched against whole lines of the unstamped pages,
+      skipping the contents list's entries, with maths as bounded gaps.
+      Citations and cross-references in a heading are not matched yet.
+      Spec and plan `2026-11-01-pdf-outline`.
 - [x] **Pre-1.0 clean-up.** An architecture review on 2026-10-30 found the
       code in good shape (vet clean, no races, 78% Go coverage, all calls
       through generated bindings) and listed 20 fixes to make before the
