@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/wailsapp/wails/v3/pkg/mac"
 )
 
 // citationStyles are the styles bundled with the app, in menu order. The ids
@@ -37,7 +36,7 @@ func citationStyleClicked(docs *DocumentService, emit func()) {
 // what attaches the click handler, so the command palette lists and runs the
 // same functions the menu does. The new set replaces the old one in reg once
 // the menu is installed.
-func installMenu(app *application.App, win *application.WebviewWindow, docs *DocumentService, reg *commandRegistry, styles *StyleService) {
+func installMenu(app *application.App, win *application.WebviewWindow, docs *DocumentService, settings *SettingsService, reg *commandRegistry, styles *StyleService) {
 	menu := application.NewMenu()
 	cmds := newCommandSet()
 	appName := app.Config().Name
@@ -54,27 +53,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 		whenVisible(win.IsVisible(), func() { app.Event.Emit(name, data...) })
 	}
 
-	// ⌘Q used to discard unsaved work: main.go's guard is registered on
-	// events.Common.WindowClosing, a *window* event, and quitting never raises
-	// one. Route the shortcut through the same confirm the red button uses.
-	//
-	// Replacing the handler is not enough on its own — see reclaimQuitItem.
-	//
-	// DocumentService.Quit() deliberately still quits outright: it is what runs
-	// *after* the user chooses Save or Don't Save, and sending it back through
-	// this confirm would loop.
-	if quit := reclaimQuitItem(menu); quit != nil {
-		cmds.item(quit, []string{appName}, func() {
-			quitRequest(docs.mustAsk(),
-				// Shown first: with the window hidden (#17) the dialog
-				// would otherwise render where nobody can see it.
-				func() {
-					showWindow(win)
-					app.Event.Emit("close:confirm", "quit")
-				},
-				app.Quit)
-		}, commandOpts{})
-	}
+	registerQuit(menu, cmds, appName, app.Quit)
 
 	fileP := []string{"File"}
 	file := menu.AddSubmenu("File")
@@ -110,7 +89,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 		docEmit("menu:save-as")
 	}, commandOpts{needsDocument: true})
 	file.AddSeparator()
-	current := docs.Settings()
+	current := settings.Settings()
 	paper := file.AddSubmenu("Paper Size")
 	papers := []struct {
 		label string
@@ -122,11 +101,11 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, p := range papers {
 		value := p.value
 		cmds.item(paper.AddRadio(p.label, current.PaperSize == value), []string{"File", "Paper Size"}, func() {
-			// Read-modify-write the whole settings value, so this menu only
-			// ever changes the one field it owns.
-			next := docs.Settings()
-			next.PaperSize = value
-			if err := docs.UpdateSettings(next); err != nil {
+			// Changes only the one field this menu owns, applied to the
+			// stored value.
+			if err := settings.updateSettings(func(next *Settings) {
+				next.PaperSize = value
+			}); err != nil {
 				log.Printf("could not save paper size: %v", err)
 			}
 		}, commandOpts{})
@@ -142,11 +121,11 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	for _, o := range orientations {
 		value := o.value
 		cmds.item(orientation.AddRadio(o.label, current.PrintOrientation == value), []string{"File", "PDF Orientation"}, func() {
-			// Read-modify-write the whole settings value, so this menu only
-			// ever changes the one field it owns.
-			next := docs.Settings()
-			next.PrintOrientation = value
-			if err := docs.UpdateSettings(next); err != nil {
+			// Changes only the one field this menu owns, applied to the
+			// stored value.
+			if err := settings.updateSettings(func(next *Settings) {
+				next.PrintOrientation = value
+			}); err != nil {
 				log.Printf("could not save PDF orientation: %v", err)
 			}
 		}, commandOpts{})
@@ -163,7 +142,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 		installed = styles.Installed()
 	}
 	addFormatMenu(menu, docs, installed, docEmit, cmds)
-	addViewMenu(menu, docs, docEmit, cmds)
+	addViewMenu(menu, settings, docEmit, cmds)
 
 	menu.AddRole(application.WindowMenu)
 
@@ -199,7 +178,7 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 		// Worth knowing when debugging either: the implementation discards the
 		// result of `open` in a goroutine, so a bad target fails silently and
 		// only a failure to *start* `open` is ever returned.
-		if resources, err := mac.ResourcePath(); err == nil {
+		if resources, err := resourcePath(); err == nil {
 			if dir, ok := licencesPath(resources); ok {
 				if err := app.Browser.OpenFile(dir); err != nil {
 					log.Printf("could not open the licences: %v", err)
@@ -223,15 +202,15 @@ func installMenu(app *application.App, win *application.WebviewWindow, docs *Doc
 	}, commandOpts{})
 	// Ticked only for "on": "unasked" reads as off here, and clicking it
 	// answers the first-launch question the same way the dialog would.
-	helpCurrent := docs.Settings()
+	helpCurrent := settings.Settings()
 	cmds.item(help.AddCheckbox("Check for Updates Automatically", helpCurrent.UpdateCheck == "on"), helpP, func() {
-		next := docs.Settings()
-		if next.UpdateCheck == "on" {
-			next.UpdateCheck = "off"
-		} else {
-			next.UpdateCheck = "on"
-		}
-		if err := docs.UpdateSettings(next); err != nil {
+		if err := settings.updateSettings(func(next *Settings) {
+			if next.UpdateCheck == "on" {
+				next.UpdateCheck = "off"
+			} else {
+				next.UpdateCheck = "on"
+			}
+		}); err != nil {
 			log.Printf("could not save the update-check setting: %v", err)
 		}
 	}, commandOpts{})
@@ -390,11 +369,11 @@ func addFormatMenu(menu *application.Menu, docs *DocumentService, installed []St
 	}, doc)
 }
 
-// addViewMenu adds the View menu. The settings items read the current value
-// from docs.Settings() when they run, never the item's checked state: run
+// addViewMenu adds the View menu. The settings items change the stored value
+// when they run (settings.updateSettings), never from the item's checked state: run
 // from the palette there is no native toggle, so the setting is the only
 // truth both routes share.
-func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name string, data ...any), cmds *commandSet) {
+func addViewMenu(menu *application.Menu, settings *SettingsService, emit func(name string, data ...any), cmds *commandSet) {
 	viewP := []string{"View"}
 	view := menu.AddSubmenu("View")
 	// ⇧⌘P: the menu owns the chord because AppKit delivers menu key
@@ -405,13 +384,13 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	}, commandOpts{})
 	view.AddSeparator()
 
-	viewCurrent := docs.Settings()
+	viewCurrent := settings.Settings()
 	// No accelerator: the obvious chords are taken, and this is not a frequent
 	// action — the same reasoning as Blockquote in the Format menu.
 	cmds.item(view.AddCheckbox("Sync Scrolling", viewCurrent.SyncScrolling), viewP, func() {
-		next := docs.Settings()
-		next.SyncScrolling = !next.SyncScrolling
-		if err := docs.UpdateSettings(next); err != nil {
+		if err := settings.updateSettings(func(next *Settings) {
+			next.SyncScrolling = !next.SyncScrolling
+		}); err != nil {
 			log.Printf("could not save sync scrolling: %v", err)
 		}
 	}, commandOpts{})
@@ -420,20 +399,20 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	// foldKeymap), and the fold chords already establish ⌘⌥ as the View
 	// menu's modifier. The panel's own arrow is the mouse route.
 	cmds.item(view.AddCheckbox("Outline", viewCurrent.ShowOutline).SetAccelerator("cmdorctrl+alt+o"), viewP, func() {
-		next := docs.Settings()
-		next.ShowOutline = !next.ShowOutline
-		if err := docs.UpdateSettings(next); err != nil {
+		if err := settings.updateSettings(func(next *Settings) {
+			next.ShowOutline = !next.ShowOutline
+		}); err != nil {
 			log.Printf("could not save outline visibility: %v", err)
 		}
 	}, commandOpts{})
 
 	// Below Outline: a persisted on/off like Sync Scrolling, and the View
 	// menu is where those live. No accelerator; this is set once, not
-	// toggled mid-sentence. Same read-modify-write as the two above.
+	// toggled mid-sentence.
 	cmds.item(view.AddCheckbox("Autosave", viewCurrent.AutoSave), viewP, func() {
-		next := docs.Settings()
-		next.AutoSave = !next.AutoSave
-		if err := docs.UpdateSettings(next); err != nil {
+		if err := settings.updateSettings(func(next *Settings) {
+			next.AutoSave = !next.AutoSave
+		}); err != nil {
 			log.Printf("could not save autosave: %v", err)
 		}
 	}, commandOpts{})
@@ -441,9 +420,9 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	// Below Autosave: a persisted on/off applied by the editor as its
 	// spellcheck attribute (lib/spellcheck.ts). No accelerator.
 	cmds.item(view.AddCheckbox("Check Spelling", viewCurrent.SpellCheck), viewP, func() {
-		next := docs.Settings()
-		next.SpellCheck = !next.SpellCheck
-		if err := docs.UpdateSettings(next); err != nil {
+		if err := settings.updateSettings(func(next *Settings) {
+			next.SpellCheck = !next.SpellCheck
+		}); err != nil {
 			log.Printf("could not save spell checking: %v", err)
 		}
 	}, commandOpts{})
@@ -462,19 +441,19 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	for _, t := range themes {
 		value := t.value
 		cmds.item(appearance.AddRadio(t.label, viewCurrent.Theme == value), []string{"View", "Appearance"}, func() {
-			// Read-modify-write the whole settings value, so this menu only
-			// ever changes the field it owns.
-			next := docs.Settings()
-			next.Theme = value
-			if err := docs.UpdateSettings(next); err != nil {
+			// Changes only the one field this menu owns, applied to the
+			// stored value.
+			if err := settings.updateSettings(func(next *Settings) {
+				next.Theme = value
+			}); err != nil {
 				log.Printf("could not save theme: %v", err)
 			}
 		}, commandOpts{})
 	}
 
 	// Both read viewCurrent, the settings snapshot taken at the top of this
-	// View block. Each action re-reads and read-modify-writes the whole
-	// value, so a submenu only ever changes the one field it owns.
+	// View block, for their ticks. Each action changes only the one field its
+	// submenu owns.
 	alignmentMenu := view.AddSubmenu("Figure Alignment")
 	alignments := []struct {
 		label string
@@ -487,9 +466,9 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	for _, a := range alignments {
 		value := a.value
 		cmds.item(alignmentMenu.AddRadio(a.label, viewCurrent.FigureAlignment == value), []string{"View", "Figure Alignment"}, func() {
-			next := docs.Settings()
-			next.FigureAlignment = value
-			if err := docs.UpdateSettings(next); err != nil {
+			if err := settings.updateSettings(func(next *Settings) {
+				next.FigureAlignment = value
+			}); err != nil {
 				log.Printf("could not save figure alignment: %v", err)
 			}
 		}, commandOpts{})
@@ -499,9 +478,9 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	for _, f := range bodyFonts {
 		value := f.value
 		cmds.item(fontMenu.AddRadio(f.label, viewCurrent.BodyFont == value), []string{"View", "Body Font"}, func() {
-			next := docs.Settings()
-			next.BodyFont = value
-			if err := docs.UpdateSettings(next); err != nil {
+			if err := settings.updateSettings(func(next *Settings) {
+				next.BodyFont = value
+			}); err != nil {
 				log.Printf("could not save body font: %v", err)
 			}
 		}, commandOpts{})
@@ -519,9 +498,9 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	for _, w := range widths {
 		value := w.value
 		cmds.item(widthMenu.AddRadio(w.label, viewCurrent.ChartWidth == value), []string{"View", "Chart Width"}, func() {
-			next := docs.Settings()
-			next.ChartWidth = value
-			if err := docs.UpdateSettings(next); err != nil {
+			if err := settings.updateSettings(func(next *Settings) {
+				next.ChartWidth = value
+			}); err != nil {
 				log.Printf("could not save chart width: %v", err)
 			}
 		}, commandOpts{})
@@ -559,39 +538,21 @@ func addViewMenu(menu *application.Menu, docs *DocumentService, emit func(name s
 	}, commandOpts{needsDocument: true})
 }
 
-// reclaimQuitItem takes the App menu's Quit item back from AppKit so a Go
-// handler can run on it, and returns it — or nil if there is no Quit item.
-//
-// Attaching OnClick alone does nothing, which is how the first attempt at this
-// fix shipped without working. Wails builds a role-based item with the role's
-// native selector and target=nil (menuitem_selectors_darwin.go maps Quit to
-// "terminate:"), so AppKit sends the action up the responder chain to NSApp
-// and the callback is never invoked. Clearing the role drops the selector,
-// which puts the item back on the ordinary handleClick path. The label and the
-// ⌘Q accelerator are properties of the item, not the role, so both survive.
-func reclaimQuitItem(menu *application.Menu) *application.MenuItem {
-	quit := menu.FindByRole(application.Quit)
-	if quit == nil {
-		return nil
+// registerQuit lists the App menu's Quit in the palette, running quit. The
+// item keeps its role: ⌘Q and the menu send AppKit's terminate:, which asks
+// Options.ShouldQuit (shouldQuit), the same as the Dock's Quit, logout,
+// restart and app.Quit. So every quit raises the unsaved-changes confirm the
+// same way, and DocumentService.Quit, run after the user answers it,
+// approves first so the second ask lets it through.
+func registerQuit(menu *application.Menu, cmds *commandSet, appName string, quit func()) {
+	if item := menu.FindByRole(application.Quit); item != nil {
+		cmds.item(item, []string{appName}, quit, commandOpts{})
 	}
-	return quit.SetRole(application.NoRole)
-}
-
-// quitRequest decides what ⌘Q does: raise the confirm (unsaved changes, or
-// a builder open; see mustAsk), or quit. Split out from the menu closure so the branch is reachable by a test —
-// getting it the wrong way round silently discards the user's document, and
-// AppKit menu construction cannot be exercised headlessly.
-func quitRequest(ask bool, confirm func(), quit func()) {
-	if ask {
-		confirm()
-		return
-	}
-	quit()
 }
 
 // shouldQuit is Options.ShouldQuit's decision, run from AppKit's
-// applicationShouldTerminate. ⌘Q is caught earlier by quitRequest, but the
-// Dock's Quit, logout and restart arrive only here. A dirty document (or an
+// applicationShouldTerminate, which every quit reaches: ⌘Q, the menu, the
+// palette, the Dock's Quit, logout and restart. A dirty document (or an
 // open builder) raises the same confirm and refuses the quit; the user's Save or Don't Save then
 // calls DocumentService.Quit, which approves first so this lets it through.
 func shouldQuit(ask, approved bool, confirm func()) bool {
@@ -612,8 +573,9 @@ var findItems = []struct{ label, key, command string }{
 }
 
 // closeRequest decides what the window's close button does: raise the
-// confirm (unsaved changes, or a builder open), or close. Split out for the same reason as
-// quitRequest. Closing hides the window rather than quitting, so Hermes stays
+// confirm (unsaved changes, or a builder open), or close. Split out from the
+// close hook so the branch is reachable by a test: AppKit menu and window
+// wiring cannot be exercised headlessly. Closing hides the window rather than quitting, so Hermes stays
 // in the Dock and a click on its icon brings the window back (#17).
 func closeRequest(ask bool, confirm func(), close func()) {
 	if ask {
@@ -642,7 +604,7 @@ func showWindow(win *application.WebviewWindow) {
 // addAppMenu builds the application menu by hand, in the order of Wails' own
 // AppMenu role (roles.go, NewAppMenu), with Account… after About: the role
 // is a fixed block that takes no items of its own. Quit is still a role
-// item, which reclaimQuitItem then takes over and installMenu registers.
+// item, which installMenu lists in the palette (registerQuit).
 //
 // paid is paidFeatures: without it there is no Account….
 func addAppMenu(menu *application.Menu, name string, onAccount func(), cmds *commandSet, paid bool) {

@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"hermes/internal/fileio"
 )
 
 // htmlExportFilename is the name the export panel offers: the document's stem
@@ -48,7 +50,7 @@ func (s *DocumentService) ChooseHTMLExportPath(docPath string) (string, error) {
 
 // WriteHTMLExport writes the exported page atomically, like a save.
 func (s *DocumentService) WriteHTMLExport(path, html string) error {
-	return writeFileAtomic(path, []byte(html), 0o644)
+	return fileio.WriteFileAtomic(path, []byte(html), 0o644)
 }
 
 // ReadImageDataURI returns an image beside the document as a data: URI, so an

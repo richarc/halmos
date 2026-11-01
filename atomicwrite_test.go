@@ -125,34 +125,3 @@ func TestSaveFailureLeavesOriginalIntactAndCleansUp(t *testing.T) {
 		t.Errorf("original file was damaged by a failed save: got %q", string(data))
 	}
 }
-
-func TestWriteFileAtomicIsNotVisibleUntilComplete(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "settings.json")
-	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	// While the write is in flight the destination must still read as the old
-	// content — never as a partial new one. Approximated here by checking that
-	// the write went through a distinct temp path rather than the target: any
-	// intermediate file in the directory must not be the destination itself.
-	if err := writeFileAtomic(path, []byte("brand new content"), 0o644); err != nil {
-		t.Fatalf("writeFileAtomic: %v", err)
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != "brand new content" {
-		t.Errorf("got %q", string(data))
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 1 {
-		t.Errorf("want a single file after the write, got %d entries", len(entries))
-	}
-}

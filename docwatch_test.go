@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -189,7 +188,7 @@ func TestWatchReportsReplace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if held.Sys().(*syscall.Stat_t).Ino != info.Sys().(*syscall.Stat_t).Ino {
+	if inode(held) != inode(info) {
 		t.Error("the watcher did not reopen the replacing file")
 	}
 

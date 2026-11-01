@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack, flushSync } from 'svelte'
-  import { Events, Browser } from '@wailsio/runtime'
-  import { DocumentService, DemoService, PortalService, CommandService, StyleService } from '../bindings/hermes'
+  import { Browser } from '@wailsio/runtime'
+  import { DocumentService, DemoService, PortalService, CommandService, StyleService, SettingsService, UpdateService } from '../bindings/hermes'
   import type {
     Settings, Draft, UpdateResult, WelcomeInfo, AccountInfo, PortalError, ConvertRequest, ResolvedStyle, TutorialResult,
   } from '../bindings/hermes/models'
@@ -80,6 +80,9 @@
   import { readSpec, type BuilderState } from './lib/chartSpec'
   import { refusalMessage } from './lib/chartLabels'
   import type { ChartWidth, FigureAlignment } from './lib/figures'
+  import { fileErrorText } from './lib/fileError'
+  import { DiskState, type DiskChange } from './lib/diskState.svelte'
+  import { subscribeAppEvents } from './lib/appEvents'
   import {
     DEFAULT_PAPER_SIZE,
     DEFAULT_ORIENTATION,
@@ -125,17 +128,12 @@
   // `changed` means another program changed the file after the draft's
   // edits began, which the dialog says.
   let recovery = $state<{ key: string; content: string; changed: boolean } | null>(null)
-  // Another program changed the open document while it had unsaved edits
-  // here, awaiting Keep Mine / Use File. A later change replaces it, so the
-  // answer always applies to the newest version on disk.
-  let diskChange = $state<{ version: string; content: string } | null>(null)
+  // What Go's document watcher said about the open file: a change awaiting
+  // Keep Mine / Use File, or a delete (lib/diskState.svelte.ts).
+  const disk = new DiskState()
   // A Save that found the file changed on disk, awaiting Overwrite / Cancel.
   // Holds the resolver of askOverwrite's promise; null when no dialog is up.
   let overwriteAnswer = $state<((overwrite: boolean) => void) | null>(null)
-  // Another program deleted the open document. The text stays open and
-  // counts as unsaved, so quitting asks and drafts keep being written; Save
-  // recreates the file.
-  let diskGone = $state(false)
   // One toast per document for a failing draft write: a toast every two
   // seconds while typing would be worse than no insurance.
   let draftWriteWarned = false
@@ -206,13 +204,12 @@
     jumpToLine(line)
   }
 
-  // The panel's own arrows. The View menu owns the same setting, so this is a
-  // read-modify-write of the whole value — the menu only ever changes the
-  // field it owns, and so does this.
+  // The panel's own arrows. The View menu owns the same setting; Go writes
+  // only the field changed here, so nothing set in between is lost.
   async function setOutlineShown(shown: boolean) {
     try {
-      const current: Settings = await DocumentService.Settings()
-      await DocumentService.UpdateSettings({ ...current, showOutline: shown })
+      const current: Settings = await SettingsService.Settings()
+      await SettingsService.ChangeSettings(current, { ...current, showOutline: shown })
     } catch (err) {
       toast(`Could not save outline visibility: ${err}`)
     }
@@ -344,7 +341,7 @@
   // Dirty means "differs from what's on disk" — typing back to the saved
   // text (or emptying a never-saved doc) clears it again. A deleted file
   // differs from a disk that no longer holds it.
-  const dirty = $derived(content !== savedContent || diskGone)
+  const dirty = $derived(content !== savedContent || disk.gone)
 
   // Keep the Go side (window-close hook) in sync with the derived flag.
   $effect(() => {
@@ -503,12 +500,12 @@
       loadedBib = styleNotice ? null : { text, csl, xml }
       if (styleNotice) toast(styleNotice)
       else if (installedNotice) toast(installedNotice)
-    } catch {
+    } catch (err) {
       if (gen !== reloadGeneration) return // superseded by a newer request
       formatter = undefined
       bibEntries = []
       loadedBib = null
-      toast(`Bibliography not found: ${wanted}`)
+      toast(fileErrorText('bibliography', err, wanted))
     }
     void DocumentService.WatchBibliography(wanted, path)
   }
@@ -1248,8 +1245,7 @@
     // A swap makes any pending offer moot; the draft file stays on disk and
     // is offered again when that document is next opened.
     recovery = null
-    diskChange = null
-    diskGone = false
+    disk.reset()
     // The question was about the document going away; nothing is written.
     answerOverwrite(false)
     path = docPath
@@ -1310,17 +1306,8 @@
 
   // document:changed from Go's watcher. Halmos's own saves never send it.
   // A clean document takes the new text without asking; a dirty one asks.
-  function onDiskChange(change: { path: string; version: string; content: string }) {
-    // The previous document's watcher can still report after a switch.
-    if (change.path !== path) return
-    // A deleted file that came back: whether the document is dirty is again
-    // a matter of its text.
-    diskGone = false
-    if (!dirty) {
-      useDiskVersion(change, false)
-      return
-    }
-    diskChange = { version: change.version, content: change.content }
+  function onDiskChange(change: DiskChange) {
+    if (disk.changed(change, path, () => dirty) === 'reload') useDiskVersion(change, false)
   }
 
   // `undoable` is false for the silent reload and true for Use File, so ⌘Z
@@ -1341,14 +1328,12 @@
   // Keep Mine, and Esc: the edits stay and stay unsaved, and the file's
   // version becomes the base, so the next Save does not ask about it again.
   function keepMine() {
-    const change = diskChange
-    diskChange = null
+    const change = disk.keepMine()
     if (change) acceptDiskVersion(change.version)
   }
 
   function useFile() {
-    const change = diskChange
-    diskChange = null
+    const change = disk.useFile()
     if (change) useDiskVersion(change, true)
   }
 
@@ -1357,16 +1342,16 @@
   // to recents; the path effects re-arm the bibliography watcher and re-key
   // the draft keeper.
   function onDiskMove(move: { from: string; to: string }) {
-    if (move.from !== path) return
-    path = move.to
-    toast(`Moved to ${move.to.split('/').slice(-2).join('/')}`)
+    const to = disk.moved(move, path)
+    if (to === null) return
+    path = to
+    toast(`Moved to ${to.split('/').slice(-2).join('/')}`)
     void refreshRecents()
   }
 
   // document:deleted: the text stays open, unsaved, until Save recreates it.
   function onDiskDelete(gone: { path: string }) {
-    if (gone.path !== path) return
-    diskGone = true
+    if (!disk.deleted(gone, path)) return
     toast(`"${filename}" was deleted. Save will recreate it.`)
   }
 
@@ -1398,8 +1383,8 @@
   async function answerUpdateQuestion(answer: 'on' | 'off') {
     askUpdates = false
     try {
-      const current: Settings = await DocumentService.Settings()
-      await DocumentService.UpdateSettings({ ...current, updateCheck: answer })
+      const current: Settings = await SettingsService.Settings()
+      await SettingsService.ChangeSettings(current, { ...current, updateCheck: answer })
     } catch (err) {
       toast(`Could not save the update-check setting: ${err}`)
       return
@@ -1416,7 +1401,7 @@
       return
     }
     try {
-      const result: UpdateResult = await DocumentService.CheckForUpdates(manual)
+      const result: UpdateResult = await UpdateService.CheckForUpdates(manual)
       if (result.available) {
         updateNotice = result
         return
@@ -1447,7 +1432,7 @@
   }
 
   async function refreshSettings() {
-    const s: Settings = await DocumentService.Settings()
+    const s: Settings = await SettingsService.Settings()
     syncScrolling = s.syncScrolling
     showOutline = s.showOutline
     autoSave = s.autoSave
@@ -1550,8 +1535,7 @@
     // A swap makes any pending offer moot; the draft file stays on disk and
     // is offered again when that document is next opened.
     recovery = null
-    diskChange = null
-    diskGone = false
+    disk.reset()
     answerOverwrite(false)
     path = null
     // Untitled: Go stops watching the old file and checking saves against it.
@@ -1596,7 +1580,7 @@
       if (!doc.path) return // cancelled
       loadDocument(doc.path, doc.content)
     } catch (err) {
-      toast(`Could not open file: ${err}`)
+      toast(fileErrorText('open', err, 'file'))
     }
   }
 
@@ -1618,7 +1602,7 @@
       const doc = await DocumentService.OpenPath(p)
       loadDocument(doc.path, doc.content)
     } catch (err) {
-      toast(`Could not open ${p}: ${err}`)
+      toast(fileErrorText('open', err, p))
     }
   }
 
@@ -1649,11 +1633,10 @@
       savedContent = snapshot
       // Saving the editor's text is keeping mine; Go's Save has re-tracked
       // the version on disk, so the Keep Mine / Use File question is moot.
-      diskChange = null
-      diskGone = false
+      disk.reset()
       return true
     } catch (err) {
-      toast(`Could not save: ${err}`)
+      toast(fileErrorText('save', err, path ?? ''))
       return false
     }
   }
@@ -1665,13 +1648,13 @@
       if (!newPath) return
       path = newPath
       savedContent = snapshot
-      diskGone = false
+      disk.gone = false
       // Same reasoning as the Save-As branch of save(): a new document
       // should not inherit a warning already shown for the old one.
       draftWriteWarned = false
       void refreshRecents()
     } catch (err) {
-      toast(`Could not save: ${err}`)
+      toast(fileErrorText('save', err, path ?? ''))
     }
   }
 
@@ -1684,7 +1667,7 @@
 
   async function confirmDiscard() {
     savedContent = content // treat current text as accepted; clears dirty
-    diskGone = false
+    disk.gone = false
     await DocumentService.SetDirty(false)
     // The dirty effect above has queued the draft's discard by now; a quit
     // that follows must not outrun it.
@@ -1771,8 +1754,7 @@
     drafts.reset()
     draftWriteWarned = false
     recovery = null
-    diskChange = null
-    diskGone = false
+    disk.reset()
     answerOverwrite(false)
     // A builder or the New dialog left open would come back over the welcome
     // pane on the next Dock click, aimed at a document that is gone.
@@ -1806,7 +1788,7 @@
       pendingAction !== null ||
       builderClose !== null ||
       recovery !== null ||
-      diskChange !== null ||
+      disk.change !== null ||
       overwriteAnswer !== null ||
       equationAsk !== null ||
       missingOpen ||
@@ -1885,92 +1867,66 @@
     // ready to be told, and a script that starts before the editor exists
     // would type into nothing.
     void startDemo()
-    // A menu command while the palette is open closes it first, focus and
-    // selection restored, then does what it does from the menu — ⌘Q included.
-    // Running a palette entry arrives here too, after the palette has closed.
-    const onMenu = (name: string, cb: (ev: { data: unknown }) => void) =>
-      Events.On(name, (ev: { data: unknown }) => {
-        closePalette()
-        cb(ev)
-      })
-    onMenu('menu:new', requestNew)
-    onMenu('menu:open', requestOpen)
-    onMenu('menu:tutorial', requestTutorial)
-    onMenu('menu:open-recent', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') requestOpenRecent(ev.data)
-    })
-    onMenu('menu:save', () => void save())
-    onMenu('menu:save-as', () => void saveAs())
-    onMenu('close:confirm', (ev: { data: unknown }) => {
-      // 'close' from the window's close button, 'quit' from ⌘Q. Anything
-      // else is treated as a quit, the older and safer reading.
-      const intent = ev.data === 'close' ? 'close' : 'quit'
-      // Go asks with a builder open even for a clean document (mustAsk), so
-      // an uncommitted chart or table is never dropped without a word. Its
-      // dialog comes first; the unsaved-changes one, if needed, after.
-      if (chartOpen || tableOpen) {
-        builderClose = intent
-        return
-      }
-      pendingAction = intent
-      // Clean by now (a builder Go saw has since closed): nothing to ask.
-      if (!dirty) finishPending()
-    })
-    Events.On('document:closed', closeDocument)
-    Events.On('document:changed', (ev: { data: unknown }) => {
-      const d = ev.data as { path?: unknown; version?: unknown; content?: unknown } | null
-      if (typeof d?.path !== 'string' || typeof d.version !== 'string' || typeof d.content !== 'string') return
-      onDiskChange({ path: d.path, version: d.version, content: d.content })
-    })
-    Events.On('document:moved', (ev: { data: unknown }) => {
-      const d = ev.data as { from?: unknown; to?: unknown } | null
-      if (typeof d?.from !== 'string' || typeof d.to !== 'string') return
-      onDiskMove({ from: d.from, to: d.to })
-    })
-    Events.On('document:deleted', (ev: { data: unknown }) => {
-      const d = ev.data as { path?: unknown } | null
-      if (typeof d?.path !== 'string') return
-      onDiskDelete({ path: d.path })
-    })
-    // Finder's Open With while running (#19); same path as Open Recent, so
-    // unsaved changes are asked about first.
-    onMenu('file:open', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') requestOpenRecent(ev.data)
-    })
-    Events.On('recents:changed', () => void refreshRecents())
-    Events.On('bib:changed', () => void reloadBibliography())
-    onMenu('menu:insert-citation', () => void insertCitation())
-    onMenu('menu:insert-crossref', () => insertCrossref())
-    onMenu('menu:export-pdf', () => exportPDF())
-    onMenu('menu:export-html', () => void exportHTML())
-    onMenu('menu:export-pandoc', (ev: { data: unknown }) => {
-      if (ev.data === 'docx' || ev.data === 'latex') void exportPandoc(ev.data)
-    })
-    onMenu('menu:account', () => void openAccount())
-    Events.On('portal:pairing', (ev: { data: unknown }) => {
-      if (ev.data && typeof ev.data === 'object') onPairing(ev.data as { state: string; email?: string })
-    })
-    onMenu('menu:insert-chart', () => openChartBuilder())
-    onMenu('menu:insert-table', () => openTableBuilder())
-    onMenu('menu:insert-code', (ev: { data: unknown }) => {
-      // '' is the Plain text item, and a legitimate payload — a bare fence.
-      if (typeof ev.data === 'string') insertCodeBlock(ev.data)
-    })
-    onMenu('menu:format', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') applyFormat(ev.data)
-    })
-    onMenu('menu:find', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') applyFind(ev.data)
-    })
-    onMenu('menu:citation-style', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') void applyCitationStyle(ev.data)
-    })
-    onMenu('menu:fold', (ev: { data: unknown }) => {
-      if (typeof ev.data === 'string') applyFold(ev.data)
-    })
-    Events.On('settings:changed', () => void refreshSettings())
-    onMenu('menu:check-updates', () => void checkForUpdates(true))
-    Events.On('menu:command-palette', togglePalette)
+    // Every event Go sends, its payload typed from events.go. A menu
+    // command while the palette is open closes it first, focus and selection
+    // restored, then does what it does from the menu — ⌘Q included; running a
+    // palette entry arrives here too, after the palette has closed
+    // (lib/appEvents.ts decides which events are commands).
+    const unsubscribe = subscribeAppEvents(
+      {
+        'menu:new': requestNew,
+        'menu:open': requestOpen,
+        'menu:tutorial': requestTutorial,
+        'menu:open-recent': (ev) => requestOpenRecent(ev.data),
+        'menu:save': () => void save(),
+        'menu:save-as': () => void saveAs(),
+        'close:confirm': (ev) => {
+          // 'close' from the window's close button, 'quit' from ⌘Q. Anything
+          // else is treated as a quit, the older and safer reading.
+          const intent = ev.data === 'close' ? 'close' : 'quit'
+          // Go asks with a builder open even for a clean document (mustAsk), so
+          // an uncommitted chart or table is never dropped without a word. Its
+          // dialog comes first; the unsaved-changes one, if needed, after.
+          if (chartOpen || tableOpen) {
+            builderClose = intent
+            return
+          }
+          pendingAction = intent
+          // Clean by now (a builder Go saw has since closed): nothing to ask.
+          if (!dirty) finishPending()
+        },
+        'document:closed': closeDocument,
+        'document:changed': (ev) => onDiskChange(ev.data),
+        'document:moved': (ev) => onDiskMove(ev.data),
+        'document:deleted': (ev) => onDiskDelete(ev.data),
+        // Finder's Open With while running (#19); same path as Open Recent, so
+        // unsaved changes are asked about first.
+        'file:open': (ev) => requestOpenRecent(ev.data),
+        'recents:changed': () => void refreshRecents(),
+        'bib:changed': () => void reloadBibliography(),
+        'menu:insert-citation': () => void insertCitation(),
+        'menu:insert-crossref': () => insertCrossref(),
+        'menu:export-pdf': () => exportPDF(),
+        'menu:export-html': () => void exportHTML(),
+        'menu:export-pandoc': (ev) => {
+          if (ev.data === 'docx' || ev.data === 'latex') void exportPandoc(ev.data)
+        },
+        'menu:account': () => void openAccount(),
+        'portal:pairing': (ev) => onPairing(ev.data),
+        'menu:insert-chart': () => openChartBuilder(),
+        'menu:insert-table': () => openTableBuilder(),
+        // '' is the Plain text item, and a legitimate payload — a bare fence.
+        'menu:insert-code': (ev) => insertCodeBlock(ev.data),
+        'menu:format': (ev) => applyFormat(ev.data),
+        'menu:find': (ev) => applyFind(ev.data),
+        'menu:citation-style': (ev) => void applyCitationStyle(ev.data),
+        'menu:fold': (ev) => applyFold(ev.data),
+        'settings:changed': () => void refreshSettings(),
+        'menu:check-updates': () => void checkForUpdates(true),
+        'menu:command-palette': togglePalette,
+      },
+      { beforeCommand: closePalette },
+    )
 
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     systemPrefersDark = media.matches
@@ -2032,6 +1988,7 @@
     })()
 
     return () => {
+      unsubscribe()
       media.removeEventListener('change', onSchemeChange)
       // App is the root component, so in production this runs only as the
       // process is going away — but a pending frame that outlives its
@@ -2248,7 +2205,7 @@
   </Dialog>
 
   <Dialog
-    open={diskChange !== null}
+    open={disk.change !== null}
     label="Changed on disk"
     title="Changed on disk"
     role="alertdialog"

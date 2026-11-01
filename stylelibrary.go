@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"hermes/internal/fileio"
 )
 
 // styleLibrary is the folder of citation styles installed from the CSL
@@ -88,7 +90,7 @@ func (l *styleLibrary) writeStyles(files map[string][]byte, entries []installedS
 		if !styleIDPattern.MatchString(id) {
 			return errors.New("bad style id")
 		}
-		if err := writeFileAtomic(l.path(id+".csl"), data, 0o600); err != nil {
+		if err := fileio.WriteFileAtomic(l.path(id+".csl"), data, 0o600); err != nil {
 			return err
 		}
 	}
@@ -107,7 +109,7 @@ func (l *styleLibrary) writeStyles(files map[string][]byte, entries []installedS
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(l.path("library.json"), data, 0o600)
+	return fileio.WriteFileAtomic(l.path("library.json"), data, 0o600)
 }
 
 func (l *styleLibrary) cachedIndex() (data []byte, etag string, fetchedAt time.Time, err error) {
@@ -126,7 +128,7 @@ func (l *styleLibrary) storeIndex(data []byte, etag string, fetchedAt time.Time)
 	if err := l.ensureDir(); err != nil {
 		return err
 	}
-	if err := writeFileAtomic(l.path("index.json"), data, 0o600); err != nil {
+	if err := fileio.WriteFileAtomic(l.path("index.json"), data, 0o600); err != nil {
 		return err
 	}
 	return l.writeMeta(styleIndexMeta{ETag: etag, FetchedAt: fetchedAt})
@@ -146,7 +148,7 @@ func (l *styleLibrary) writeMeta(meta styleIndexMeta) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(l.path("index-meta.json"), data, 0o600)
+	return fileio.WriteFileAtomic(l.path("index-meta.json"), data, 0o600)
 }
 
 // StyleSummary is one style as the Find a Style window shows it.

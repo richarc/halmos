@@ -250,3 +250,40 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		}
 	})
 }
+
+// A release is built from the working tree, so release first refuses a tree
+// with changes, untracked files the build reads, or a HEAD that is not the
+// release tag once it exists: the zip must be exactly the tagged source.
+func TestReleaseChecksTheTreeFirst(t *testing.T) {
+	b, err := os.ReadFile("Taskfile.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	start := strings.Index(src, "\n  release:\n")
+	if start < 0 {
+		t.Fatal("no release task in Taskfile.yml")
+	}
+	release := src[start:]
+	cmds := strings.Index(release, "\n    cmds:\n")
+	if cmds < 0 {
+		t.Fatal("release has no cmds")
+	}
+	first := strings.TrimSpace(strings.SplitN(release[cmds+len("\n    cmds:\n"):], "\n", 2)[0])
+	if first != "- task: release:check-tree" {
+		t.Errorf("release's first command is %q, want the tree check", first)
+	}
+	at := strings.Index(src, "\n  release:check-tree:\n")
+	if at < 0 {
+		t.Fatal("no release:check-tree task")
+	}
+	check := src[at:]
+	if end := strings.Index(check[1:], "\n  release:"); end > 0 {
+		check = check[:end+1]
+	}
+	for _, want := range []string{"--untracked-files=no", "docs/tutorial", "rev-parse"} {
+		if !strings.Contains(check, want) {
+			t.Errorf("release:check-tree lacks %q", want)
+		}
+	}
+}

@@ -67,9 +67,12 @@ static WKWebView* hermesFindWebView(NSView *view) {
 // Runs a print operation over the frontmost window's webview with an
 // explicit orientation. Returns 0 if the webview could not be located
 // (caller falls back to the default print path).
-static int hermesPrintWebView(int landscape) {
+static int hermesPrintWebView(void *nsWindow, int landscape) {
 	if (@available(macOS 11.0, *)) {
-		NSWindow *window = [NSApp keyWindow] ?: [NSApp mainWindow];
+		// The app's own window, not whichever is key: a panel can be key, or
+		// no window when the app is in the background.
+		NSWindow *window = nsWindow ? (__bridge NSWindow *)nsWindow
+		                            : ([NSApp keyWindow] ?: [NSApp mainWindow]);
 		if (!window) {
 			return 0;
 		}
@@ -148,13 +151,16 @@ static int hermesPrintWebView(int landscape) {
 //
 // With a header or footer, WebKit's PDF goes to a temporary file first and
 // HermesExportFinisher draws them on the way to path.
-static int hermesExportWebViewPDF(const char *path, const char *paperName,
+static int hermesExportWebViewPDF(void *nsWindow, const char *path, const char *paperName,
                                   int landscape, double paperWidth,
                                   double paperHeight, const char *header,
                                   const char *footer, const char *title,
                                   const char *fontKey, int skipFirstHeader) {
 	if (@available(macOS 11.0, *)) {
-		NSWindow *window = [NSApp keyWindow] ?: [NSApp mainWindow];
+		// The app's own window, not whichever is key: a panel can be key, or
+		// no window when the app is in the background.
+		NSWindow *window = nsWindow ? (__bridge NSWindow *)nsWindow
+		                            : ([NSApp keyWindow] ?: [NSApp mainWindow]);
 		if (!window) {
 			return 0;
 		}
@@ -251,20 +257,24 @@ static int hermesExportWebViewPDF(const char *path, const char *paperName,
 */
 import "C"
 
-import "github.com/wailsapp/wails/v3/pkg/application"
+import (
+	"unsafe"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+)
 
 // printWithOrientation runs our own print operation because Wails'
 // WebviewWindow.Print() hardcodes landscape orientation (NSPaperOrientation
 // is set inside its windowPrint C function, overriding anything primed on
 // the shared NSPrintInfo). Mirrors the Wails implementation otherwise.
 // Returns false if the webview wasn't found so the caller can fall back.
-func printWithOrientation(landscape bool) bool {
+func printWithOrientation(win unsafe.Pointer, landscape bool) bool {
 	l := C.int(0)
 	if landscape {
 		l = 1
 	}
 	return application.InvokeSyncWithResult(func() bool {
-		return C.hermesPrintWebView(l) != 0
+		return C.hermesPrintWebView(win, l) != 0
 	})
 }
 
@@ -285,7 +295,7 @@ func printWithOrientation(landscape bool) bool {
 //
 // f's header and footer are drawn on every page in the body font named by
 // fontKey (pdfstamp_darwin.go); with neither, WebKit's PDF is written as it is.
-func exportPDF(path, paperName string, landscape bool, paperWidth, paperHeight float64, f PageFurniture, fontKey string) bool {
+func exportPDF(win unsafe.Pointer, path, paperName string, landscape bool, paperWidth, paperHeight float64, f PageFurniture, fontKey string) bool {
 	l := C.int(0)
 	if landscape {
 		l = 1
@@ -296,7 +306,7 @@ func exportPDF(path, paperName string, landscape bool, paperWidth, paperHeight f
 	cs := cStrings(path, paperName, f.Header, f.Footer, f.Title, fontKey)
 	defer freeCStrings(cs)
 	return application.InvokeSyncWithResult(func() bool {
-		return C.hermesExportWebViewPDF(cs[0], cs[1], l, C.double(paperWidth), C.double(paperHeight),
+		return C.hermesExportWebViewPDF(win, cs[0], cs[1], l, C.double(paperWidth), C.double(paperHeight),
 			cs[2], cs[3], cs[4], cs[5], cBool(f.SkipFirstPageHeader)) != 0
 	})
 }

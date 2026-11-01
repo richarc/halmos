@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"hermes/internal/fileio"
 )
 
 const maxRecents = 10
@@ -77,27 +79,20 @@ type DocumentService struct {
 	// not from the file as it is when the watch begins. Guarded by watchMu.
 	bibReadPath, bibReadVersion string
 	caywBase                    string
-	// The update check's inputs, injectable so the tests can point it at an
-	// httptest server with a fixed clock and version. See update.go.
-	updateFeed      string
-	updateStatePath string
-	now             func() time.Time
-	version         func() string
+	// The app's version, for the start screen. Injectable for tests.
+	version func() string
 }
 
 func NewDocumentService(recentsPath string) *DocumentService {
 	dataDir := filepath.Dir(recentsPath)
 	s := &DocumentService{
-		recentsPath:     recentsPath,
-		settings:        newSettingsStore(filepath.Join(dataDir, "settings.json")),
-		drafts:          newDraftStore(filepath.Join(dataDir, "drafts")),
-		watchTick:       2 * time.Second,
-		docTick:         time.Second,
-		caywBase:        "http://127.0.0.1:23119",
-		updateFeed:      updateFeedURL,
-		updateStatePath: filepath.Join(dataDir, "update-check.json"),
-		now:             time.Now,
-		version:         appVersion,
+		recentsPath: recentsPath,
+		settings:    newSettingsStore(filepath.Join(dataDir, "settings.json")),
+		drafts:      newDraftStore(filepath.Join(dataDir, "drafts")),
+		watchTick:   2 * time.Second,
+		docTick:     time.Second,
+		caywBase:    "http://127.0.0.1:23119",
+		version:     appVersion,
 	}
 	s.drafts.prune(time.Now())
 	s.onDocMoved = func(from, to string) {
@@ -110,7 +105,7 @@ func NewDocumentService(recentsPath string) *DocumentService {
 func (s *DocumentService) OpenPath(path string) (Document, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return Document{}, err
+		return Document{}, fileError(err, path)
 	}
 	s.docMu.Lock()
 	s.trackDocument(path, data)
@@ -135,11 +130,11 @@ func (s *DocumentService) Save(path, content string, overwrite bool) (SaveResult
 				return SaveResult{Conflict: true}, nil
 			}
 		case !errors.Is(err, os.ErrNotExist):
-			return SaveResult{}, err
+			return SaveResult{}, fileError(err, path)
 		}
 	}
-	if err := writeFileAtomic(path, []byte(content), 0o644); err != nil {
-		return SaveResult{}, err
+	if err := fileio.WriteFileAtomic(path, []byte(content), 0o644); err != nil {
+		return SaveResult{}, fileError(err, path)
 	}
 	s.trackDocument(path, []byte(content))
 	_ = s.drafts.markSaved(path, contentVersion([]byte(content)))
@@ -262,7 +257,7 @@ func (s *DocumentService) ImportData(docPath string) (string, error) {
 func readDataFile(path string) (string, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return "", err
+		return "", fileError(err, path)
 	}
 	if info.Size() > maxDataFileBytes {
 		return "", fmt.Errorf("that file is %d MB; the limit is %d MB because the data is stored in the document",
@@ -270,7 +265,7 @@ func readDataFile(path string) (string, error) {
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return "", err
+		return "", fileError(err, path)
 	}
 	return string(b), nil
 }
@@ -366,36 +361,22 @@ func (s *DocumentService) currentCitationStyle() string {
 // has already confirmed any replacement.
 //
 // Split from the dialog so it is testable without one, the same reason
-// feedbackURL and quitRequest are separate from what calls them.
+// feedbackURL and closeRequest are separate from what calls them.
 func (s *DocumentService) CreateDocument(path, content, bibName, bibContent string) (Document, error) {
 	if bibName != "" {
 		bibPath := resolveAgainstDoc(bibName, path)
 		if _, err := os.Stat(bibPath); os.IsNotExist(err) {
-			if err := writeFileAtomic(bibPath, []byte(bibContent), 0o644); err != nil {
-				return Document{}, fmt.Errorf("creating bibliography: %w", err)
+			if err := fileio.WriteFileAtomic(bibPath, []byte(bibContent), 0o644); err != nil {
+				return Document{}, fileError(fmt.Errorf("creating bibliography: %w", err), bibPath)
 			}
 		} else if err != nil {
-			return Document{}, fmt.Errorf("checking for bibliography: %w", err)
+			return Document{}, fileError(fmt.Errorf("checking for bibliography: %w", err), bibPath)
 		}
 	}
 	if _, err := s.Save(path, content, true); err != nil {
 		return Document{}, err
 	}
 	return Document{Path: path, Content: content}, nil
-}
-
-// Settings returns every persisted preference. Values are always valid: a
-// missing or malformed file, and any field outside its allowed set, read back
-// as that field's default.
-func (s *DocumentService) Settings() Settings {
-	return s.settings.get()
-}
-
-// UpdateSettings persists the given preferences and returns an error if they
-// could not be written, so a caller can tell the user the choice did not
-// stick. Out-of-range values are normalised rather than rejected.
-func (s *DocumentService) UpdateSettings(next Settings) error {
-	return s.settings.set(next)
 }
 
 // paperPoints returns a paper's width and height in PostScript points, which
@@ -458,7 +439,7 @@ func (s *DocumentService) ExportPDF(docPath string, furniture PageFurniture) err
 	set := s.settings.get()
 	landscape := set.PrintOrientation == "landscape"
 	w, h := paperPoints(set.PaperSize, landscape)
-	if !exportPDF(path, paperPWGName(set.PaperSize), landscape, w, h, furniture.normalised(), set.BodyFont) {
+	if !exportPDF(s.window.NativeWindow(), path, paperPWGName(set.PaperSize), landscape, w, h, furniture.normalised(), set.BodyFont) {
 		return fmt.Errorf("could not export the PDF")
 	}
 	return nil
@@ -466,12 +447,12 @@ func (s *DocumentService) ExportPDF(docPath string, furniture PageFurniture) err
 
 // PrintDocument opens the system print panel. Picking a printer and a tray is
 // a job the panel is genuinely good at; picking paper is not, which is why
-// export no longer goes through here.
+// Export PDF does not go through here.
 func (s *DocumentService) PrintDocument() {
 	if s.window == nil {
 		return
 	}
-	if !printWithOrientation(s.settings.get().PrintOrientation == "landscape") {
+	if !printWithOrientation(s.window.NativeWindow(), s.settings.get().PrintOrientation == "landscape") {
 		// Fallback: Wails' built-in print (hardcodes landscape upstream).
 		_ = s.window.Print()
 	}
@@ -557,7 +538,7 @@ func (s *DocumentService) writeRecentsLocked(recents []string) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(s.recentsPath, data, 0o644)
+	return fileio.WriteFileAtomic(s.recentsPath, data, 0o644)
 }
 
 func (s *DocumentService) notifyRecentsChanged() {
@@ -583,11 +564,35 @@ func resolveAgainstDoc(path, docPath string) string {
 	return filepath.Join(filepath.Dir(docPath), path)
 }
 
+var errNotBibliography = errors.New("not a bibliography file")
+
+// bibliographyFile refuses anything but a .bib file, by the name asked for
+// and by the file a symlink leads to, as localImageFile does for images: the
+// path comes from a document, and a document can come from anyone. A missing
+// file returns the os error, which the frontend reads as no bibliography yet.
+func bibliographyFile(resolved string) error {
+	isBib := func(p string) bool { return strings.EqualFold(filepath.Ext(p), ".bib") }
+	if !isBib(resolved) {
+		return errNotBibliography
+	}
+	target, err := filepath.EvalSymlinks(resolved)
+	if err != nil {
+		return err
+	}
+	if !isBib(target) {
+		return errNotBibliography
+	}
+	return nil
+}
+
 func (s *DocumentService) ReadBibliography(path, docPath string) (string, error) {
 	resolved := resolveAgainstDoc(path, docPath)
+	if err := bibliographyFile(resolved); err != nil {
+		return "", fileError(err, resolved)
+	}
 	data, err := os.ReadFile(resolved)
 	if err != nil {
-		return "", err
+		return "", fileError(err, resolved)
 	}
 	s.watchMu.Lock()
 	s.bibReadPath, s.bibReadVersion = resolved, contentVersion(data)

@@ -97,15 +97,20 @@ jobs:
       # With the race detector: the document watcher, recovery drafts and
       # settings store all share state between goroutines.
       - name: Tests
-        run: go test -race ./.
+        run: go test -race ./. ./internal/...
 
       # As release builds compile it: without the paid features (nopaid tag,
       # paidfeatures_off.go), so both settings of the switch are tested.
       - name: Tests (release build tags)
-        run: go test -tags nopaid ./.
+        run: go test -tags nopaid ./. ./internal/...
+
+      # The app ships for macOS only today; this keeps the Go code compiling
+      # for Windows (v1.2.0) so platform-only calls get a stub as they land.
+      - name: Compiles for Windows
+        run: GOOS=windows GOARCH=amd64 go vet ./. ./internal/...
 
       - name: Vet
-        run: go vet ./.
+        run: go vet ./. ./internal/...
 
       # The same two commands as quicklook:test in Taskfile.yml, run directly
       # so this job does not need the wails3 CLI. Keep them in step.

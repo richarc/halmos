@@ -313,13 +313,15 @@ func stderrNote(b *bytes.Buffer) string {
 	return ": " + msg
 }
 
-// shutdown stops a recording the script left running, so quitting never
-// leaves a half-written file. Errors are not worth reporting at this point.
-func (s *DemoService) shutdown() {
+// ServiceShutdown stops a recording the script left running, so quitting
+// never leaves a half-written file. Wails calls it as the app ends. Errors
+// are not worth reporting at this point.
+func (s *DemoService) ServiceShutdown() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.recording != nil {
 		_ = s.recording.stop()
 		s.recording = nil
 	}
+	return nil
 }

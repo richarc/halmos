@@ -3,11 +3,12 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
 func TestSettingsDefaults(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	if got := s.Settings().PrintOrientation; got != "portrait" {
 		t.Errorf("want portrait default, got %q", got)
 	}
@@ -15,7 +16,7 @@ func TestSettingsDefaults(t *testing.T) {
 
 func TestUpdateSettingsPersistsAcrossInstances(t *testing.T) {
 	recentsPath := filepath.Join(t.TempDir(), "recents.json")
-	s := NewDocumentService(recentsPath)
+	s := settingsAt(recentsPath)
 
 	next := s.Settings()
 	next.PrintOrientation = "landscape"
@@ -27,13 +28,13 @@ func TestUpdateSettingsPersistsAcrossInstances(t *testing.T) {
 	}
 
 	// A fresh service over the same path reads the persisted value.
-	if got := NewDocumentService(recentsPath).Settings().PrintOrientation; got != "landscape" {
+	if got := settingsAt(recentsPath).Settings().PrintOrientation; got != "landscape" {
 		t.Errorf("want persisted landscape in a new service, got %q", got)
 	}
 }
 
 func TestUpdateSettingsNormalisesUnknownValues(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	if err := s.UpdateSettings(Settings{PrintOrientation: "diagonal"}); err != nil {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
@@ -43,7 +44,7 @@ func TestUpdateSettingsNormalisesUnknownValues(t *testing.T) {
 }
 
 func TestUpdateSettingsNotifiesOnlyOnRealChange(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	fired := 0
 	s.settings.onChanged = func() { fired++ }
 
@@ -90,7 +91,7 @@ func TestSettingsFallsBackWhenFileIsUnreadable(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(tc.content), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			s := NewDocumentService(filepath.Join(dir, "recents.json"))
+			s := settingsAt(filepath.Join(dir, "recents.json"))
 			if got := s.Settings().PrintOrientation; got != "portrait" {
 				t.Errorf("want portrait fallback, got %q", got)
 			}
@@ -106,7 +107,7 @@ func TestSettingsKeepsUnknownKeysFromBreakingLoad(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	s := NewDocumentService(filepath.Join(dir, "recents.json"))
+	s := settingsAt(filepath.Join(dir, "recents.json"))
 	if got := s.Settings().PrintOrientation; got != "landscape" {
 		t.Errorf("want landscape, got %q", got)
 	}
@@ -117,7 +118,7 @@ func TestUpdateSettingsReportsAWriteFailure(t *testing.T) {
 		t.Skip("running as root: directory permissions are not enforced")
 	}
 	dir := t.TempDir()
-	s := NewDocumentService(filepath.Join(dir, "recents.json"))
+	s := settingsAt(filepath.Join(dir, "recents.json"))
 	if err := os.Chmod(dir, 0o500); err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +135,7 @@ func TestSettingsAreReadWithoutTouchingDiskTwice(t *testing.T) {
 	// The store loads once and serves from memory, so deleting the file behind
 	// its back does not change what it reports.
 	dir := t.TempDir()
-	s := NewDocumentService(filepath.Join(dir, "recents.json"))
+	s := settingsAt(filepath.Join(dir, "recents.json"))
 	if err := s.UpdateSettings(Settings{PrintOrientation: "landscape"}); err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +148,7 @@ func TestSettingsAreReadWithoutTouchingDiskTwice(t *testing.T) {
 }
 
 func TestSyncScrollingDefaultsToOff(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	if s.Settings().SyncScrolling {
 		t.Error("want sync scrolling off by default")
 	}
@@ -155,14 +156,14 @@ func TestSyncScrollingDefaultsToOff(t *testing.T) {
 
 func TestSyncScrollingPersists(t *testing.T) {
 	recentsPath := filepath.Join(t.TempDir(), "recents.json")
-	s := NewDocumentService(recentsPath)
+	s := settingsAt(recentsPath)
 
 	next := s.Settings()
 	next.SyncScrolling = true
 	if err := s.UpdateSettings(next); err != nil {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
-	if !NewDocumentService(recentsPath).Settings().SyncScrolling {
+	if !settingsAt(recentsPath).Settings().SyncScrolling {
 		t.Error("want sync scrolling persisted across instances")
 	}
 }
@@ -170,7 +171,7 @@ func TestSyncScrollingPersists(t *testing.T) {
 func TestSyncScrollingIsIndependentOfOrientation(t *testing.T) {
 	// The two settings share one struct and one file; changing either must not
 	// disturb the other.
-	s := newTestService(t)
+	s := newTestSettings(t)
 	if err := s.UpdateSettings(Settings{PrintOrientation: "landscape", SyncScrolling: true}); err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +191,7 @@ func TestSyncScrollingIsIndependentOfOrientation(t *testing.T) {
 }
 
 func TestThemeDefaultsToSystem(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	if got := s.Settings().Theme; got != "system" {
 		t.Errorf("want system default, got %q", got)
 	}
@@ -198,20 +199,20 @@ func TestThemeDefaultsToSystem(t *testing.T) {
 
 func TestThemePersists(t *testing.T) {
 	recentsPath := filepath.Join(t.TempDir(), "recents.json")
-	s := NewDocumentService(recentsPath)
+	s := settingsAt(recentsPath)
 
 	next := s.Settings()
 	next.Theme = "dark"
 	if err := s.UpdateSettings(next); err != nil {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
-	if got := NewDocumentService(recentsPath).Settings().Theme; got != "dark" {
+	if got := settingsAt(recentsPath).Settings().Theme; got != "dark" {
 		t.Errorf("want dark persisted, got %q", got)
 	}
 }
 
 func TestThemeNormalisesUnknownValues(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	for _, bad := range []string{"", "solarized", "DARK", "auto"} {
 		if err := s.UpdateSettings(Settings{Theme: bad}); err != nil {
 			t.Fatalf("UpdateSettings(%q): %v", bad, err)
@@ -223,7 +224,7 @@ func TestThemeNormalisesUnknownValues(t *testing.T) {
 }
 
 func TestThemeAcceptsAllThreeLegalValues(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	for _, want := range []string{"system", "light", "dark"} {
 		if err := s.UpdateSettings(Settings{Theme: want}); err != nil {
 			t.Fatalf("UpdateSettings(%q): %v", want, err)
@@ -257,7 +258,7 @@ func TestNormaliseClampsBodyFont(t *testing.T) {
 }
 
 func TestThemeIsIndependentOfTheOtherSettings(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	if err := s.UpdateSettings(Settings{
 		PrintOrientation: "landscape",
 		SyncScrolling:    true,
@@ -277,7 +278,7 @@ func TestThemeIsIndependentOfTheOtherSettings(t *testing.T) {
 }
 
 func TestFigureSettingsDefaults(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	got := s.Settings()
 	if got.FigureAlignment != "centre" {
 		t.Errorf("want centre default, got %q", got.FigureAlignment)
@@ -289,7 +290,7 @@ func TestFigureSettingsDefaults(t *testing.T) {
 
 func TestFigureSettingsPersist(t *testing.T) {
 	recentsPath := filepath.Join(t.TempDir(), "recents.json")
-	s := NewDocumentService(recentsPath)
+	s := settingsAt(recentsPath)
 
 	next := s.Settings()
 	next.FigureAlignment = "left"
@@ -298,14 +299,14 @@ func TestFigureSettingsPersist(t *testing.T) {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
 
-	got := NewDocumentService(recentsPath).Settings()
+	got := settingsAt(recentsPath).Settings()
 	if got.FigureAlignment != "left" || got.ChartWidth != "large" {
 		t.Errorf("want the pair persisted across instances, got %+v", got)
 	}
 }
 
 func TestFigureAlignmentNormalisesUnknownValues(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	for _, bad := range []string{"", "center", "CENTRE", "justified"} {
 		if err := s.UpdateSettings(Settings{FigureAlignment: bad}); err != nil {
 			t.Fatalf("UpdateSettings(%q): %v", bad, err)
@@ -317,7 +318,7 @@ func TestFigureAlignmentNormalisesUnknownValues(t *testing.T) {
 }
 
 func TestChartWidthNormalisesUnknownValues(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	for _, bad := range []string{"", "enormous", "MEDIUM", "400"} {
 		if err := s.UpdateSettings(Settings{ChartWidth: bad}); err != nil {
 			t.Fatalf("UpdateSettings(%q): %v", bad, err)
@@ -329,7 +330,7 @@ func TestChartWidthNormalisesUnknownValues(t *testing.T) {
 }
 
 func TestFigureSettingsAcceptEveryLegalValue(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	for _, want := range []string{"left", "centre", "right"} {
 		if err := s.UpdateSettings(Settings{FigureAlignment: want}); err != nil {
 			t.Fatalf("UpdateSettings(%q): %v", want, err)
@@ -367,7 +368,7 @@ func TestPaperSizeNormalisesUnknownValues(t *testing.T) {
 }
 
 func TestFigureSettingsAreIndependentOfTheOthers(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	if err := s.UpdateSettings(Settings{
 		PrintOrientation: "landscape",
 		SyncScrolling:    true,
@@ -390,7 +391,7 @@ func TestFigureSettingsAreIndependentOfTheOthers(t *testing.T) {
 }
 
 func TestShowOutlineDefaultsToOff(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	if s.Settings().ShowOutline {
 		t.Error("want the outline hidden by default")
 	}
@@ -398,20 +399,20 @@ func TestShowOutlineDefaultsToOff(t *testing.T) {
 
 func TestShowOutlinePersists(t *testing.T) {
 	recentsPath := filepath.Join(t.TempDir(), "recents.json")
-	s := NewDocumentService(recentsPath)
+	s := settingsAt(recentsPath)
 
 	next := s.Settings()
 	next.ShowOutline = true
 	if err := s.UpdateSettings(next); err != nil {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
-	if !NewDocumentService(recentsPath).Settings().ShowOutline {
+	if !settingsAt(recentsPath).Settings().ShowOutline {
 		t.Error("want the outline setting persisted across instances")
 	}
 }
 
 func TestAutoSaveDefaultsToOn(t *testing.T) {
-	s := newTestService(t)
+	s := newTestSettings(t)
 	if !s.Settings().AutoSave {
 		t.Error("autosave must default to on")
 	}
@@ -419,13 +420,13 @@ func TestAutoSaveDefaultsToOn(t *testing.T) {
 
 func TestAutoSavePersists(t *testing.T) {
 	recentsPath := filepath.Join(t.TempDir(), "recents.json")
-	s := NewDocumentService(recentsPath)
+	s := settingsAt(recentsPath)
 	next := s.Settings()
 	next.AutoSave = false
 	if err := s.UpdateSettings(next); err != nil {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
-	if NewDocumentService(recentsPath).Settings().AutoSave {
+	if settingsAt(recentsPath).Settings().AutoSave {
 		t.Error("want autosave off after update, in a fresh service")
 	}
 }
@@ -440,7 +441,7 @@ func TestSettingsFileWithoutAutoSaveKeyReadsAsOn(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got := NewDocumentService(filepath.Join(dir, "recents.json")).Settings()
+	got := settingsAt(filepath.Join(dir, "recents.json")).Settings()
 	if !got.AutoSave {
 		t.Error("an absent autoSave key must read as the default, on")
 	}
@@ -450,21 +451,21 @@ func TestSettingsFileWithoutAutoSaveKeyReadsAsOn(t *testing.T) {
 }
 
 func TestUpdateCheckDefaultsToUnasked(t *testing.T) {
-	if got := newTestService(t).Settings().UpdateCheck; got != "unasked" {
+	if got := newTestSettings(t).Settings().UpdateCheck; got != "unasked" {
 		t.Errorf("want unasked, got %q", got)
 	}
 }
 
 func TestUpdateCheckPersistsAndClamps(t *testing.T) {
 	recentsPath := filepath.Join(t.TempDir(), "recents.json")
-	s := NewDocumentService(recentsPath)
+	s := settingsAt(recentsPath)
 	for _, v := range []string{"on", "off"} {
 		next := s.Settings()
 		next.UpdateCheck = v
 		if err := s.UpdateSettings(next); err != nil {
 			t.Fatalf("UpdateSettings(%q): %v", v, err)
 		}
-		if got := NewDocumentService(recentsPath).Settings().UpdateCheck; got != v {
+		if got := settingsAt(recentsPath).Settings().UpdateCheck; got != v {
 			t.Errorf("want %q persisted, got %q", v, got)
 		}
 	}
@@ -487,27 +488,27 @@ func TestSettingsFileWithoutUpdateCheckKeyReadsAsUnasked(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"autoSave":false}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got := NewDocumentService(filepath.Join(dir, "recents.json")).Settings()
+	got := settingsAt(filepath.Join(dir, "recents.json")).Settings()
 	if got.UpdateCheck != "unasked" || got.AutoSave {
 		t.Errorf("want unasked with autoSave still false, got %+v", got)
 	}
 }
 
 func TestSpellCheckDefaultsToOn(t *testing.T) {
-	if !newTestService(t).Settings().SpellCheck {
+	if !newTestSettings(t).Settings().SpellCheck {
 		t.Error("spell checking must default to on")
 	}
 }
 
 func TestSpellCheckPersists(t *testing.T) {
 	recentsPath := filepath.Join(t.TempDir(), "recents.json")
-	s := NewDocumentService(recentsPath)
+	s := settingsAt(recentsPath)
 	next := s.Settings()
 	next.SpellCheck = false
 	if err := s.UpdateSettings(next); err != nil {
 		t.Fatal(err)
 	}
-	if NewDocumentService(recentsPath).Settings().SpellCheck {
+	if settingsAt(recentsPath).Settings().SpellCheck {
 		t.Error("want off after update, in a fresh service")
 	}
 }
@@ -519,8 +520,81 @@ func TestSettingsFileWithoutSpellCheckKeyReadsAsOn(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"autoSave":false}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got := NewDocumentService(filepath.Join(dir, "recents.json")).Settings()
+	got := settingsAt(filepath.Join(dir, "recents.json")).Settings()
 	if !got.SpellCheck || got.AutoSave {
 		t.Errorf("want spellCheck on with autoSave still off, got %+v", got)
 	}
+}
+
+// Each change is applied to what is stored when it runs, so two changes to
+// different fields both survive, however they interleave.
+func TestSettingsUpdateIsAtomic(t *testing.T) {
+	s := newTestSettings(t)
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			change := func(x *Settings) { x.PaperSize = "letter" }
+			if i%2 == 1 {
+				change = func(x *Settings) { x.Theme = "dark" }
+			}
+			if err := s.settings.update(change); err != nil {
+				t.Error(err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	if got := s.Settings(); got.PaperSize != "letter" || got.Theme != "dark" {
+		t.Fatalf("lost a change: %+v", got)
+	}
+}
+
+// The frontend sends what it read and what it wants; only the fields it
+// changed are written, so a change made in between survives.
+func TestChangeSettingsKeepsConcurrentField(t *testing.T) {
+	s := newTestSettings(t)
+	base := s.Settings()
+	if err := s.updateSettings(func(x *Settings) { x.PaperSize = "letter" }); err != nil {
+		t.Fatal(err)
+	}
+	next := base
+	next.ShowOutline = !base.ShowOutline
+	if err := s.ChangeSettings(base, next); err != nil {
+		t.Fatal(err)
+	}
+	got := s.Settings()
+	if got.ShowOutline != next.ShowOutline || got.PaperSize != "letter" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestChangeSettingsNoChangeWritesNothing(t *testing.T) {
+	s := newTestSettings(t)
+	fired := 0
+	s.settings.onChanged = func() { fired++ }
+	x := s.Settings()
+	if err := s.ChangeSettings(x, x); err != nil {
+		t.Fatal(err)
+	}
+	if fired != 0 {
+		t.Fatalf("fired %d", fired)
+	}
+}
+
+func newTestSettings(t *testing.T) *SettingsService {
+	t.Helper()
+	return NewSettingsService(newSettingsStore(filepath.Join(t.TempDir(), "settings.json")))
+}
+
+func newTestUpdates(t *testing.T) *UpdateService {
+	t.Helper()
+	dir := t.TempDir()
+	return NewUpdateService(dir, newSettingsStore(filepath.Join(dir, "settings.json")))
+}
+
+// settingsAt is the settings service over the store a DocumentService keeps
+// beside recentsPath, the way main.go builds it.
+func settingsAt(recentsPath string) *SettingsService {
+	return NewSettingsService(NewDocumentService(recentsPath).settings)
 }

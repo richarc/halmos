@@ -20,19 +20,6 @@ export function AcceptDiskVersion(version: string): $CancellablePromise<void> {
 }
 
 /**
- * CheckForUpdates compares the running version with the feed's. force skips
- * the once-a-day throttle and the setting gate; the Help menu's manual item
- * passes true, the automatic check at launch passes false.
- * 
- * The privacy rules are all here: the request is the same bare URL every
- * time with no query string and no custom header, and it happens at most
- * once per interval. Nothing about the installation travels.
- */
-export function CheckForUpdates(force: boolean): $CancellablePromise<$models.UpdateResult> {
-    return $Call.ByID(713991859, force);
-}
-
-/**
  * ChooseBibliography is the open panel behind "an existing file" in the New
  * Document flow. It returns "" when the author cancels, so the caller can
  * tell a cancel from an error, as ChooseNewDocumentPath does.
@@ -94,7 +81,7 @@ export function CloseWindow(): $CancellablePromise<void> {
  * has already confirmed any replacement.
  * 
  * Split from the dialog so it is testable without one, the same reason
- * feedbackURL and quitRequest are separate from what calls them.
+ * feedbackURL and closeRequest are separate from what calls them.
  */
 export function CreateDocument(path: string, content: string, bibName: string, bibContent: string): $CancellablePromise<$models.Document> {
     return $Call.ByID(839519561, path, content, bibName, bibContent);
@@ -165,7 +152,7 @@ export function PickCitations(): $CancellablePromise<string> {
 /**
  * PrintDocument opens the system print panel. Picking a printer and a tray is
  * a job the panel is genuinely good at; picking paper is not, which is why
- * export no longer goes through here.
+ * Export PDF does not go through here.
  */
 export function PrintDocument(): $CancellablePromise<void> {
     return $Call.ByID(2407220630);
@@ -255,30 +242,12 @@ export function SetDirty(dirty: boolean): $CancellablePromise<void> {
 }
 
 /**
- * Settings returns every persisted preference. Values are always valid: a
- * missing or malformed file, and any field outside its allowed set, read back
- * as that field's default.
- */
-export function Settings(): $CancellablePromise<$models.Settings> {
-    return $Call.ByID(3490222329);
-}
-
-/**
  * TakeLaunchFile returns the file Hermes was launched to open ("" if none) and
  * marks the frontend ready, so later requests arrive as file:open events. The
  * frontend calls it once, after subscribing to file:open. See launchfiles.go.
  */
 export function TakeLaunchFile(): $CancellablePromise<string> {
     return $Call.ByID(928258302);
-}
-
-/**
- * UpdateSettings persists the given preferences and returns an error if they
- * could not be written, so a caller can tell the user the choice did not
- * stick. Out-of-range values are normalised rather than rejected.
- */
-export function UpdateSettings(next: $models.Settings): $CancellablePromise<void> {
-    return $Call.ByID(2788627576, next);
 }
 
 /**

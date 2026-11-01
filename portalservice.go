@@ -14,6 +14,8 @@ import (
 	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"hermes/internal/fileio"
 )
 
 // PortalService is the frontend's way to the Halmos portal: connecting this
@@ -24,6 +26,9 @@ type PortalService struct {
 	auth    *portalAuth
 	emit    func(name string, data any)
 	openURL func(url string) error
+	// run runs a command and waits for it, so none is left behind as a
+	// finished process. Replaced in tests.
+	run func(name string, args ...string) error
 	// today is {date} in exported Word and LaTeX: the Mac's long date, as
 	// Export PDF writes it. Replaced in tests.
 	today func() string
@@ -53,10 +58,12 @@ func NewPortalService() *PortalService {
 }
 
 func newPortalServiceWith(auth *portalAuth, emit func(string, any), openURL func(string) error) *PortalService {
-	return &PortalService{auth: auth, emit: emit, openURL: openURL, today: localLongDate}
+	return &PortalService{auth: auth, emit: emit, openURL: openURL, today: localLongDate, run: runCommand}
 }
 
-var errMisconfigured = &PortalError{Code: "misconfigured"}
+// errMisconfigured is a new value each time, so a caller that sets a field
+// on the one it got changes no other.
+func errMisconfigured() *PortalError { return &PortalError{Code: "misconfigured"} }
 
 // AccountInfo is what Account… shows. Error is set when the account could
 // not be read (offline, rate limited); SignedIn still says whether this Mac
@@ -93,7 +100,7 @@ type meResponse struct {
 // read each time rather than cached.
 func (s *PortalService) Account() AccountInfo {
 	if s.auth == nil {
-		return AccountInfo{Error: errMisconfigured}
+		return AccountInfo{Error: errMisconfigured()}
 	}
 	cred, ok, perr := s.auth.credential()
 	if perr != nil {
@@ -149,7 +156,7 @@ type PairingEvent struct {
 // portal:pairing event. A pairing already running is cancelled first.
 func (s *PortalService) StartPairing() PairingInfo {
 	if s.auth == nil {
-		return PairingInfo{Error: errMisconfigured}
+		return PairingInfo{Error: errMisconfigured()}
 	}
 	gen := s.cancelPairing()
 	p, perr := s.auth.startPairing(context.Background(), deviceName(computerName(), rand.Reader))
@@ -157,7 +164,7 @@ func (s *PortalService) StartPairing() PairingInfo {
 		return PairingInfo{Error: perr}
 	}
 	if !sameOrigin(p.VerificationURIComplete, s.auth.client.origin) {
-		return PairingInfo{Error: errMisconfigured}
+		return PairingInfo{Error: errMisconfigured()}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s.mu.Lock()
@@ -214,7 +221,7 @@ func (s *PortalService) cancelPairing() int {
 // portal until the person removes it there.
 func (s *PortalService) SignOut() error {
 	if s.auth == nil {
-		return errMisconfigured
+		return errMisconfigured()
 	}
 	s.CancelPairing()
 	return s.auth.signOut()
@@ -224,7 +231,7 @@ func (s *PortalService) SignOut() error {
 // page) only if it is on the origin being talked to.
 func (s *PortalService) OpenPortalURL(url string) *PortalError {
 	if s.auth == nil || !sameOrigin(url, s.auth.client.origin) {
-		return errMisconfigured
+		return errMisconfigured()
 	}
 	if err := s.openURL(url); err != nil {
 		return &PortalError{Code: "network"}
@@ -339,7 +346,7 @@ type convertFurniture struct {
 // like a save. It returns nil on success.
 func (s *PortalService) Export(path string, req ConvertRequest) *PortalError {
 	if s.auth == nil {
-		return errMisconfigured
+		return errMisconfigured()
 	}
 	if req.Format == "latex" {
 		req.Images = nil // the portal refuses images with LaTeX
@@ -368,7 +375,7 @@ func (s *PortalService) Export(path string, req ConvertRequest) *PortalError {
 	if err != nil || len(content) == 0 {
 		return &PortalError{Status: 200, Code: "server_error"}
 	}
-	if err := writeFileAtomic(path, content, 0o644); err != nil {
+	if err := fileio.WriteFileAtomic(path, content, 0o644); err != nil {
 		return &PortalError{Code: "write_failed"}
 	}
 	return nil
@@ -382,5 +389,7 @@ func revealCommand(path string) []string { return []string{"open", "-R", path} }
 // one inside its folder.
 func (s *PortalService) RevealExport(path string) error {
 	c := revealCommand(path)
-	return exec.Command(c[0], c[1:]...).Start()
+	return s.run(c[0], c[1:]...)
 }
+
+func runCommand(name string, args ...string) error { return exec.Command(name, args...).Run() }

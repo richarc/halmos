@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -326,12 +327,17 @@ func TestDemoServiceFullscreenWithoutAWindow(t *testing.T) {
 	}
 }
 
-func TestDemoServiceStopAllAtShutdown(t *testing.T) {
+// Wails calls ServiceShutdown as the app ends.
+var _ application.ServiceShutdown = (*DemoService)(nil)
+
+func TestDemoServiceShutdownStopsRecording(t *testing.T) {
 	s, _ := fakeRecorder()
 	if err := s.StartRecording(filepath.Join(t.TempDir(), "a.mov")); err != nil {
 		t.Fatal(err)
 	}
-	s.shutdown()
+	if err := s.ServiceShutdown(); err != nil {
+		t.Fatal(err)
+	}
 	if s.recording != nil {
 		t.Error("shutdown left a recording running")
 	}

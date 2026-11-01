@@ -227,6 +227,11 @@ wails3 task release:verify   # check a built or downloaded .app the way Gatekeep
 The same order applies: tag, publish the release with the zip attached, then
 push `main` and the tag.
 
+`release` refuses a working tree with uncommitted changes or untracked files
+where the build reads, and one that is not at the release tag once that tag
+exists. `ALLOW_DIRTY=true` skips the first check for a dry run and names the
+zip `…-dirty-…`.
+
 `release` needs a **Developer ID Application** certificate in the keychain
 (not "Apple Development", and not "3rd Party Mac Developer Application" — those
 are for your own devices and for the Mac App Store respectively), and

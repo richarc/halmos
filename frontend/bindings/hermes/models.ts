@@ -71,6 +71,35 @@ export interface DemoStep {
     "body": string;
 }
 
+/**
+ * DiskChange is the payload of document:changed: another program changed
+ * the open document, and this is what the file now holds.
+ */
+export interface DiskChange {
+    "path": string;
+    "version": string;
+    "content": string;
+}
+
+/**
+ * DocDeleted is the payload of document:deleted. The watcher keeps polling
+ * the path, so a file that reappears there is reported as a change. A delete
+ * clears seen, so that holds even when the same bytes come back (Trash then
+ * Put Back, git stash then pop).
+ */
+export interface DocDeleted {
+    "path": string;
+}
+
+/**
+ * DocMove is the payload of document:moved: the open document was renamed
+ * or moved, and the editor now tracks it at To.
+ */
+export interface DocMove {
+    "from": string;
+    "to": string;
+}
+
 export interface Document {
     "path": string;
     "content": string;
@@ -119,6 +148,16 @@ export interface PageFurniture {
      * title block already shows the title; the footer is still drawn there.
      */
     "skipFirstPageHeader": boolean;
+}
+
+/**
+ * PairingEvent is the payload of portal:pairing. State is approved, denied,
+ * expired or failed; Email is set on approval.
+ */
+export interface PairingEvent {
+    "state": string;
+    "email"?: string;
+    "error"?: PortalError | null;
 }
 
 /**

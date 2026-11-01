@@ -39,7 +39,7 @@ var (
 
 // windowBackground is the colour the window wears until the webview's first
 // frame arrives. Split out of main so it is testable — AppKit window creation
-// is not exercisable headlessly, the same reason feedbackURL and quitRequest
+// is not exercisable headlessly, the same reason feedbackURL and closeRequest
 // are separate from what calls them.
 //
 // "system" keeps the light value: resolving it would mean reading the OS
@@ -64,6 +64,8 @@ func main() {
 		log.Fatal(err)
 	}
 	docs := NewDocumentService(recentsPath)
+	settings := NewSettingsService(docs.settings)
+	updates := NewUpdateService(filepath.Dir(recentsPath), docs.settings)
 	// Demo mode: plays a script named by HERMES_DEMO into the editor and
 	// records the window (demo.go). Inert unless the variable is set: its
 	// recording and full-screen methods refuse to run without it. The
@@ -94,10 +96,7 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "Halmos Editor",
 		Description: "Academic markdown editor",
-		Services:    []application.Service{application.NewService(docs), application.NewService(demo), application.NewService(portal), application.NewService(palette), application.NewService(styles), application.NewService(tutorial)},
-		// A recording the script left running is stopped so the file on disk
-		// is closed, whichever way the app ends.
-		OnShutdown: demo.shutdown,
+		Services:    []application.Service{application.NewServiceWithOptions(docs, serviceOptions), application.NewServiceWithOptions(settings, serviceOptions), application.NewServiceWithOptions(updates, serviceOptions), application.NewServiceWithOptions(demo, serviceOptions), application.NewServiceWithOptions(portal, serviceOptions), application.NewServiceWithOptions(palette, serviceOptions), application.NewServiceWithOptions(styles, serviceOptions), application.NewServiceWithOptions(tutorial, serviceOptions)},
 		// The Dock's Quit, logout and restart go straight to
 		// applicationShouldTerminate, never through the ⌘Q handler in
 		// menu.go. A dirty document gets the same confirm, shown first
@@ -124,7 +123,7 @@ func main() {
 		},
 	})
 
-	windowBg := windowBackground(docs.Settings().Theme)
+	windowBg := windowBackground(settings.Settings().Theme)
 
 	// Create a new window with the necessary options.
 	// 'Title' is the title of the window.
@@ -187,13 +186,13 @@ func main() {
 	// for the AppKit calls; the event lets the frontend refresh its own list.
 	docs.onRecentsChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands, styles)
+			installMenu(app, win, docs, settings, commands, styles)
 		})
 		app.Event.Emit("recents:changed")
 	}
 	docs.onCitationStyleChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands, styles)
+			installMenu(app, win, docs, settings, commands, styles)
 		})
 	}
 	// A style installed from Find a Style…, or by opening a document that
@@ -204,12 +203,12 @@ func main() {
 	// a setting needs no new wiring here.
 	docs.settings.onChanged = func() {
 		application.InvokeAsync(func() {
-			installMenu(app, win, docs, commands, styles)
+			installMenu(app, win, docs, settings, commands, styles)
 		})
 		app.Event.Emit("settings:changed")
 	}
 
-	installMenu(app, win, docs, commands, styles)
+	installMenu(app, win, docs, settings, commands, styles)
 
 	// Run the application. This blocks until the application has been exited.
 	err = app.Run()

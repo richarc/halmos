@@ -58,7 +58,7 @@ func localImages(next http.Handler) http.Handler {
 // reports false when it cannot be resolved.
 //
 // Split from the handler so the resolution rules are reachable by a test
-// without an HTTP round trip — the same reason quitRequest is separate from
+// without an HTTP round trip — the same reason closeRequest is separate from
 // the menu closure it serves.
 //
 // The rules are deliberately the bibliography's: a relative source joins the

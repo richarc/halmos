@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+
+	"hermes/internal/fileio"
 )
 
 // Settings holds every persisted user preference in one value. Adding a
@@ -104,9 +106,8 @@ func (s Settings) normalise() Settings {
 }
 
 // settingsStore owns the settings file. It reads it once and then serves from
-// memory, writing only when a value actually changes — the previous code
-// re-read and re-parsed the file on every access, including once per menu
-// rebuild.
+// memory, writing only when a value actually changes, so a menu rebuild reads
+// no file.
 type settingsStore struct {
 	path string
 
@@ -134,9 +135,17 @@ func (st *settingsStore) get() Settings {
 // so re-picking the menu item that is already selected does not rebuild the
 // menu underneath the user.
 func (st *settingsStore) set(next Settings) error {
-	next = next.normalise()
+	return st.update(func(s *Settings) { *s = next })
+}
 
+// update applies change to the stored value and persists the result, with
+// the read, the change and the write under one lock, so two changes to
+// different fields cannot overwrite each other.
+func (st *settingsStore) update(change func(*Settings)) error {
 	st.mu.Lock()
+	next := st.loadLocked()
+	change(&next)
+	next = next.normalise()
 	if next == st.loadLocked() {
 		st.mu.Unlock()
 		return nil
@@ -188,5 +197,5 @@ func (st *settingsStore) persist(s Settings) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(st.path, data, 0o644)
+	return fileio.WriteFileAtomic(st.path, data, 0o644)
 }
