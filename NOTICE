@@ -3,10 +3,11 @@ Copyright 2026 Craig Richards
 
 Licensed under the Apache License, Version 2.0. See the LICENSE file.
 
-This product bundles third-party software. The components below carry
-obligations that travel with any distribution of Halmos; the remaining
-dependencies are under permissive licences (MIT, BSD-3-Clause, ISC) and are
-credited in README.md.
+This product bundles third-party software. The copyright and licence text
+of every bundled component are in THIRD-PARTY-NOTICES.txt, which the app
+carries beside this file (Contents/Resources/licences) and shows at
+Help > Acknowledgements. The components below carry further obligations
+that travel with any distribution of Halmos.
 
 
 citeproc-js
@@ -20,8 +21,8 @@ Public License (AGPL) version 3 or later, at the licensee's option.
 
 Halmos elects the CPAL option.
 
-citeproc-js is bundled unmodified. Its licence text is retained at
-licenses/citeproc-js.LICENSE.
+citeproc-js is bundled unmodified. Its licence statement is retained at
+licenses/citeproc-js.LICENSE, and the full CPAL text at licenses/CPAL-1.0.txt.
 
 
 Citation Style Language styles and locale
