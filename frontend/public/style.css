@@ -782,6 +782,18 @@ dialog::backdrop { background: var(--backdrop); }
 /* The alternative action (Don't Save, Discard Draft) stands apart on the
    left, as in other Mac apps; Cancel and the primary stay on the right. */
 .modal-buttons .dialog-alt { margin-right: auto; }
+/* Help → Acknowledgements: one row per bundled component, each opening to
+   its licence text. */
+.acknowledgements { width: min(680px, 92vw); }
+.ack-list { list-style: none; margin: 12px 0 0; padding: 0; max-height: 60vh; overflow-y: auto; border-top: 1px solid var(--border); }
+.ack-list li { border-bottom: 1px solid var(--border); }
+.ack-list summary { display: flex; gap: 8px; padding: 8px 2px; cursor: pointer; }
+.ack-name { font-weight: 600; }
+.ack-version, .ack-licence { color: var(--muted); }
+.ack-licence { margin-left: auto; }
+.ack-list details p { margin: 4px 2px; }
+.ack-copyright { color: var(--muted); }
+.ack-text { white-space: pre-wrap; font-size: 11px; margin: 4px 2px 12px; padding: 8px; background: var(--panel); border-radius: 4px; }
 
 /* Sticky, so a large pasted table cannot scroll the Insert button out of
    sight. The background is the dialog's own, or the content shows through. */
