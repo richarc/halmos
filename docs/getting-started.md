@@ -1,9 +1,9 @@
 # Getting started with Halmos
 
-Halmos is a Markdown editor for academic writing. You type Markdown on the
+Halmos is a Markdown editor for academic technical writing. You type Markdown on the
 left and see the finished document on the right, with maths, citations,
 charts and diagrams rendered as you go. The file you save is ordinary
-Markdown that any other tool can read.
+Markdown that any other markdown tool can read.
 
 This guide takes you from an empty window to a formatted document. By the
 end you will know how to create and save a document, what the block at the

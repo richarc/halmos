@@ -1,0 +1,1082 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{\textbf{#1}}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{caption}
+\captionsetup[table]{skip=6pt}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\ifLuaTeX
+  \usepackage{luacolor}
+  \usepackage[soul]{lua-ul}
+\else
+  \usepackage{soul}
+\fi
+% definitions for citeproc citations
+\NewDocumentCommand\citeproctext{}{}
+\NewDocumentCommand\citeproc{mm}{%
+  \begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
+\makeatletter
+ % allow citations to break across lines
+ \let\@cite@ofmt\@firstofone
+ % avoid brackets around text for \cite:
+ \def\@biblabel#1{}
+ \def\@cite#1#2{{#1\if@tempswa , #2\fi}}
+\makeatother
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newenvironment{CSLReferences}[2] % #1 hanging-indent, #2 entry-spacing
+ {\begin{list}{}{%
+  \setlength{\itemindent}{0pt}
+  \setlength{\leftmargin}{0pt}
+  \setlength{\parsep}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1
+   \setlength{\leftmargin}{\cslhangindent}
+   \setlength{\itemindent}{-1\cslhangindent}
+  \fi
+  % set entry spacing
+  \setlength{\itemsep}{#2\baselineskip}}}
+ {\end{list}}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{\hfill\break\parbox[t]{\linewidth}{\strut\ignorespaces#1\strut}}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+% fallback for those not using the hyperref driver hyperxmp:
+\makeatletter
+\@ifundefined{xmpquote}{\newcommand{\xmpquote}[1]{#1}}{}
+\makeatother
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{}
+
+\begin{document}
+
+\section{Halmos Test Document}\label{halmos-test-document}
+
+A tour of everything Halmos renders, written to be read as a PDF. Every
+section shows the markdown first, in a code block, and then the same
+text as Halmos renders it --- so the page itself is the proof. Open this
+file in Halmos and press ⌘E to export it.
+
+Swap \texttt{csl:} in the frontmatter to \texttt{ieee},
+\texttt{vancouver}, \texttt{chicago-author-date} or \texttt{harvard} to
+re-render every citation and the References list in that style.
+
+\textbf{About the bibliography.} \texttt{zotero-export-text.bib} is
+auto-synced from Zotero --- do not hand-edit it, and do not add fixture
+entries to it. The citations section names specific works, so if the
+library changes, those expectations need updating rather than the file.
+
+\subsection{1. Text basics}\label{text-basics}
+
+\subsubsection{Markdown}\label{markdown}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{This paragraph has **bold text**, *italic text*, ***bold italic***, \textasciigrave{}inline}
+\NormalTok{code\textasciigrave{}, \textasciitilde{}\textasciitilde{}strikethrough\textasciitilde{}\textasciitilde{}, and a }\CommentTok{[}\OtherTok{link to the Wails docs}\CommentTok{](https://v3.wails.io)}\NormalTok{.}
+
+\NormalTok{A second paragraph, to show spacing.}
+
+\AttributeTok{\textgreater{} A blockquote: "The purpose of computing is insight, not numbers."}
+
+\NormalTok{{-}{-}{-}}
+
+\NormalTok{That was a horizontal rule.}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered}
+
+This paragraph has \textbf{bold text}, \emph{italic text},
+\textbf{\emph{bold italic}}, \texttt{inline\ code}, \st{strikethrough},
+and a \href{https://v3.wails.io}{link to the Wails docs}.
+
+A second paragraph, to show spacing.
+
+\begin{quote}
+A blockquote: ``The purpose of computing is insight, not numbers.''
+\end{quote}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+That was a horizontal rule.
+
+\subsection{2. Lists}\label{lists}
+
+\subsubsection{Markdown}\label{markdown-1}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\SpecialStringTok{1. }\NormalTok{First ordered item}
+\SpecialStringTok{2. }\NormalTok{Second ordered item}
+\SpecialStringTok{   1. }\NormalTok{Nested ordered child}
+\SpecialStringTok{   2. }\NormalTok{Another nested child}
+\SpecialStringTok{3. }\NormalTok{Third ordered item}
+
+\SpecialStringTok{{-} }\NormalTok{Unordered item with a sub{-}list:}
+\SpecialStringTok{  {-} }\NormalTok{Nested bullet one}
+\SpecialStringTok{  {-} }\NormalTok{Nested bullet two}
+\SpecialStringTok{{-} }\NormalTok{Unordered item with }\InformationTok{\textasciigrave{}code\textasciigrave{}}\NormalTok{ and **bold** inside}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered-1}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  First ordered item
+\item
+  Second ordered item
+
+  \begin{enumerate}
+  \def\labelenumii{\arabic{enumii}.}
+  \tightlist
+  \item
+    Nested ordered child
+  \item
+    Another nested child
+  \end{enumerate}
+\item
+  Third ordered item
+\end{enumerate}
+
+\begin{itemize}
+\tightlist
+\item
+  Unordered item with a sub-list:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Nested bullet one
+  \item
+    Nested bullet two
+  \end{itemize}
+\item
+  Unordered item with \texttt{code} and \textbf{bold} inside
+\end{itemize}
+
+\subsection{3. Table}\label{table}
+
+The \texttt{:-\/-\/-:} marker centres a column, and maths works inside a
+cell.
+
+\subsubsection{Markdown}\label{markdown-2}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\PreprocessorTok{|}\NormalTok{ Quantity }\PreprocessorTok{|}\NormalTok{ Symbol }\PreprocessorTok{|}\NormalTok{ Unit }\PreprocessorTok{|}
+\PreprocessorTok{|{-}{-}{-}{-}{-}{-}{-}{-}{-}{-}|:{-}{-}{-}{-}{-}{-}:|{-}{-}{-}{-}{-}{-}|}
+\PreprocessorTok{|}\NormalTok{ Energy }\PreprocessorTok{|}\NormalTok{ $E$ }\PreprocessorTok{|}\NormalTok{ joule }\PreprocessorTok{|}
+\PreprocessorTok{|}\NormalTok{ Entropy }\PreprocessorTok{|}\NormalTok{ $S$ }\PreprocessorTok{|}\NormalTok{ J/K }\PreprocessorTok{|}
+\PreprocessorTok{|}\NormalTok{ Density matrix }\PreprocessorTok{|}\NormalTok{ $\textbackslash{}rho\_\textbackslash{}mathcal\{S\}$ }\PreprocessorTok{|}\NormalTok{ — }\PreprocessorTok{|}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered-2}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lcl@{}}
+\toprule\noalign{}
+Quantity & Symbol & Unit \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Energy & \(E\) & joule \\
+Entropy & \(S\) & J/K \\
+Density matrix & \(\rho_\mathcal{S}\) & --- \\
+\end{longtable}
+}
+
+\subsection{4. Code blocks}\label{code-blocks}
+
+A fence naming a language is syntax-coloured; a fence naming a language
+Halmos does not know renders as plain text rather than erroring.
+
+\subsubsection{Markdown}\label{markdown-3}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}python}
+\KeywordTok{def}\NormalTok{ entropy(p):}
+    \CommentTok{"""Shannon entropy."""}
+    \ControlFlowTok{return} \OperatorTok{{-}}\BuiltInTok{sum}\NormalTok{(x }\OperatorTok{*}\NormalTok{ math.log2(x) }\ControlFlowTok{for}\NormalTok{ x }\KeywordTok{in}\NormalTok{ p }\ControlFlowTok{if}\NormalTok{ x }\OperatorTok{\textgreater{}} \DecValTok{0}\NormalTok{)}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}notalang}
+\InformationTok{this fence names a language nobody has heard of}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered-3}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{def}\NormalTok{ entropy(p):}
+    \CommentTok{"""Shannon entropy."""}
+    \ControlFlowTok{return} \OperatorTok{{-}}\BuiltInTok{sum}\NormalTok{(x }\OperatorTok{*}\NormalTok{ math.log2(x) }\ControlFlowTok{for}\NormalTok{ x }\KeywordTok{in}\NormalTok{ p }\ControlFlowTok{if}\NormalTok{ x }\OperatorTok{\textgreater{}} \DecValTok{0}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{this fence names a language nobody has heard of}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{5. Inline maths}\label{inline-maths}
+
+Single dollars delimit inline maths. Plain dollar amounts are left
+alone.
+
+\subsubsection{Markdown}\label{markdown-4}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Euler\textquotesingle{}s identity $e\^{}\{i\textbackslash{}pi\} + 1 = 0$ sits inside a sentence. The mass–energy}
+\NormalTok{relation $E = mc\^{}2$, a subscripted state $\textbackslash{}rho\_\textbackslash{}mathcal\{S\}$, a fraction}
+\NormalTok{$\textbackslash{}tfrac\{a+b\}\{c\}$, and Greek letters $\textbackslash{}alpha, \textbackslash{}beta, \textbackslash{}gamma$ all sit on the}
+\NormalTok{surrounding baseline. Plain dollar amounts like $5 and $10 do not become maths.}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered-4}
+
+Euler's identity \(e^{i\pi} + 1 = 0\) sits inside a sentence. The
+mass--energy relation \(E = mc^2\), a subscripted state
+\(\rho_\mathcal{S}\), a fraction \(\tfrac{a+b}{c}\), and Greek letters
+\(\alpha, \beta, \gamma\) all sit on the surrounding baseline. Plain
+dollar amounts like \$5 and \$10 do not become maths.
+
+\subsection{6. Display maths}\label{display-maths}
+
+Double dollars set an equation on its own line, centred.
+
+\subsubsection{Markdown}\label{markdown-5}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\AnnotationTok{The Gaussian integral:}
+
+\NormalTok{$$\textbackslash{}int\_\{{-}\textbackslash{}infty\}\^{}\{\textbackslash{}infty\} e\^{}\{{-}x\^{}2\}\textbackslash{},dx = \textbackslash{}sqrt\{\textbackslash{}pi\}$$}
+
+\NormalTok{A matrix and a summation:}
+
+\NormalTok{$$A = \textbackslash{}begin\{pmatrix\} 1 \& 2 }\SpecialCharTok{\textbackslash{}\textbackslash{}}\NormalTok{ 3 \& 4 \textbackslash{}end\{pmatrix\}, \textbackslash{}qquad \textbackslash{}sum\_\{n=1\}\^{}\{\textbackslash{}infty\} \textbackslash{}frac\{1\}\{n\^{}2\} = \textbackslash{}frac\{\textbackslash{}pi\^{}2\}\{6\}$$}
+
+\NormalTok{Aligned equations:}
+
+\NormalTok{$$\textbackslash{}begin\{aligned\} \textbackslash{}nabla \textbackslash{}cdot \textbackslash{}mathbf\{E\} \&= \textbackslash{}frac\{\textbackslash{}rho\}\{\textbackslash{}varepsilon\_0\} }\SpecialCharTok{\textbackslash{}\textbackslash{}}\NormalTok{ \textbackslash{}nabla \textbackslash{}cdot \textbackslash{}mathbf\{B\} \&= 0 \textbackslash{}end\{aligned\}$$}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered-5}
+
+The Gaussian integral:
+
+\[\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}\]
+
+A matrix and a summation:
+
+\[A = \begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix}, \qquad \sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}\]
+
+Aligned equations:
+
+\[\begin{aligned} \nabla \cdot \mathbf{E} &= \frac{\rho}{\varepsilon_0} \\ \nabla \cdot \mathbf{B} &= 0 \end{aligned}\]
+
+\subsection{7. Charts}\label{charts}
+
+A \texttt{vega-lite} fence containing a Vega-Lite spec becomes a live
+chart. The data can be inlined, as here, or built with Insert →
+Chart\ldots{} from a pasted or imported table.
+
+\subsubsection{Markdown}\label{markdown-6}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}vega{-}lite}
+\InformationTok{\{}
+\InformationTok{  "description": "Simple bar chart",}
+\InformationTok{  "data": \{}
+\InformationTok{    "values": [}
+\InformationTok{      \{"category": "A", "value": 28\}, \{"category": "B", "value": 55\},}
+\InformationTok{      \{"category": "C", "value": 43\}, \{"category": "D", "value": 91\},}
+\InformationTok{      \{"category": "E", "value": 81\}, \{"category": "F", "value": 53\}}
+\InformationTok{    ]}
+\InformationTok{  \},}
+\InformationTok{  "mark": "bar",}
+\InformationTok{  "encoding": \{}
+\InformationTok{    "x": \{"field": "category", "type": "nominal", "axis": \{"labelAngle": 0\}\},}
+\InformationTok{    "y": \{"field": "value", "type": "quantitative"\}}
+\InformationTok{  \}}
+\InformationTok{\}}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}vega{-}lite}
+\InformationTok{\{}
+\InformationTok{  "description": "Line chart with points",}
+\InformationTok{  "data": \{}
+\InformationTok{    "values": [}
+\InformationTok{      \{"x": 0, "y": 1.0\}, \{"x": 1, "y": 1.6\}, \{"x": 2, "y": 2.6\},}
+\InformationTok{      \{"x": 3, "y": 4.1\}, \{"x": 4, "y": 6.6\}, \{"x": 5, "y": 10.5\}}
+\InformationTok{    ]}
+\InformationTok{  \},}
+\InformationTok{  "mark": \{"type": "line", "point": true\},}
+\InformationTok{  "encoding": \{}
+\InformationTok{    "x": \{"field": "x", "type": "quantitative"\},}
+\InformationTok{    "y": \{"field": "y", "type": "quantitative"\}}
+\InformationTok{  \}}
+\InformationTok{\}}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered-6}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{}
+\NormalTok{  "description": "Simple bar chart",}
+\NormalTok{  "data": \{}
+\NormalTok{    "values": [}
+\NormalTok{      \{"category": "A", "value": 28\}, \{"category": "B", "value": 55\},}
+\NormalTok{      \{"category": "C", "value": 43\}, \{"category": "D", "value": 91\},}
+\NormalTok{      \{"category": "E", "value": 81\}, \{"category": "F", "value": 53\}}
+\NormalTok{    ]}
+\NormalTok{  \},}
+\NormalTok{  "mark": "bar",}
+\NormalTok{  "encoding": \{}
+\NormalTok{    "x": \{"field": "category", "type": "nominal", "axis": \{"labelAngle": 0\}\},}
+\NormalTok{    "y": \{"field": "value", "type": "quantitative"\}}
+\NormalTok{  \}}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{}
+\NormalTok{  "description": "Line chart with points",}
+\NormalTok{  "data": \{}
+\NormalTok{    "values": [}
+\NormalTok{      \{"x": 0, "y": 1.0\}, \{"x": 1, "y": 1.6\}, \{"x": 2, "y": 2.6\},}
+\NormalTok{      \{"x": 3, "y": 4.1\}, \{"x": 4, "y": 6.6\}, \{"x": 5, "y": 10.5\}}
+\NormalTok{    ]}
+\NormalTok{  \},}
+\NormalTok{  "mark": \{"type": "line", "point": true\},}
+\NormalTok{  "encoding": \{}
+\NormalTok{    "x": \{"field": "x", "type": "quantitative"\},}
+\NormalTok{    "y": \{"field": "y", "type": "quantitative"\}}
+\NormalTok{  \}}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{More chart types}\label{more-chart-types}
+
+The four shapes the chart builder can also produce: a histogram, which
+bins one column and counts the rows in each bin; a heatmap, which
+colours a grid by a quantity; error bars, which summarise repeated
+measurements; and a pie, whose slice size is \texttt{theta} and whose
+category is the colour. Each carries a \texttt{title}, which --- as
+section 8 explains --- makes it a numbered figure.
+
+\paragraph{Markdown}\label{markdown-7}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}vega{-}lite}
+\InformationTok{\{}
+\InformationTok{  "title": "Distribution of recovered masses",}
+\InformationTok{  "data": \{"values": [}
+\InformationTok{    \{"mass": 1.2\}, \{"mass": 1.9\}, \{"mass": 2.4\}, \{"mass": 2.6\}, \{"mass": 3.1\}}
+\InformationTok{  ]\},}
+\InformationTok{  "mark": "bar",}
+\InformationTok{  "encoding": \{}
+\InformationTok{    "x": \{"field": "mass", "bin": true, "type": "quantitative"\},}
+\InformationTok{    "y": \{"aggregate": "count", "type": "quantitative"\}}
+\InformationTok{  \}}
+\InformationTok{\}}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}vega{-}lite}
+\InformationTok{\{}
+\InformationTok{  "title": "Detections by day and hour",}
+\InformationTok{  "data": \{"values": [}
+\InformationTok{    \{"day": "Mon", "hour": 9, "rate": 4\}, \{"day": "Mon", "hour": 10, "rate": 7\},}
+\InformationTok{    \{"day": "Tue", "hour": 9, "rate": 2\}, \{"day": "Tue", "hour": 10, "rate": 9\}}
+\InformationTok{  ]\},}
+\InformationTok{  "mark": "rect",}
+\InformationTok{  "encoding": \{}
+\InformationTok{    "x": \{"field": "day", "type": "nominal"\},}
+\InformationTok{    "y": \{"field": "hour", "type": "nominal"\},}
+\InformationTok{    "color": \{"field": "rate", "type": "quantitative", "aggregate": "mean"\}}
+\InformationTok{  \}}
+\InformationTok{\}}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}vega{-}lite}
+\InformationTok{\{}
+\InformationTok{  "title": "Yield by variety, with 95\% confidence intervals",}
+\InformationTok{  "data": \{"values": [}
+\InformationTok{    \{"variety": "A", "yield": 21\}, \{"variety": "A", "yield": 25\},}
+\InformationTok{    \{"variety": "A", "yield": 23\}, \{"variety": "B", "yield": 31\},}
+\InformationTok{    \{"variety": "B", "yield": 28\}, \{"variety": "B", "yield": 34\}}
+\InformationTok{  ]\},}
+\InformationTok{  "mark": \{"type": "errorbar", "extent": "ci"\},}
+\InformationTok{  "encoding": \{}
+\InformationTok{    "x": \{"field": "variety", "type": "nominal"\},}
+\InformationTok{    "y": \{"field": "yield", "type": "quantitative"\}}
+\InformationTok{  \}}
+\InformationTok{\}}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}vega{-}lite}
+\InformationTok{\{}
+\InformationTok{  "title": "Share of detections by instrument",}
+\InformationTok{  "data": \{"values": [}
+\InformationTok{    \{"instrument": "A", "count": 12\}, \{"instrument": "B", "count": 7\},}
+\InformationTok{    \{"instrument": "C", "count": 4\}}
+\InformationTok{  ]\},}
+\InformationTok{  "mark": "arc",}
+\InformationTok{  "encoding": \{}
+\InformationTok{    "theta": \{"field": "count", "type": "quantitative"\},}
+\InformationTok{    "color": \{"field": "instrument", "type": "nominal"\}}
+\InformationTok{  \}}
+\InformationTok{\}}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+\end{Highlighting}
+\end{Shaded}
+
+\paragraph{Rendered}\label{rendered-7}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{}
+\NormalTok{  "title": "Distribution of recovered masses",}
+\NormalTok{  "data": \{"values": [}
+\NormalTok{    \{"mass": 1.2\}, \{"mass": 1.9\}, \{"mass": 2.4\}, \{"mass": 2.6\}, \{"mass": 3.1\}}
+\NormalTok{  ]\},}
+\NormalTok{  "mark": "bar",}
+\NormalTok{  "encoding": \{}
+\NormalTok{    "x": \{"field": "mass", "bin": true, "type": "quantitative"\},}
+\NormalTok{    "y": \{"aggregate": "count", "type": "quantitative"\}}
+\NormalTok{  \}}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{}
+\NormalTok{  "title": "Detections by day and hour",}
+\NormalTok{  "data": \{"values": [}
+\NormalTok{    \{"day": "Mon", "hour": 9, "rate": 4\}, \{"day": "Mon", "hour": 10, "rate": 7\},}
+\NormalTok{    \{"day": "Tue", "hour": 9, "rate": 2\}, \{"day": "Tue", "hour": 10, "rate": 9\}}
+\NormalTok{  ]\},}
+\NormalTok{  "mark": "rect",}
+\NormalTok{  "encoding": \{}
+\NormalTok{    "x": \{"field": "day", "type": "nominal"\},}
+\NormalTok{    "y": \{"field": "hour", "type": "nominal"\},}
+\NormalTok{    "color": \{"field": "rate", "type": "quantitative", "aggregate": "mean"\}}
+\NormalTok{  \}}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{}
+\NormalTok{  "title": "Yield by variety, with 95\% confidence intervals",}
+\NormalTok{  "data": \{"values": [}
+\NormalTok{    \{"variety": "A", "yield": 21\}, \{"variety": "A", "yield": 25\},}
+\NormalTok{    \{"variety": "A", "yield": 23\}, \{"variety": "B", "yield": 31\},}
+\NormalTok{    \{"variety": "B", "yield": 28\}, \{"variety": "B", "yield": 34\}}
+\NormalTok{  ]\},}
+\NormalTok{  "mark": \{"type": "errorbar", "extent": "ci"\},}
+\NormalTok{  "encoding": \{}
+\NormalTok{    "x": \{"field": "variety", "type": "nominal"\},}
+\NormalTok{    "y": \{"field": "yield", "type": "quantitative"\}}
+\NormalTok{  \}}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{}
+\NormalTok{  "title": "Share of detections by instrument",}
+\NormalTok{  "data": \{"values": [}
+\NormalTok{    \{"instrument": "A", "count": 12\}, \{"instrument": "B", "count": 7\},}
+\NormalTok{    \{"instrument": "C", "count": 4\}}
+\NormalTok{  ]\},}
+\NormalTok{  "mark": "arc",}
+\NormalTok{  "encoding": \{}
+\NormalTok{    "theta": \{"field": "count", "type": "quantitative"\},}
+\NormalTok{    "color": \{"field": "instrument", "type": "nominal"\}}
+\NormalTok{  \}}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{8. Figures}\label{figures}
+
+A caption is what makes a figure. A chart's \texttt{title}, an image's
+alt text or a Mermaid diagram's \texttt{title} becomes the caption,
+drawn once below the figure, and every captioned figure is numbered in
+document order --- so the four titled charts above are Figures 1--4 and
+the sequence continues here. An image with empty alt text, or an
+untitled diagram, stays decorative: no number, no caption. Images may be
+remote URLs or paths relative to the document.
+
+\subsubsection{Markdown}\label{markdown-8}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}vega{-}lite}
+\InformationTok{\{}
+\InformationTok{  "title": "Recovered sources",}
+\InformationTok{  "data": \{"values": [}
+\InformationTok{    \{"category": "A", "value": 12\}, \{"category": "B", "value": 27\},}
+\InformationTok{    \{"category": "C", "value": 19\}}
+\InformationTok{  ]\},}
+\InformationTok{  "mark": "bar",}
+\InformationTok{  "encoding": \{}
+\InformationTok{    "x": \{"field": "category", "type": "nominal"\},}
+\InformationTok{    "y": \{"field": "value", "type": "quantitative"\}}
+\InformationTok{  \}}
+\InformationTok{\}}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+
+\NormalTok{A captioned remote image:}
+
+\AlertTok{![A placeholder photograph](https://placehold.co/400x250)}
+
+\NormalTok{A decorative image, with empty alt text:}
+
+\AlertTok{![](https://placehold.co/120x80)}
+
+\NormalTok{A local image, resolved relative to this document\textquotesingle{}s own folder:}
+
+\AlertTok{![A locally stored figure](sample{-}figure.png)}
+
+\NormalTok{A chart that sets its own }\InformationTok{\textasciigrave{}"width"\textasciigrave{}}\NormalTok{, overriding View → Chart Width:}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}vega{-}lite}
+\InformationTok{\{}
+\InformationTok{  "width": 150,}
+\InformationTok{  "data": \{"values": [\{"x": 0, "y": 1\}, \{"x": 1, "y": 2\}, \{"x": 2, "y": 4\}]\},}
+\InformationTok{  "mark": "point",}
+\InformationTok{  "encoding": \{}
+\InformationTok{    "x": \{"field": "x", "type": "quantitative"\},}
+\InformationTok{    "y": \{"field": "y", "type": "quantitative"\}}
+\InformationTok{  \}}
+\InformationTok{\}}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+
+\NormalTok{A titled Mermaid diagram:}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}mermaid}
+\InformationTok{{-}{-}{-}}
+\InformationTok{title: Pipeline stages}
+\InformationTok{{-}{-}{-}}
+\InformationTok{flowchart LR}
+\InformationTok{  A[Ingest] {-}{-}\textgreater{} B[Parse]}
+\InformationTok{  B {-}{-}\textgreater{} C[Render]}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+
+\NormalTok{An untitled diagram of a different kind:}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}mermaid}
+\InformationTok{sequenceDiagram}
+\InformationTok{  participant Author}
+\InformationTok{  participant Halmos}
+\InformationTok{  Author{-}\textgreater{}\textgreater{}Halmos: Type a mermaid fence}
+\InformationTok{  Halmos{-}{-}\textgreater{}\textgreater{}Author: Render diagram}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered-8}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{}
+\NormalTok{  "title": "Recovered sources",}
+\NormalTok{  "data": \{"values": [}
+\NormalTok{    \{"category": "A", "value": 12\}, \{"category": "B", "value": 27\},}
+\NormalTok{    \{"category": "C", "value": 19\}}
+\NormalTok{  ]\},}
+\NormalTok{  "mark": "bar",}
+\NormalTok{  "encoding": \{}
+\NormalTok{    "x": \{"field": "category", "type": "nominal"\},}
+\NormalTok{    "y": \{"field": "value", "type": "quantitative"\}}
+\NormalTok{  \}}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+A captioned remote image:
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={A placeholder photograph}]{https://placehold.co/400x250}}
+\caption{A placeholder photograph}
+\end{figure}
+
+A decorative image, with empty alt text:
+
+\pandocbounded{\includegraphics[keepaspectratio]{https://placehold.co/120x80}}
+
+A local image, resolved relative to this document's own folder:
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={A locally stored figure}]{sample-figure.png}}
+\caption{A locally stored figure}
+\end{figure}
+
+A chart that sets its own \texttt{"width"}, overriding View → Chart
+Width:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{}
+\NormalTok{  "width": 150,}
+\NormalTok{  "data": \{"values": [\{"x": 0, "y": 1\}, \{"x": 1, "y": 2\}, \{"x": 2, "y": 4\}]\},}
+\NormalTok{  "mark": "point",}
+\NormalTok{  "encoding": \{}
+\NormalTok{    "x": \{"field": "x", "type": "quantitative"\},}
+\NormalTok{    "y": \{"field": "y", "type": "quantitative"\}}
+\NormalTok{  \}}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+A titled Mermaid diagram:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{{-}{-}{-}}
+\NormalTok{title: Pipeline stages}
+\NormalTok{{-}{-}{-}}
+\NormalTok{flowchart LR}
+\NormalTok{  A[Ingest] {-}{-}\textgreater{} B[Parse]}
+\NormalTok{  B {-}{-}\textgreater{} C[Render]}
+\end{Highlighting}
+\end{Shaded}
+
+An untitled diagram of a different kind:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sequenceDiagram}
+\NormalTok{  participant Author}
+\NormalTok{  participant Halmos}
+\NormalTok{  Author{-}\textgreater{}\textgreater{}Halmos: Type a mermaid fence}
+\NormalTok{  Halmos{-}{-}\textgreater{}\textgreater{}Author: Render diagram}
+\end{Highlighting}
+\end{Shaded}
+
+View → Figure Alignment moves every figure and decorative image
+together, captions included; this PDF shows whichever alignment was set
+when it was exported.
+
+\subsection{9. Citations}\label{citations}
+
+Pandoc-style keys --- \texttt{{[}@key{]}}, \texttt{@key} for a narrative
+citation, \texttt{-@key} to suppress the author, and a locator after a
+comma --- are resolved against the \texttt{.bib} named in the
+frontmatter and formatted in the chosen CSL style. Every work cited
+collects into the References list at the end of the document.
+
+\subsubsection{Markdown}\label{markdown-9}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{A simple citation }\CommentTok{[}\OtherTok{@zurekQuantumTheoryClassical2018}\CommentTok{]}\NormalTok{, a multi{-}cite}
+\CommentTok{[}\OtherTok{@everettRelativeStateFormulation1957; @zurekQuantumTheoryClassical2018}\CommentTok{]}\NormalTok{, and a}
+\NormalTok{narrative one: @korbiczRoadsObjectivityQuantum2021 sets out the argument.}
+
+\NormalTok{Suppressed author, because the year is already in the sentence — Everett\textquotesingle{}s 1957}
+\NormalTok{paper }\CommentTok{[}\OtherTok{{-}@everettRelativeStateFormulation1957}\CommentTok{]}\NormalTok{ — and a locator attached to a key}
+\CommentTok{[}\OtherTok{see @kloeffelProspectsSpinBasedQuantum2013, pp. 51{-}53}\CommentTok{]}\NormalTok{. A section locator}
+\NormalTok{works the same way }\CommentTok{[}\OtherTok{@hanceWhatDoesIt2022, sec. 2}\CommentTok{]}\NormalTok{.}
+
+\NormalTok{A group split by a hard line wrap formats like any other: [see}
+\NormalTok{@leStrongQuantumDarwinism2019, pp. 3{-}4].}
+
+\NormalTok{Several works supporting one claim [@horodeckiQuantumOriginsObjectivity2015;}
+\NormalTok{@undenRevealingEmergenceClassicality2019; @korbiczRoadsObjectivityQuantum2021],}
+\NormalTok{and a citation carried into a quotation intact:}
+
+\AttributeTok{\textgreater{} Objectivity is emergent }\CommentTok{[}\OtherTok{@leStrongQuantumDarwinism2019}\CommentTok{]}\AttributeTok{.}
+
+\NormalTok{Eight authors collapse to *et al.* }\CommentTok{[}\OtherTok{@feinQuantumSuperpositionMolecules2019}\CommentTok{]}\NormalTok{. A}
+\NormalTok{work with no year reads *n.d.* }\CommentTok{[}\OtherTok{@fineBohrsResponseEPR}\CommentTok{]}\NormalTok{. A work with no author}
+\NormalTok{falls back to its title }\CommentTok{[}\OtherTok{@DecoherenceQuantumToClassicalTransition2007}\CommentTok{]}\NormalTok{. A}
+\NormalTok{preprint renders as one }\CommentTok{[}\OtherTok{@mullerSixMeasurementProblems2023}\CommentTok{]}\NormalTok{.}
+
+\NormalTok{An unknown key renders as a visible inline error without blanking the rest of}
+\NormalTok{the page: }\CommentTok{[}\OtherTok{@notakey1999}\CommentTok{]}\NormalTok{. A group mixing a good key with a bad one is reported}
+\NormalTok{the same way }\CommentTok{[}\OtherTok{@zurekQuantumTheoryClassical2018; @alsomissing1999}\CommentTok{]}\NormalTok{.}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered-9}
+
+A simple citation (Zurek, 2018), a multi-cite (Everett, 1957; Zurek,
+2018), and a narrative one: Korbicz (2021) sets out the argument.
+
+Suppressed author, because the year is already in the sentence ---
+Everett's 1957 paper (1957) --- and a locator attached to a key (see
+Kloeffel \& Loss, 2013, pp. 51--53). A section locator works the same
+way (Hance \& Hossenfelder, 2022, Section 2).
+
+A group split by a hard line wrap formats like any other: (see Le \&
+Olaya-Castro, 2019, pp. 3--4).
+
+Several works supporting one claim (Horodecki et al., 2015; Korbicz,
+2021; Unden et al., 2019), and a citation carried into a quotation
+intact:
+
+\begin{quote}
+Objectivity is emergent (Le \& Olaya-Castro, 2019).
+\end{quote}
+
+Eight authors collapse to \emph{et al.} (Fein et al., 2019). A work with
+no year reads \emph{n.d.} (Fine, n.d.). A work with no author falls back
+to its title (\emph{Decoherence and the {Quantum-To-Classical
+Transition}}, 2007). A preprint renders as one (Muller, 2023).
+
+An unknown key renders as a visible inline error without blanking the
+rest of the page: (\textbf{notakey1999?}). A group mixing a good key
+with a bad one is reported the same way (Zurek, 2018;
+\textbf{alsomissing1999?}).
+
+Titles in this export carry BibTeX capital-protection like
+\texttt{\{\{Quantum\ Darwinism\}\}}, and surnames like
+\texttt{\{Olaya-Castro\}} are braced to keep them whole; the References
+list shows \emph{Quantum Darwinism} and \emph{Olaya-Castro}, never the
+braces. Author-year disambiguation (\texttt{2021a} / \texttt{2021b})
+cannot be shown here, because no two works in this library share a first
+author and a year.
+
+\subsection{10. Things that do not become
+citations}\label{things-that-do-not-become-citations}
+
+None of the following turns into a citation or reaches the References
+list.
+
+\subsubsection{Markdown}\label{markdown-10}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\SpecialStringTok{{-} }\NormalTok{An email address: write to a.zurek@example.org for the dataset.}
+\SpecialStringTok{{-} }\NormalTok{Plain brackets used as brackets: }\CommentTok{[}\OtherTok{see the appendix}\CommentTok{]}\NormalTok{ and }\CommentTok{[}\OtherTok{2}\CommentTok{]}\NormalTok{.}
+\SpecialStringTok{{-} }\NormalTok{A markdown link: }\CommentTok{[}\OtherTok{the project page}\CommentTok{](https://example.org/project)}\NormalTok{.}
+\SpecialStringTok{{-} }\NormalTok{A citation inside a code span: }\InformationTok{\textasciigrave{}[@zurekQuantumTheoryClassical2018]\textasciigrave{}}\NormalTok{.}
+\SpecialStringTok{{-} }\NormalTok{A fenced code block:}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}text}
+\InformationTok{[@everettRelativeStateFormulation1957] is not formatted here either.}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered-10}
+
+\begin{itemize}
+\tightlist
+\item
+  An email address: write to a.zurek@example.org for the dataset.
+\item
+  Plain brackets used as brackets: {[}see the appendix{]} and {[}2{]}.
+\item
+  A markdown link: \href{https://example.org/project}{the project page}.
+\item
+  A citation inside a code span:
+  \texttt{{[}@zurekQuantumTheoryClassical2018{]}}.
+\item
+  A fenced code block:
+\end{itemize}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{[@everettRelativeStateFormulation1957] is not formatted here either.}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{11. Errors are contained}\label{errors-are-contained}
+
+Mistakes render in place, and everything after them still renders. These
+three are \textbf{supposed} to look broken.
+
+\subsubsection{Markdown}\label{markdown-11}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\AnnotationTok{Invalid LaTeX renders inline in red:}\CommentTok{ $\textbackslash{}thisisnotacommand\{x\}$}
+
+\NormalTok{Broken Vega{-}Lite JSON renders an error card:}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}vega{-}lite}
+\InformationTok{\{ "mark": "bar", this is not valid JSON}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+
+\NormalTok{Broken Mermaid syntax renders the same kind of card:}
+
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}mermaid}
+\InformationTok{this is not a valid diagram type}
+\InformationTok{\textasciigrave{}\textasciigrave{}\textasciigrave{}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Rendered}\label{rendered-11}
+
+Invalid LaTeX renders inline in red: \(\thisisnotacommand{x}\)
+
+Broken Vega-Lite JSON renders an error card:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ "mark": "bar", this is not valid JSON}
+\end{Highlighting}
+\end{Shaded}
+
+Broken Mermaid syntax renders the same kind of card:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{this is not a valid diagram type}
+\end{Highlighting}
+\end{Shaded}
+
+If you can read this line with normal styling, error containment works.
+✅
+
+\subsection{12. Beyond the page}\label{beyond-the-page}
+
+Some of Halmos lives in the editor rather than on the page, and a PDF
+cannot show it. Briefly, for completeness:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Chart builder.} Insert → Chart\ldots{} builds a
+  \texttt{vega-lite} block from a pasted or imported table, and reopens
+  an existing block with every control --- data included --- prefilled.
+  A chart using a property the builder cannot express, like the
+  \texttt{axis} in section 7's bar chart, is refused with an
+  explanation.
+\item
+  \textbf{Formatting commands.} ⌘B, ⌘I and ⌘⇧K toggle bold, italic and
+  code; ⌘1--⌘6 set headings; ⌘⇧8 and ⌘⇧7 make bullet and numbered lists.
+  They never rewrite frontmatter, fenced code or inline code spans.
+\item
+  \textbf{Folding.} ⌘⌥{[} and ⌘⌥{]} fold and unfold the block at the
+  cursor; View → Fold All Code Blocks collapses every fence to its
+  opening line.
+\item
+  \textbf{Live bibliography.} Saving the \texttt{.bib} from Zotero while
+  the document is open refreshes the preview on its own.
+\item
+  \textbf{Appearance.} View → Appearance follows System, Light or Dark;
+  the exported PDF is always light, whatever the screen theme, with
+  figures kept whole across page breaks.
+\end{itemize}
+
+\section{Test copy an image}\label{test-copy-an-image}
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={A Bloch Sphere}]{images/pasted-20261018-130949.png}}
+\caption{A Bloch Sphere}
+\end{figure}
+
+\protect\phantomsection\label{refs}
+\begin{CSLReferences}{1}{0}
+\bibitem[\citeproctext]{ref-DecoherenceQuantumToClassicalTransition2007}
+\emph{Decoherence and the {Quantum-To-Classical Transition}}. (2007).
+Springer Berlin Heidelberg.
+\url{https://doi.org/10.1007/978-3-540-35775-9}
+
+\bibitem[\citeproctext]{ref-everettRelativeStateFormulation1957}
+Everett, H. (1957). "{Relative State}" {Formulation} of {Quantum
+Mechanics}. \emph{Reviews of Modern Physics}, \emph{29}(3), 454--462.
+\url{https://doi.org/10.1103/RevModPhys.29.454}
+
+\bibitem[\citeproctext]{ref-feinQuantumSuperpositionMolecules2019}
+Fein, Y. Y., Geyer, P., Zwick, P., Kiałka, F., Pedalino, S., Mayor, M.,
+Gerlich, S., \& Arndt, M. (2019). Quantum superposition of molecules
+beyond 25 {kDa}. \emph{Nature Physics}, \emph{15}(12), 1242--1245.
+\url{https://doi.org/10.1038/s41567-019-0663-9}
+
+\bibitem[\citeproctext]{ref-fineBohrsResponseEPR}
+Fine, A. (n.d.). \emph{Bohr's {Response} to {EPR}: {Criticism} and
+{Defense}}.
+
+\bibitem[\citeproctext]{ref-hanceWhatDoesIt2022}
+Hance, J. R., \& Hossenfelder, S. (2022). What does it take to solve the
+measurement problem? \emph{Journal of Physics Communications},
+\emph{6}(10), 102001. \url{https://doi.org/10.1088/2399-6528/ac96cf}
+
+\bibitem[\citeproctext]{ref-horodeckiQuantumOriginsObjectivity2015}
+Horodecki, R., Korbicz, J. K., \& Horodecki, P. (2015). Quantum origins
+of objectivity. \emph{Physical Review A}, \emph{91}(3), 032122.
+\url{https://doi.org/10.1103/PhysRevA.91.032122}
+
+\bibitem[\citeproctext]{ref-kloeffelProspectsSpinBasedQuantum2013}
+Kloeffel, C., \& Loss, D. (2013). Prospects for {Spin-Based Quantum
+Computing} in {Quantum Dots}. \emph{Annual Review of Condensed Matter
+Physics}, \emph{4}(1), 51--81.
+\url{https://doi.org/10.1146/annurev-conmatphys-030212-184248}
+
+\bibitem[\citeproctext]{ref-korbiczRoadsObjectivityQuantum2021}
+Korbicz, J. K. (2021). Roads to objectivity: {Quantum Darwinism},
+{Spectrum Broadcast Structures}, and {Strong} quantum {Darwinism} -- a
+review. \emph{Quantum}, \emph{5}, 571.
+\url{https://doi.org/10.22331/q-2021-11-08-571}
+
+\bibitem[\citeproctext]{ref-leStrongQuantumDarwinism2019}
+Le, T. P., \& Olaya-Castro, A. (2019). Strong {Quantum Darwinism} and
+{Strong Independence} are {Equivalent} to {Spectrum Broadcast
+Structure}. \emph{Physical Review Letters}, \emph{122}(1), 010403.
+\url{https://doi.org/10.1103/PhysRevLett.122.010403}
+
+\bibitem[\citeproctext]{ref-mullerSixMeasurementProblems2023}
+Muller, F. A. (2023). \emph{Six {Measurement Problems} of {Quantum
+Mechanics}} (arXiv:2305.10206). arXiv.
+\url{https://doi.org/10.48550/arXiv.2305.10206}
+
+\bibitem[\citeproctext]{ref-undenRevealingEmergenceClassicality2019}
+Unden, T. K., Louzon, D., Zwolak, M., Zurek, W. H., \& Jelezko, F.
+(2019). Revealing the {Emergence} of {Classicality Using
+Nitrogen-Vacancy Centers}. \emph{Physical Review Letters},
+\emph{123}(14), 140402.
+\url{https://doi.org/10.1103/PhysRevLett.123.140402}
+
+\bibitem[\citeproctext]{ref-zurekQuantumTheoryClassical2018}
+Zurek, W. H. (2018). Quantum theory of the classical: Quantum jumps,
+{Born}'s {Rule} and objective classical reality via quantum {Darwinism}.
+\emph{Philosophical Transactions of the Royal Society A: Mathematical,
+Physical and Engineering Sciences}, \emph{376}(2123), 20180107.
+\url{https://doi.org/10.1098/rsta.2018.0107}
+
+\end{CSLReferences}
+
+\end{document}
